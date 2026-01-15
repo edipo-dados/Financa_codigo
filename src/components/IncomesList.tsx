@@ -24,7 +24,8 @@ export default function IncomesList({ userId }: Props) {
   const togglePaid = async (income: any) => {
     const { error } = await supabase
       .from('incomes')
-      .update({ is_paid: !income.is_paid } as any)
+      // @ts-ignore
+      .update({ is_paid: !income.is_paid })
       .eq('id', income.id)
     
     if (error) {

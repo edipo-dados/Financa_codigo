@@ -51,6 +51,38 @@ export interface Database {
           color?: string
         }
       }
+      credit_cards: {
+        Row: {
+          id: string
+          user_id: string
+          name: string
+          closing_day: number
+          due_day: number
+          credit_limit: number | null
+          color: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          name: string
+          closing_day: number
+          due_day: number
+          credit_limit?: number | null
+          color?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          name?: string
+          closing_day?: number
+          due_day?: number
+          credit_limit?: number | null
+          color?: string
+          updated_at?: string
+        }
+      }
       expenses: {
         Row: {
           id: string
@@ -64,7 +96,17 @@ export interface Database {
           recurrence_frequency: 'daily' | 'weekly' | 'monthly' | 'yearly' | null
           recurrence_start_date: string | null
           recurrence_end_date: string | null
+          recurrence_count: number | null
+          recurrence_end_type: 'never' | 'after_occurrences' | 'on_date' | null
           parent_expense_id: string | null
+          is_credit_card: boolean
+          credit_card_id: string | null
+          total_amount: number | null
+          installments: number | null
+          installment_number: number | null
+          purchase_date: string | null
+          is_installment: boolean
+          is_paid: boolean
           created_at: string
           updated_at: string
         }
@@ -80,7 +122,17 @@ export interface Database {
           recurrence_frequency?: 'daily' | 'weekly' | 'monthly' | 'yearly' | null
           recurrence_start_date?: string | null
           recurrence_end_date?: string | null
+          recurrence_count?: number | null
+          recurrence_end_type?: 'never' | 'after_occurrences' | 'on_date' | null
           parent_expense_id?: string | null
+          is_credit_card?: boolean
+          credit_card_id?: string | null
+          total_amount?: number | null
+          installments?: number | null
+          installment_number?: number | null
+          purchase_date?: string | null
+          is_installment?: boolean
+          is_paid?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -94,6 +146,16 @@ export interface Database {
           recurrence_frequency?: 'daily' | 'weekly' | 'monthly' | 'yearly' | null
           recurrence_start_date?: string | null
           recurrence_end_date?: string | null
+          recurrence_count?: number | null
+          recurrence_end_type?: 'never' | 'after_occurrences' | 'on_date' | null
+          is_credit_card?: boolean
+          credit_card_id?: string | null
+          total_amount?: number | null
+          installments?: number | null
+          installment_number?: number | null
+          purchase_date?: string | null
+          is_installment?: boolean
+          is_paid?: boolean
           updated_at?: string
         }
       }
@@ -209,7 +271,10 @@ export interface Database {
           recurrence_frequency: 'daily' | 'weekly' | 'monthly' | 'yearly' | null
           recurrence_start_date: string | null
           recurrence_end_date: string | null
+          recurrence_count: number | null
+          recurrence_end_type: 'never' | 'after_occurrences' | 'on_date' | null
           parent_income_id: string | null
+          is_paid: boolean
           created_at: string
           updated_at: string
         }
@@ -225,7 +290,10 @@ export interface Database {
           recurrence_frequency?: 'daily' | 'weekly' | 'monthly' | 'yearly' | null
           recurrence_start_date?: string | null
           recurrence_end_date?: string | null
+          recurrence_count?: number | null
+          recurrence_end_type?: 'never' | 'after_occurrences' | 'on_date' | null
           parent_income_id?: string | null
+          is_paid?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -239,6 +307,9 @@ export interface Database {
           recurrence_frequency?: 'daily' | 'weekly' | 'monthly' | 'yearly' | null
           recurrence_start_date?: string | null
           recurrence_end_date?: string | null
+          recurrence_count?: number | null
+          recurrence_end_type?: 'never' | 'after_occurrences' | 'on_date' | null
+          is_paid?: boolean
           updated_at?: string
         }
       }

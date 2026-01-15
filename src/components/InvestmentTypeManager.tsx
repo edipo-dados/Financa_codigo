@@ -33,6 +33,7 @@ export default function InvestmentTypeManager({ userId }: Props) {
 
     const { error } = await supabase
       .from('investment_types')
+      // @ts-ignore
       .insert({
         user_id: userId,
         name: newType,

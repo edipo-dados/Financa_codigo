@@ -87,7 +87,8 @@ export default function ExpensesList({ userId }: Props) {
   const togglePaid = async (expense: any) => {
     const { error } = await supabase
       .from('expenses')
-      .update({ is_paid: !expense.is_paid } as any)
+      // @ts-ignore
+      .update({ is_paid: !expense.is_paid })
       .eq('id', expense.id)
     
     if (error) {

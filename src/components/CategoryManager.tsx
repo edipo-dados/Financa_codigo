@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { ExpenseCategory } from '@/types'
+import { Database } from '@/types/database'
 
 interface Props {
   userId: string
@@ -33,6 +34,7 @@ export default function CategoryManager({ userId }: Props) {
 
     const { error } = await supabase
       .from('expense_categories')
+      // @ts-ignore
       .insert({
         user_id: userId,
         name: newCategory.name,

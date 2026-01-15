@@ -33,6 +33,7 @@ export default function IncomeCategoryManager({ userId }: Props) {
 
     const { error } = await supabase
       .from('income_categories')
+      // @ts-ignore
       .insert({
         user_id: userId,
         name: newCategory.name,
