@@ -1,0 +1,250 @@
+'use client'
+
+import { useState } from 'react'
+import { useExpenses } from '@/hooks/useExpenses'
+import { formatCurrency, formatDate } from '@/lib/utils'
+import { supabase } from '@/lib/supabase'
+import ExpenseForm from './ExpenseForm'
+
+interface Props {
+  userId: string
+}
+
+export default function ExpensesList({ userId }: Props) {
+  const { expenses, loading, deleteExpense, refetch } = useExpenses(userId)
+  const [showForm, setShowForm] = useState(false)
+
+  // Filtrar para não mostrar despesas parent de cartão (apenas parcelas)
+  const displayExpenses = expenses.filter(e => 
+    !e.is_credit_card || e.is_installment
+  )
+
+  const handleDelete = async (expense: any) => {
+    // Se for parcela de cartão, oferecer opção de excluir a compra completa
+    if (expense.is_installment && expense.parent_expense_id) {
+      const confirmMsg = `Esta é a parcela ${expense.installment_number}/${expense.installments}.\n\nDeseja excluir TODA a compra (todas as ${expense.installments} parcelas)?`
+      
+      if (!confirm(confirmMsg)) return
+
+      // Buscar a compra parent
+      const { data: parentExpense } = await supabase
+        .from('expenses')
+        .select('*')
+        .eq('id', expense.parent_expense_id)
+        .single()
+
+      if (!parentExpense) {
+        alert('Erro: Compra original não encontrada')
+        return
+      }
+
+      // Buscar todas as parcelas irmãs
+      const { data: allInstallments } = await supabase
+        .from('expenses')
+        .select('id')
+        .eq('parent_expense_id', expense.parent_expense_id)
+
+      // Excluir todas as parcelas
+      if (allInstallments && allInstallments.length > 0) {
+        await supabase
+          .from('expenses')
+          .delete()
+          .eq('parent_expense_id', expense.parent_expense_id) as any
+      }
+
+      // Excluir a compra parent
+      await supabase
+        .from('expenses')
+        .delete()
+        .eq('id', expense.parent_expense_id) as any
+
+      refetch()
+      return
+    }
+
+    // Se for compra de cartão (parent), avisar que vai excluir todas as parcelas
+    if (expense.is_credit_card && !expense.is_installment) {
+      const confirmMsg = expense.installments 
+        ? `Esta é uma compra parcelada em ${expense.installments}x. Todas as parcelas serão excluídas. Deseja continuar?`
+        : 'Deseja realmente excluir esta despesa?'
+      
+      if (!confirm(confirmMsg)) return
+
+      // Buscar e excluir todas as parcelas filhas
+      const childExpenses = expenses.filter(e => e.parent_expense_id === expense.id)
+      
+      for (const child of childExpenses) {
+        await supabase.from('expenses').delete().eq('id', child.id) as any
+      }
+    } else {
+      if (!confirm('Deseja realmente excluir esta despesa?')) return
+    }
+    
+    await deleteExpense(expense.id)
+    refetch()
+  }
+
+  const togglePaid = async (expense: any) => {
+    const { error } = await supabase
+      .from('expenses')
+      .update({ is_paid: !expense.is_paid } as any)
+      .eq('id', expense.id)
+    
+    if (error) {
+      console.error('Error updating paid status:', error)
+      alert('Erro ao atualizar status: ' + error.message)
+    } else {
+      refetch()
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-2xl font-semibold text-apple-gray-700">Despesas</h2>
+          <p className="text-sm text-apple-gray-400 mt-1">Gerencie seus gastos</p>
+        </div>
+        <button
+          onClick={() => setShowForm(!showForm)}
+          className={showForm ? 'btn-secondary' : 'btn-primary'}
+        >
+          {showForm ? '✕ Cancelar' : '+ Nova Despesa'}
+        </button>
+      </div>
+
+      {/* Aviso sobre compras de cartão */}
+      {displayExpenses.some(e => e.is_credit_card) && (
+        <div className="glass-card p-4 rounded-2xl bg-apple-blue/5 border border-apple-blue/20 animate-slide-up">
+          <div className="flex items-start gap-3">
+            <span className="text-2xl">💳</span>
+            <div className="flex-1">
+              <h4 className="text-sm font-semibold text-apple-gray-700 mb-1">Compras no Cartão</h4>
+              <p className="text-xs text-apple-gray-600">
+                Para gerenciar suas compras parceladas de forma mais fácil, acesse a aba{' '}
+                <strong className="text-apple-blue">💳 Compras no Cartão</strong>.
+                Lá você pode ver todas as compras e excluir a compra completa (todas as parcelas de uma vez).
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showForm && (
+        <div className="glass-card p-6 rounded-3xl animate-slide-up">
+          <ExpenseForm userId={userId} onSuccess={() => setShowForm(false)} />
+        </div>
+      )}
+
+      {loading ? (
+        <div className="flex items-center justify-center py-20">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-12 h-12 border-4 border-apple-blue border-t-transparent rounded-full animate-spin" />
+            <p className="text-apple-gray-400 text-sm">Carregando despesas...</p>
+          </div>
+        </div>
+      ) : displayExpenses.length === 0 ? (
+        <div className="glass-card p-12 rounded-3xl text-center">
+          <div className="w-20 h-20 bg-apple-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span className="text-4xl">💸</span>
+          </div>
+          <h3 className="text-lg font-semibold text-apple-gray-700 mb-2">Nenhuma despesa cadastrada</h3>
+          <p className="text-apple-gray-400 text-sm">Comece adicionando sua primeira despesa</p>
+        </div>
+      ) : (
+        <div className="glass-card rounded-3xl overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full">
+              <thead>
+                <tr className="border-b border-apple-gray-200">
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-apple-gray-500 uppercase tracking-wider">Data</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-apple-gray-500 uppercase tracking-wider">Descrição</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-apple-gray-500 uppercase tracking-wider">Categoria</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-apple-gray-500 uppercase tracking-wider">Valor</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-apple-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-apple-gray-500 uppercase tracking-wider">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-apple-gray-100">
+                {displayExpenses.map((expense) => (
+                  <tr key={expense.id} className="hover:bg-apple-gray-50/50 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-apple-gray-600">
+                      {formatDate(expense.expense_date)}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-apple-gray-700 font-medium">
+                      {expense.description}
+                      {expense.is_recurring && (
+                        <span className="ml-2 px-2 py-0.5 bg-apple-blue/10 text-apple-blue text-xs rounded-md">
+                          Recorrente
+                        </span>
+                      )}
+                      {expense.is_installment && expense.installment_number && expense.installments && (
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="px-2 py-0.5 bg-apple-purple/10 text-apple-purple text-xs rounded-md">
+                            Parcela {expense.installment_number}/{expense.installments}
+                          </span>
+                          <span className="text-xs text-apple-gray-400">
+                            (Clique em "Excluir Compra" para remover todas)
+                          </span>
+                        </div>
+                      )}
+                      {expense.is_credit_card && expense.credit_card && (
+                        <span 
+                          className="ml-2 px-2 py-0.5 text-xs rounded-md inline-flex items-center gap-1" 
+                          style={{ 
+                            backgroundColor: `${expense.credit_card.color}15`, 
+                            color: expense.credit_card.color 
+                          }}
+                        >
+                          💳 {expense.credit_card.name}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      {expense.category ? (
+                        <span className="inline-flex items-center gap-2 px-3 py-1 rounded-lg" style={{ backgroundColor: `${expense.category.color}15` }}>
+                          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: expense.category.color }} />
+                          <span style={{ color: expense.category.color }}>{expense.category.name}</span>
+                        </span>
+                      ) : (
+                        <span className="text-apple-gray-400">Sem categoria</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-apple-red">
+                      {formatCurrency(Number(expense.amount))}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <button
+                        onClick={() => togglePaid(expense)}
+                        className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
+                          expense.is_paid
+                            ? 'bg-apple-green/10 text-apple-green hover:bg-apple-green/20'
+                            : 'bg-apple-orange/10 text-apple-orange hover:bg-apple-orange/20'
+                        }`}
+                        title="Clique para alterar o status"
+                      >
+                        {expense.is_paid ? '✓ Pago' : '⏳ A Pagar'}
+                      </button>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <button
+                        onClick={() => handleDelete(expense)}
+                        className="text-apple-red hover:text-apple-red/80 transition-colors font-medium"
+                        title={expense.is_installment 
+                          ? `Excluir toda a compra (${expense.installments} parcelas)`
+                          : 'Excluir despesa'
+                        }
+                      >
+                        {expense.is_installment ? '🗑️ Excluir Compra' : 'Excluir'}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
