@@ -131,9 +131,52 @@ WHERE income_date < CURRENT_DATE AND is_paid = FALSE;
 -- FIM DO SCRIPT
 -- ============================================
 
+-- ============================================
+-- CORREÇÃO IMPORTANTE: Política RLS para profiles
+-- ============================================
+-- Esta correção resolve o erro "Database error saving new user"
+
+-- Adicionar política de INSERT para profiles (se não existir)
+DO $$ 
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies 
+        WHERE tablename = 'profiles' 
+        AND policyname = 'Users can insert own profile'
+    ) THEN
+        CREATE POLICY "Users can insert own profile" ON profiles
+          FOR INSERT WITH CHECK (auth.uid() = id);
+    END IF;
+END $$;
+
+-- Verificar e recriar função handle_new_user se necessário
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.profiles (id, email, full_name)
+  VALUES (new.id, new.email, new.raw_user_meta_data->>'full_name');
+  RETURN new;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Verificar e recriar trigger se necessário
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- ============================================
+-- VERIFICAÇÃO FINAL
+-- ============================================
+
 -- Verificar se tudo foi criado corretamente:
 SELECT 'credit_cards table' as check_item, COUNT(*) as count FROM credit_cards;
 SELECT 'expenses with is_paid' as check_item, COUNT(*) as count FROM expenses WHERE is_paid IS NOT NULL;
 SELECT 'incomes with is_paid' as check_item, COUNT(*) as count FROM incomes WHERE is_paid IS NOT NULL;
+
+-- Verificar políticas RLS para profiles
+SELECT 'profiles policies' as check_item, COUNT(*) as count 
+FROM pg_policies 
+WHERE tablename = 'profiles';
 
 -- Se não houver erros, o script foi executado com sucesso! ✅
