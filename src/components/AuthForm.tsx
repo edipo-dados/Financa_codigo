@@ -35,13 +35,13 @@ export default function AuthForm() {
 
   return (
     <div className="glass-card p-8 rounded-3xl animate-scale-in">
-      <div className="flex gap-2 mb-8 p-1 bg-apple-gray-100 rounded-xl">
+      <div className="flex gap-2 mb-8 p-1 bg-gray-100 dark:bg-fintech-dark-elevated rounded-xl">
         <button
           onClick={() => setIsLogin(true)}
           className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
             isLogin
-              ? 'bg-white text-apple-gray-700 shadow-apple'
-              : 'text-apple-gray-400 hover:text-apple-gray-600'
+              ? 'bg-white dark:bg-fintech-dark-accent text-gray-700 dark:text-white shadow-apple dark:shadow-fintech-glow'
+              : 'fintech-text-muted hover:fintech-text-secondary'
           }`}
         >
           Entrar
@@ -50,8 +50,8 @@ export default function AuthForm() {
           onClick={() => setIsLogin(false)}
           className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
             !isLogin
-              ? 'bg-white text-apple-gray-700 shadow-apple'
-              : 'text-apple-gray-400 hover:text-apple-gray-600'
+              ? 'bg-white dark:bg-fintech-dark-accent text-gray-700 dark:text-white shadow-apple dark:shadow-fintech-glow'
+              : 'fintech-text-muted hover:fintech-text-secondary'
           }`}
         >
           Criar Conta
@@ -61,7 +61,7 @@ export default function AuthForm() {
       <form onSubmit={handleSubmit} className="space-y-5">
         {!isLogin && (
           <div className="animate-slide-up">
-            <label className="block text-sm font-medium text-apple-gray-600 mb-2">
+            <label className="block text-sm font-medium fintech-text-secondary mb-2">
               Nome Completo
             </label>
             <input
@@ -76,7 +76,7 @@ export default function AuthForm() {
         )}
 
         <div>
-          <label className="block text-sm font-medium text-apple-gray-600 mb-2">
+          <label className="block text-sm font-medium fintech-text-secondary mb-2">
             Email
           </label>
           <input
@@ -90,7 +90,7 @@ export default function AuthForm() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-apple-gray-600 mb-2">
+          <label className="block text-sm font-medium fintech-text-secondary mb-2">
             Senha
           </label>
           <input
@@ -107,8 +107,8 @@ export default function AuthForm() {
         {error && (
           <div className={`text-sm p-4 rounded-xl animate-slide-up ${
             error.includes('Verifique')
-              ? 'bg-apple-green/10 text-apple-green border border-apple-green/20'
-              : 'bg-apple-red/10 text-apple-red border border-apple-red/20'
+              ? 'fintech-bg-success fintech-text-success border border-green-200 dark:border-fintech-dark-success/30'
+              : 'fintech-bg-danger fintech-text-danger border border-red-200 dark:border-fintech-dark-danger/30'
           }`}>
             {error}
           </div>
@@ -133,7 +133,7 @@ export default function AuthForm() {
       <div className="mt-6 text-center">
         <button
           onClick={() => setIsLogin(!isLogin)}
-          className="text-sm text-apple-blue hover:text-apple-blue/80 transition-colors"
+          className="text-sm text-apple-blue dark:text-fintech-dark-accent hover:text-apple-blue/80 dark:hover:text-fintech-text-accent transition-colors font-medium"
         >
           {isLogin ? 'Não tem conta? Criar uma' : 'Já tem conta? Entrar'}
         </button>
