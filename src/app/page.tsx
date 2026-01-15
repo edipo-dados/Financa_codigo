@@ -36,13 +36,16 @@ export default function Home() {
 
       <div className="w-full max-w-md relative z-10 animate-slide-up">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-apple-blue to-apple-purple dark:from-fintech-dark-accent dark:to-indigo-600 rounded-2xl mb-4 shadow-apple-lg dark:shadow-fintech-glow">
-            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
+          <div className="inline-flex items-center justify-center w-32 h-32 mb-4">
+            {/* Logo EAS - usando a imagem fornecida */}
+            <img 
+              src="/images/eas-logo.png" 
+              alt="EAS Technology Logo" 
+              className="w-full h-full object-contain"
+            />
           </div>
           <h1 className="text-4xl font-semibold fintech-text-primary mb-2">
-            Controle Financeiro
+            EAS Technology
           </h1>
           <p className="fintech-text-muted text-sm">
             Gerencie suas finanças com elegância e simplicidade

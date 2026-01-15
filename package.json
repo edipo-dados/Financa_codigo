@@ -1,7 +1,13 @@
 {
-  "name": "controle-financeiro",
+  "name": "eas-controle-financeiro",
   "version": "1.0.0",
   "private": true,
+  "description": "Sistema inteligente de gestão financeira pessoal com IA",
+  "author": {
+    "name": "Édipo de Almeida Santos",
+    "email": "edipo.almeida@example.com"
+  },
+  "license": "PROPRIETARY",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

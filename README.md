@@ -1,65 +1,66 @@
-# 💰 Controle Financeiro Pessoal
+# 🏦 EAS Controle Financeiro
 
-Aplicação full stack completa para gerenciamento de despesas e investimentos pessoais, com design premium inspirado na Apple e desenvolvida com as melhores práticas de arquitetura e segurança.
+<div align="center">
+  
+  ![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
+  ![License](https://img.shields.io/badge/license-Proprietary-red.svg)
+  ![Author](https://img.shields.io/badge/author-Édipo%20de%20Almeida%20Santos-green.svg)
+  ![Next.js](https://img.shields.io/badge/Next.js-14-black)
+  ![React](https://img.shields.io/badge/React-18-blue)
+  ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)
+  
+  **Sistema inteligente de gestão financeira pessoal com IA**
+  
+</div>
 
-![Next.js](https://img.shields.io/badge/Next.js-14-black)
-![React](https://img.shields.io/badge/React-18-blue)
-![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)
-![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-green)
-![Tailwind](https://img.shields.io/badge/Tailwind-CSS-cyan)
+---
 
-## ✨ Design Premium
+## 📋 Sobre o Projeto
 
-Interface moderna e elegante inspirada no design da Apple:
+EAS Controle Financeiro é uma aplicação web moderna e profissional para gestão completa de finanças pessoais, desenvolvida com as mais recentes tecnologias do mercado. Interface premium com tema dark/light profissional estilo fintech.
+
+### ✨ Principais Funcionalidades
+
+- 💰 **Gestão de Receitas**: Controle completo de entradas com categorização personalizada
+- 💸 **Controle de Despesas**: Acompanhamento detalhado de gastos com múltiplas formas de pagamento
+- 💳 **Cartões de Crédito**: Sistema completo com parcelamento automático e controle de faturas
+- 📈 **Investimentos**: Acompanhamento de rentabilidade e performance dos investimentos
+- 🤖 **Análise com IA**: Insights inteligentes e recomendações personalizadas baseadas em seus dados
+- 🔄 **Lançamentos Recorrentes**: Automação de receitas e despesas fixas com projeções futuras
+- 📊 **Dashboard Avançado**: Gráficos interativos e KPIs configuráveis em tempo real
+- 🌓 **Tema Dark/Light**: Interface profissional fintech com paleta de cores otimizada
+- 📱 **Responsivo**: Funciona perfeitamente em todos os dispositivos
+- ✅ **Status de Pagamento**: Controle de contas pagas e a pagar
+
+## 🚀 Tecnologias Utilizadas
+
+### Frontend
+- **Next.js 14** - Framework React com App Router
+- **React 18** - Biblioteca UI com Hooks
+- **TypeScript 5** - Tipagem estática
+- **Tailwind CSS** - Estilização utility-first com tema customizado
+- **Recharts** - Visualização de dados com gráficos interativos
+
+### Backend
+- **Supabase** - Backend-as-a-Service
+  - PostgreSQL - Banco de dados relacional
+  - Auth - Autenticação JWT
+  - Row Level Security - Segurança de dados
+- **Next.js API Routes** - Endpoints serverless
+
+### Deploy
+- **Vercel** - Hospedagem e CI/CD
+- **Supabase Cloud** - Banco de dados gerenciado
+
+## 🎨 Design Premium
+
+Interface moderna e elegante com design profissional fintech:
 - 🪟 **Glassmorphism** - Efeitos de vidro e blur
 - ✨ **Animações Suaves** - Transições e micro-interações
-- 🎨 **Paleta Apple** - Cores vibrantes e profissionais
+- 🎨 **Paleta Fintech** - Azuis escuros e cores vibrantes
 - 📱 **Responsivo** - Perfeito em qualquer dispositivo
 - 🎯 **UX Excepcional** - Atenção aos detalhes
-
-🎉 **[Veja o que há de novo →](WHATS_NEW.md)**
-
-## ✨ Funcionalidades
-
-### 📊 Dashboard Completo
-- Visão geral das finanças
-- Estatísticas do mês atual
-- **Projeções futuras (6 meses)** baseadas em recorrências
-- **Gráfico de projeção: Receitas x Despesas**
-- Gráficos interativos por categoria
-- Patrimônio líquido calculado automaticamente
-- Saldo mensal (receitas vs despesas)
-- **Botão de atualização em tempo real**
-
-### 💰 Controle de Receitas
-- Receitas avulsas e recorrentes
-- **Sistema avançado de recorrências:**
-  - Frequências: diária, semanal, mensal, anual
-  - 3 tipos de término: sem fim, após X ocorrências, até data específica
-  - Prévia interativa de ocorrências futuras
-  - Lógica mensal especial (ajuste automático de dias)
-- Categorização personalizável (6 categorias padrão)
-- Fonte/origem da receita
-- Filtros e busca (em desenvolvimento)
-
-### 💸 Controle de Despesas
-- Despesas avulsas e recorrentes
-- **Sistema avançado de recorrências** (mesmo das receitas)
-- Categorização personalizável
-- Formas de pagamento
-- Filtros e busca (em desenvolvimento)
-
-### 📈 Gestão de Investimentos
-- Cadastro de investimentos
-- Tipos personalizáveis
-- Cálculo automático de rentabilidade
-- Histórico de transações (aportes/resgates)
-
-### 🔒 Segurança
-- Autenticação via Supabase Auth
-- Row Level Security (RLS)
-- Dados isolados por usuário
-- JWT tokens seguros
+- 🌓 **Dark Mode** - Tema escuro profissional sem cinzas
 
 ## 🚀 Início Rápido
 
@@ -73,7 +74,7 @@ Interface moderna e elegante inspirada no design da Apple:
 ```bash
 # 1. Clone o repositório
 git clone <seu-repositorio>
-cd controle-financeiro
+cd eas-controle-financeiro
 
 # 2. Instale as dependências
 npm install
@@ -82,8 +83,8 @@ npm install
 cp .env.local.example .env.local
 # Edite .env.local com suas credenciais do Supabase
 
-# 4. Execute as migrations no Supabase
-# (Copie e execute os arquivos em supabase/migrations/ no SQL Editor)
+# 4. Execute o script SQL consolidado no Supabase
+# Copie e execute EXECUTAR_NO_SUPABASE.sql no SQL Editor
 
 # 5. Inicie o servidor de desenvolvimento
 npm run dev
@@ -91,85 +92,47 @@ npm run dev
 
 Acesse http://localhost:3000
 
-📖 **Guia Completo**: Veja [QUICKSTART.md](QUICKSTART.md) para instruções detalhadas passo a passo.
-
-## 🏗️ Tecnologias
-
-### Frontend
-- **Next.js 14** - Framework React com App Router
-- **React 18** - Biblioteca UI com Hooks
-- **TypeScript** - Tipagem estática
-- **Tailwind CSS** - Estilização utility-first
-- **Recharts** - Visualização de dados
-
-### Backend
-- **Supabase** - Backend-as-a-Service
-  - PostgreSQL - Banco de dados relacional
-  - Auth - Autenticação JWT
-  - Row Level Security - Segurança de dados
-- **Next.js API Routes** - Endpoints serverless
-
-### Deploy
-- **Vercel** - Hospedagem e CI/CD
-- **Supabase Cloud** - Banco de dados gerenciado
-
 ## 📁 Estrutura do Projeto
 
 ```
-controle-financeiro/
+eas-controle-financeiro/
 ├── src/
 │   ├── app/                    # Next.js App Router
 │   │   ├── page.tsx           # Página de login
-│   │   ├── layout.tsx         # Layout raiz
+│   │   ├── layout.tsx         # Layout raiz com Footer
 │   │   └── dashboard/         # Área autenticada
 │   ├── components/            # Componentes React
 │   │   ├── AuthForm.tsx      # Autenticação
-│   │   ├── DashboardStats.tsx # Estatísticas
+│   │   ├── DashboardStats.tsx # Estatísticas e gráficos
 │   │   ├── ExpensesList.tsx  # Lista de despesas
-│   │   └── InvestmentsList.tsx # Lista de investimentos
+│   │   ├── IncomesList.tsx   # Lista de receitas
+│   │   ├── InvestmentsList.tsx # Lista de investimentos
+│   │   ├── CreditCardManager.tsx # Gestão de cartões
+│   │   ├── FinancialInsights.tsx # Análise com IA
+│   │   ├── ThemeSettings.tsx # Configurações de tema
+│   │   ├── Navigation.tsx    # Navegação principal
+│   │   └── Footer.tsx        # Rodapé com copyright
+│   ├── contexts/              # React Contexts
+│   │   └── ThemeContext.tsx  # Contexto de tema
 │   ├── hooks/                 # Custom React Hooks
 │   │   ├── useAuth.ts        # Hook de autenticação
 │   │   ├── useExpenses.ts    # Hook de despesas
-│   │   └── useInvestments.ts # Hook de investimentos
+│   │   ├── useInvestments.ts # Hook de investimentos
+│   │   ├── useIncomes.ts     # Hook de receitas
+│   │   └── useCreditCards.ts # Hook de cartões
 │   ├── lib/                   # Utilitários
 │   │   ├── supabase.ts       # Cliente Supabase
-│   │   └── utils.ts          # Funções auxiliares
+│   │   ├── utils.ts          # Funções auxiliares
+│   │   ├── recurrence.ts     # Lógica de recorrências
+│   │   ├── creditCard.ts     # Lógica de cartões
+│   │   └── config.ts         # Configurações da aplicação
 │   └── types/                 # TypeScript types
 ├── supabase/
 │   └── migrations/            # Database migrations
-├── scripts/                   # Scripts úteis
-└── docs/                      # Documentação
+├── public/
+│   └── images/                # Imagens e assets
+└── EXECUTAR_NO_SUPABASE.sql  # Script SQL consolidado
 ```
-
-## 📚 Documentação
-
-### Guias Principais
-- **[QUICKSTART.md](QUICKSTART.md)** - Guia rápido de início (10 minutos)
-- **[SETUP.md](SETUP.md)** - Guia completo de configuração e deploy
-- **[ARCHITECTURE.md](ARCHITECTURE.md)** - Arquitetura e decisões técnicas
-- **[API_EXAMPLES.md](API_EXAMPLES.md)** - Exemplos de uso da API
-- **[CONTRIBUTING.md](CONTRIBUTING.md)** - Como contribuir
-
-### Features
-- **[INCOMES_FEATURE.md](INCOMES_FEATURE.md)** - Módulo de receitas completo
-- **[RECURRENCE_FEATURE.md](RECURRENCE_FEATURE.md)** - Sistema de recorrências avançado
-- **[NOVAS_FUNCIONALIDADES.md](NOVAS_FUNCIONALIDADES.md)** - Projeções e gráficos
-
-### Design
-- **[DESIGN_UPDATES.md](DESIGN_UPDATES.md)** - Detalhes das melhorias de design
-- **[COMPONENT_GUIDE.md](COMPONENT_GUIDE.md)** - Guia de componentes
-- **[CUSTOMIZATION_GUIDE.md](CUSTOMIZATION_GUIDE.md)** - Personalização
-- **[VISUAL_SHOWCASE.md](VISUAL_SHOWCASE.md)** - Showcase visual
-
-### Utilitários
-- **[DESABILITAR_CONFIRMACAO_EMAIL.md](DESABILITAR_CONFIRMACAO_EMAIL.md)** - Configurar autenticação
-- **[SOLUCAO_EMAIL.md](SOLUCAO_EMAIL.md)** - Solução rápida para email
-- **[PERFORMANCE_TIPS.md](PERFORMANCE_TIPS.md)** - Dicas de performance
-- **[WINDOWS_SETUP.md](WINDOWS_SETUP.md)** - Setup específico para Windows
-
-### SQL
-- **[ATUALIZAR_BANCO_SIMPLES.sql](ATUALIZAR_BANCO_SIMPLES.sql)** - Script de atualização do banco
-- **[CORRIGIR_SCHEMA.sql](CORRIGIR_SCHEMA.sql)** - Correção de schema
 
 ## 🗄️ Modelo de Dados
 
@@ -177,24 +140,13 @@ controle-financeiro/
 
 - **profiles** - Perfis de usuários
 - **expense_categories** - Categorias de despesas
-- **expenses** - Despesas (avulsas e recorrentes)
+- **expenses** - Despesas (com suporte a cartão e parcelamento)
 - **income_categories** - Categorias de receitas
 - **incomes** - Receitas (avulsas e recorrentes)
 - **investment_types** - Tipos de investimento
 - **investments** - Investimentos
 - **investment_transactions** - Transações de investimentos
-
-### Relacionamentos
-
-```
-User (1) ──< (N) Expense Categories
-User (1) ──< (N) Expenses
-User (1) ──< (N) Income Categories
-User (1) ──< (N) Incomes
-User (1) ──< (N) Investment Types
-User (1) ──< (N) Investments
-Investment (1) ──< (N) Transactions
-```
+- **credit_cards** - Cartões de crédito
 
 ## 🔐 Segurança
 
@@ -214,7 +166,7 @@ Investment (1) ──< (N) Transactions
 3. Configure variáveis de ambiente
 4. Deploy automático!
 
-Veja [SETUP.md](SETUP.md) para instruções detalhadas.
+Veja [WINDOWS_SETUP.md](WINDOWS_SETUP.md) para instruções detalhadas no Windows.
 
 ## 🛠️ Scripts Disponíveis
 
@@ -231,56 +183,58 @@ npm run type-check   # Verifica tipos TypeScript
 npm run lint         # Executa linter
 ```
 
-## 🎯 Roadmap
+## 🎯 Funcionalidades Implementadas
 
-### ✅ Concluído (v1.3.0)
+### ✅ Versão 1.0.0
+- [x] Sistema de autenticação completo
+- [x] Gestão de receitas com categorias
+- [x] Controle de despesas com categorias
+- [x] Acompanhamento de investimentos
 - [x] Sistema de recorrências avançado
-- [x] Módulo de receitas completo
+- [x] Cartões de crédito com parcelamento
+- [x] Status de pagamento (pago/a pagar)
+- [x] Análise financeira com IA
 - [x] Projeções futuras (6 meses)
-- [x] Gráfico de projeção Receitas x Despesas
-- [x] Botão de atualização em tempo real
+- [x] Dashboard com gráficos interativos
+- [x] Tema dark/light profissional
+- [x] KPIs configuráveis
+- [x] Interface responsiva
+- [x] Logo EAS integrado
+- [x] Rodapé com copyright e versão
 
-### Em Desenvolvimento
-- [ ] Geração automática de despesas recorrentes
-- [ ] Filtros avançados
-- [ ] Busca de despesas/investimentos/receitas
+## 📝 Licença e Propriedade Intelectual
 
-### Planejado
-- [ ] Gráficos de evolução temporal
-- [ ] Comparativo mês a mês
-- [ ] Exportação de relatórios (PDF/Excel)
-- [ ] Metas financeiras
-- [ ] Notificações
-- [ ] Modo escuro
-- [ ] PWA (Progressive Web App)
-- [ ] Multi-moeda
+**© 2025 Édipo de Almeida Santos. Todos os direitos reservados.**
 
-## 🤝 Como Contribuir
+Este software é propriedade intelectual de **Édipo de Almeida Santos** e está protegido por leis de direitos autorais. O uso, cópia, modificação ou distribuição não autorizada deste software é estritamente proibido.
 
-Contribuições são bem-vindas! Veja [CONTRIBUTING.md](CONTRIBUTING.md) para diretrizes.
+### Licença Proprietária
 
-1. Fork o projeto
-2. Crie uma branch (`git checkout -b feature/MinhaFeature`)
-3. Commit suas mudanças (`git commit -m 'feat: Adiciona MinhaFeature'`)
-4. Push para a branch (`git push origin feature/MinhaFeature`)
-5. Abra um Pull Request
+Este é um software proprietário. Nenhuma parte deste código pode ser:
+- Copiada, modificada ou distribuída sem autorização expressa
+- Usada para fins comerciais sem licença apropriada
+- Redistribuída em qualquer forma sem permissão escrita
 
-## 📝 Licença
+Para questões de licenciamento, entre em contato com o autor.
 
-Este projeto está sob a licença MIT. Veja [LICENSE](LICENSE) para mais detalhes.
+## 👨‍💻 Autor
 
-## 🙏 Agradecimentos
+**Édipo de Almeida Santos**
 
-- [Next.js](https://nextjs.org/) - Framework React
-- [Supabase](https://supabase.com/) - Backend-as-a-Service
-- [Tailwind CSS](https://tailwindcss.com/) - Framework CSS
-- [Recharts](https://recharts.org/) - Biblioteca de gráficos
-- [Vercel](https://vercel.com/) - Plataforma de deploy
+Sistema desenvolvido com dedicação e expertise em tecnologias modernas para proporcionar a melhor experiência em gestão financeira pessoal.
 
 ## 📧 Contato
 
-Para dúvidas ou sugestões, abra uma issue no repositório.
+Para dúvidas, sugestões ou questões de licenciamento, entre em contato através do repositório.
 
 ---
 
-Desenvolvido com ❤️ usando Next.js, React e Supabase
+<div align="center">
+  
+  **EAS Controle Financeiro v1.0.0**
+  
+  Desenvolvido com 💙 para gestão financeira inteligente
+  
+  © 2025 Édipo de Almeida Santos - Todos os direitos reservados
+  
+</div>
