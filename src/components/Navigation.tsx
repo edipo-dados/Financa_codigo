@@ -18,19 +18,29 @@ export default function Navigation() {
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-3">
             <div className="relative w-12 h-12 flex items-center justify-center">
-              {/* Logo EAS - usando a imagem fornecida */}
-              <img 
-                src="/images/eas-logo.png" 
-                alt="EAS Technology Logo" 
-                className="w-full h-full object-contain"
-                onError={(e) => {
-                  // Fallback para SVG se a imagem não carregar
-                  e.currentTarget.style.display = 'none'
-                }}
-              />
+              {/* Logo EAS - Opção 2 Minimalista Elegante */}
+              <svg width="48" height="48" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <linearGradient id="logoGradNav" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style={{stopColor: '#38bdf8', stopOpacity: 1}} />
+                    <stop offset="100%" style={{stopColor: '#60a5fa', stopOpacity: 1}} />
+                  </linearGradient>
+                </defs>
+                
+                <circle cx="40" cy="40" r="35" fill="none" stroke="url(#logoGradNav)" strokeWidth="2" opacity="0.4"/>
+                <circle cx="40" cy="40" r="30" fill="url(#logoGradNav)" opacity="0.12"/>
+                
+                <g fill="url(#logoGradNav)" fontFamily="Arial, sans-serif" fontWeight="700">
+                  <text x="22" y="50" fontSize="28">E</text>
+                  <text x="37" y="50" fontSize="28">A</text>
+                  <text x="52" y="50" fontSize="28">S</text>
+                </g>
+                
+                <line x1="20" y1="55" x2="60" y2="55" stroke="url(#logoGradNav)" strokeWidth="2" strokeLinecap="round"/>
+              </svg>
             </div>
             <div>
-              <h1 className="text-lg font-semibold fintech-text-primary">EAS Technology</h1>
+              <h1 className="text-lg font-semibold fintech-text-primary">Controle Financeiro</h1>
               <p className="text-xs fintech-text-muted">Bem-vindo de volta</p>
             </div>
           </div>

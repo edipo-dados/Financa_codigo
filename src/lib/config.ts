@@ -1,12 +1,12 @@
 /**
- * Configurações da aplicação EAS Technology
+ * Configurações da aplicação EAS
  * 
  * @author Édipo de Almeida Santos
  * @copyright 2025 Édipo de Almeida Santos - Todos os direitos reservados
  */
 
 export const APP_CONFIG = {
-  name: 'EAS Technology',
+  name: 'EAS Controle Financeiro',
   version: '1.0.0',
   author: 'Édipo de Almeida Santos',
   description: 'Sistema inteligente de gestão financeira pessoal',
