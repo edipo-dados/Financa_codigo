@@ -19,6 +19,7 @@ import PeriodFilter, { DateRange } from '@/components/PeriodFilter'
 import FutureLaunches from '@/components/FutureLaunches'
 import CreditCardManager from '@/components/CreditCardManager'
 import CreditCardPurchasesList from '@/components/CreditCardPurchasesList'
+import ThemeSettings from '@/components/ThemeSettings'
 import { format, startOfMonth, endOfMonth } from 'date-fns'
 
 export default function Dashboard() {
@@ -65,7 +66,7 @@ export default function Dashboard() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-apple-blue border-t-transparent rounded-full animate-spin" />
-          <p className="text-apple-gray-400 text-sm">Carregando...</p>
+          <p className="fintech-text-muted text-sm">Carregando...</p>
         </div>
       </div>
     )
@@ -87,8 +88,8 @@ export default function Dashboard() {
       
       <main className="max-w-7xl mx-auto px-6 py-8">
         <div className="mb-8 animate-slide-up">
-          <h1 className="text-3xl font-semibold text-apple-gray-700 mb-2">Dashboard</h1>
-          <p className="text-apple-gray-400">Gerencie suas finanças de forma inteligente</p>
+          <h1 className="text-3xl font-semibold fintech-text-primary mb-2">Dashboard</h1>
+          <p className="fintech-text-muted">Gerencie suas finanças de forma inteligente</p>
         </div>
 
         <div className="mb-8 flex gap-2 overflow-x-auto scrollbar-hide pb-2">
@@ -99,7 +100,7 @@ export default function Dashboard() {
               className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium text-sm whitespace-nowrap transition-all duration-200 ${
                 activeTab === tab.id
                   ? 'bg-apple-blue text-white shadow-apple-lg scale-[1.02]'
-                  : 'bg-white/50 text-apple-gray-600 hover:bg-white hover:shadow-apple'
+                  : 'bg-white/50 fintech-text-secondary hover:bg-white hover:shadow-apple dark:bg-fintech-dark-elevated dark:hover:bg-fintech-dark-border'
               }`}
             >
               <span>{tab.icon}</span>
@@ -159,6 +160,7 @@ export default function Dashboard() {
 
           {activeTab === 'settings' && (
             <div className="space-y-6">
+              <ThemeSettings />
               <CreditCardManager userId={user.id} />
               <IncomeCategoryManager userId={user.id} />
               <CategoryManager userId={user.id} />

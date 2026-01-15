@@ -8,40 +8,65 @@
   }
   
   body {
-    @apply bg-gradient-to-br from-apple-gray-50 via-white to-apple-gray-100 text-apple-gray-700;
+    @apply bg-gradient-to-br from-apple-gray-50 via-white to-apple-gray-100 text-gray-900
+           dark:from-fintech-dark-bg dark:via-fintech-dark-surface dark:to-fintech-dark-bg dark:text-fintech-text-primary;
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+  }
+
+  /* Force override problematic text colors in dark mode */
+  .dark .text-apple-gray-400,
+  .dark .text-apple-gray-500,
+  .dark .text-apple-gray-600,
+  .dark .text-apple-gray-700 {
+    @apply text-fintech-text-primary !important;
+  }
+
+  .dark .text-gray-400,
+  .dark .text-gray-500,
+  .dark .text-gray-600,
+  .dark .text-gray-700 {
+    @apply text-fintech-text-secondary !important;
   }
 }
 
 @layer components {
   .glass-card {
-    @apply bg-white/70 backdrop-blur-xl border border-white/20 shadow-apple-lg;
+    @apply bg-white/70 backdrop-blur-xl border border-white/20 shadow-apple-lg
+           dark:bg-fintech-dark-surface/90 dark:border-fintech-dark-border/30 dark:shadow-fintech-dark-lg;
   }
   
   .glass-card-hover {
-    @apply glass-card transition-all duration-300 hover:shadow-apple-xl hover:scale-[1.02];
+    @apply glass-card transition-all duration-300 hover:shadow-apple-xl hover:scale-[1.02]
+           dark:hover:shadow-fintech-dark-xl dark:hover:shadow-fintech-glow;
   }
   
   .btn-primary {
     @apply px-6 py-3 bg-apple-blue text-white rounded-xl font-medium 
            shadow-apple transition-all duration-200 
            hover:bg-opacity-90 hover:shadow-apple-lg hover:scale-[1.02]
-           active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed;
+           active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed
+           dark:bg-fintech-dark-accent dark:shadow-fintech-dark dark:hover:shadow-fintech-dark-lg
+           dark:hover:shadow-fintech-glow;
   }
   
   .btn-secondary {
-    @apply px-6 py-3 bg-apple-gray-100 text-apple-gray-700 rounded-xl font-medium
+    @apply px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium
            shadow-apple transition-all duration-200
-           hover:bg-apple-gray-200 hover:shadow-apple-lg hover:scale-[1.02]
-           active:scale-[0.98];
+           hover:bg-gray-200 hover:shadow-apple-lg hover:scale-[1.02]
+           active:scale-[0.98]
+           dark:bg-fintech-dark-elevated dark:text-fintech-text-primary dark:hover:bg-fintech-dark-border 
+           dark:shadow-fintech-dark dark:hover:shadow-fintech-dark-lg;
   }
   
   .input-field {
-    @apply w-full px-4 py-3 bg-apple-gray-50 border border-apple-gray-200 
-           rounded-xl text-apple-gray-700 placeholder-apple-gray-400
+    @apply w-full px-4 py-3 bg-gray-50 border border-gray-200 
+           rounded-xl text-gray-900 placeholder-gray-500
            transition-all duration-200
            focus:outline-none focus:ring-2 focus:ring-apple-blue/30 focus:border-apple-blue
-           focus:bg-white;
+           focus:bg-white
+           dark:bg-fintech-dark-elevated dark:border-fintech-dark-border dark:text-fintech-text-primary 
+           dark:placeholder-fintech-text-muted dark:focus:bg-fintech-dark-surface dark:focus:border-fintech-dark-accent
+           dark:focus:ring-fintech-dark-accent/30;
   }
   
   .stat-card {
@@ -50,12 +75,84 @@
   
   .nav-tab {
     @apply pb-3 px-6 text-sm font-medium transition-all duration-200
-           border-b-2 border-transparent text-apple-gray-400
-           hover:text-apple-gray-700;
+           border-b-2 border-transparent text-gray-500
+           hover:text-gray-700
+           dark:text-fintech-text-muted dark:hover:text-fintech-text-secondary;
   }
   
   .nav-tab-active {
-    @apply nav-tab border-apple-blue text-apple-blue;
+    @apply nav-tab border-apple-blue text-apple-blue 
+           dark:border-fintech-dark-accent dark:text-fintech-dark-accent;
+  }
+
+  /* Fintech Professional Components */
+  .fintech-card {
+    @apply bg-white/80 backdrop-blur-xl border border-white/30 shadow-apple-lg rounded-2xl
+           dark:bg-fintech-dark-surface/95 dark:border-fintech-dark-border/40 dark:shadow-fintech-dark-lg;
+  }
+
+  .fintech-card-premium {
+    @apply fintech-card relative overflow-hidden
+           dark:shadow-fintech-glow dark:border-fintech-dark-accent/20;
+  }
+
+  .fintech-card-premium::before {
+    @apply absolute inset-0 bg-gradient-to-r from-transparent via-fintech-dark-accent/5 to-transparent
+           opacity-0 dark:opacity-100 transition-opacity duration-300;
+    content: '';
+  }
+
+  .fintech-text-primary {
+    @apply text-gray-900 dark:text-fintech-text-primary;
+  }
+
+  .fintech-text-secondary {
+    @apply text-gray-600 dark:text-fintech-text-secondary;
+  }
+
+  .fintech-text-muted {
+    @apply text-gray-500 dark:text-fintech-text-muted;
+  }
+
+  .fintech-text-success {
+    @apply text-green-600 dark:text-fintech-dark-success;
+  }
+
+  .fintech-text-danger {
+    @apply text-red-600 dark:text-fintech-dark-danger;
+  }
+
+  .fintech-text-warning {
+    @apply text-amber-600 dark:text-fintech-dark-warning;
+  }
+
+  .fintech-bg-success {
+    @apply bg-green-50 dark:bg-fintech-dark-success/10;
+  }
+
+  .fintech-bg-danger {
+    @apply bg-red-50 dark:bg-fintech-dark-danger/10;
+  }
+
+  .fintech-bg-warning {
+    @apply bg-amber-50 dark:bg-fintech-dark-warning/10;
+  }
+
+  /* Force labels to be visible in dark mode */
+  .dark label {
+    @apply text-fintech-text-secondary !important;
+  }
+
+  .dark h1, .dark h2, .dark h3, .dark h4, .dark h5, .dark h6 {
+    @apply text-fintech-text-primary !important;
+  }
+
+  .dark p {
+    @apply text-fintech-text-secondary !important;
+  }
+
+  .dark span {
+    @apply text-fintech-text-secondary !important;
   }
 }
 
@@ -71,5 +168,14 @@
   
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
+  }
+
+  .fintech-gradient-bg {
+    @apply bg-gradient-to-br from-white via-blue-50/30 to-indigo-50/50
+           dark:from-fintech-dark-bg dark:via-fintech-dark-surface dark:to-fintech-dark-elevated;
+  }
+
+  .fintech-border {
+    @apply border-gray-200 dark:border-fintech-dark-border;
   }
 }

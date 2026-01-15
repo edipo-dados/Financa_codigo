@@ -9,6 +9,7 @@ import { calculateCreditCardTotal, groupByCreditCard } from '@/lib/creditCard'
 import { format, addMonths } from 'date-fns'
 import ConfigurableKPI from './ConfigurableKPI'
 import FinancialInsights from './FinancialInsights'
+import { useTheme } from '@/contexts/ThemeContext'
 
 interface Props {
   expenses: Expense[]
@@ -23,6 +24,16 @@ interface Props {
 const COLORS = ['#007aff', '#34c759', '#ff9500', '#af52de', '#ff3b30']
 
 export default function DashboardStats({ expenses, investments, incomes, loading, onRefresh, startDate, endDate }: Props) {
+  const { theme } = useTheme()
+  
+  // Cores condicionais baseadas no tema
+  const chartColors = {
+    grid: theme === 'dark' ? '#374151' : '#f0f0f0',
+    axis: theme === 'dark' ? '#9ca3af' : '#8e8e93',
+    tooltipBg: theme === 'dark' ? 'rgba(17, 24, 39, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+    tooltipText: theme === 'dark' ? '#ffffff' : '#000000',
+    legendText: theme === 'dark' ? '#e5e7eb' : '#374151',
+  }
   const stats = useMemo(() => {
     // Usar período personalizado ou mês atual
     const start = startDate || getCurrentMonthRange().start
@@ -412,62 +423,64 @@ export default function DashboardStats({ expenses, investments, incomes, loading
         <div className="glass-card p-8 rounded-3xl animate-slide-up">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h3 className="text-xl font-semibold text-apple-gray-700">Projeção: Receitas x Despesas</h3>
-              <p className="text-sm text-apple-gray-400 mt-1">Próximos 6 meses baseado em recorrências</p>
+              <h3 className="text-xl font-semibold fintech-text-primary">Projeção: Receitas x Despesas</h3>
+              <p className="text-sm fintech-text-muted mt-1">Próximos 6 meses baseado em recorrências</p>
             </div>
           </div>
           <ResponsiveContainer width="100%" height={350}>
             <LineChart data={stats.projectionData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
               <XAxis 
                 dataKey="month" 
-                stroke="#8e8e93"
-                style={{ fontSize: '12px' }}
+                stroke={chartColors.axis}
+                style={{ fontSize: '12px', fill: chartColors.axis }}
               />
               <YAxis 
-                stroke="#8e8e93"
-                style={{ fontSize: '12px' }}
+                stroke={chartColors.axis}
+                style={{ fontSize: '12px', fill: chartColors.axis }}
                 tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}k`}
               />
               <Tooltip 
                 formatter={(value: number) => formatCurrency(value)}
                 contentStyle={{
-                  backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                  backgroundColor: chartColors.tooltipBg,
                   border: 'none',
                   borderRadius: '12px',
                   boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                  color: chartColors.tooltipText,
                 }}
+                labelStyle={{ color: chartColors.tooltipText }}
               />
               <Legend 
-                wrapperStyle={{ paddingTop: '20px' }}
+                wrapperStyle={{ paddingTop: '20px', color: chartColors.legendText }}
                 iconType="line"
               />
               <Line 
                 type="monotone" 
                 dataKey="receitas" 
-                stroke="#34c759" 
+                stroke="#10b981" 
                 strokeWidth={3}
                 name="Receitas"
-                dot={{ fill: '#34c759', r: 4 }}
+                dot={{ fill: '#10b981', r: 4 }}
                 activeDot={{ r: 6 }}
               />
               <Line 
                 type="monotone" 
                 dataKey="despesas" 
-                stroke="#ff3b30" 
+                stroke="#ef4444" 
                 strokeWidth={3}
                 name="Despesas"
-                dot={{ fill: '#ff3b30', r: 4 }}
+                dot={{ fill: '#ef4444', r: 4 }}
                 activeDot={{ r: 6 }}
               />
               <Line 
                 type="monotone" 
                 dataKey="saldo" 
-                stroke="#007aff" 
+                stroke="#3b82f6" 
                 strokeWidth={2}
                 strokeDasharray="5 5"
                 name="Saldo"
-                dot={{ fill: '#007aff', r: 3 }}
+                dot={{ fill: '#3b82f6', r: 3 }}
               />
             </LineChart>
           </ResponsiveContainer>
@@ -480,8 +493,8 @@ export default function DashboardStats({ expenses, investments, incomes, loading
           <div className="glass-card p-8 rounded-3xl animate-slide-up">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h3 className="text-xl font-semibold text-apple-gray-700">Receitas por Categoria</h3>
-                <p className="text-sm text-apple-gray-400 mt-1">Distribuição das suas entradas</p>
+                <h3 className="text-xl font-semibold fintech-text-primary">Receitas por Categoria</h3>
+                <p className="text-sm fintech-text-muted mt-1">Distribuição das suas entradas</p>
               </div>
             </div>
             <ResponsiveContainer width="100%" height={300}>
@@ -491,7 +504,7 @@ export default function DashboardStats({ expenses, investments, incomes, loading
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={(entry) => `${entry.name}`}
+                  label={false}
                   outerRadius={100}
                   fill="#8884d8"
                   dataKey="value"
@@ -503,16 +516,31 @@ export default function DashboardStats({ expenses, investments, incomes, loading
                   ))}
                 </Pie>
                 <Tooltip 
-                  formatter={(value: number) => formatCurrency(value)}
+                  formatter={(value: number) => [formatCurrency(value), 'Valor']}
                   contentStyle={{
-                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                    backgroundColor: chartColors.tooltipBg,
                     border: 'none',
                     borderRadius: '12px',
                     boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                    color: chartColors.tooltipText,
                   }}
+                  labelStyle={{ color: chartColors.tooltipText }}
                 />
               </PieChart>
             </ResponsiveContainer>
+            
+            {/* Legenda customizada */}
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              {stats.incomeCategoryData.map((entry, index) => (
+                <div key={entry.name} className="flex items-center gap-2">
+                  <div 
+                    className="w-3 h-3 rounded-full" 
+                    style={{ backgroundColor: entry.color || COLORS[index % COLORS.length] }}
+                  />
+                  <span className="text-sm fintech-text-secondary truncate">{entry.name}</span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
@@ -520,8 +548,8 @@ export default function DashboardStats({ expenses, investments, incomes, loading
           <div className="glass-card p-8 rounded-3xl animate-slide-up">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h3 className="text-xl font-semibold text-apple-gray-700">Despesas por Categoria</h3>
-                <p className="text-sm text-apple-gray-400 mt-1">Distribuição dos seus gastos</p>
+                <h3 className="text-xl font-semibold fintech-text-primary">Despesas por Categoria</h3>
+                <p className="text-sm fintech-text-muted mt-1">Distribuição dos seus gastos</p>
               </div>
             </div>
             <ResponsiveContainer width="100%" height={300}>
@@ -531,7 +559,7 @@ export default function DashboardStats({ expenses, investments, incomes, loading
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={(entry) => `${entry.name}`}
+                  label={false}
                   outerRadius={100}
                   fill="#8884d8"
                   dataKey="value"
@@ -543,16 +571,31 @@ export default function DashboardStats({ expenses, investments, incomes, loading
                   ))}
                 </Pie>
                 <Tooltip 
-                  formatter={(value: number) => formatCurrency(value)}
+                  formatter={(value: number) => [formatCurrency(value), 'Valor']}
                   contentStyle={{
-                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                    backgroundColor: chartColors.tooltipBg,
                     border: 'none',
                     borderRadius: '12px',
                     boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                    color: chartColors.tooltipText,
                   }}
+                  labelStyle={{ color: chartColors.tooltipText }}
                 />
               </PieChart>
             </ResponsiveContainer>
+            
+            {/* Legenda customizada */}
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              {stats.categoryData.map((entry, index) => (
+                <div key={entry.name} className="flex items-center gap-2">
+                  <div 
+                    className="w-3 h-3 rounded-full" 
+                    style={{ backgroundColor: entry.color || COLORS[index % COLORS.length] }}
+                  />
+                  <span className="text-sm fintech-text-secondary truncate">{entry.name}</span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -562,38 +605,40 @@ export default function DashboardStats({ expenses, investments, incomes, loading
         <div className="glass-card p-8 rounded-3xl animate-slide-up">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h3 className="text-xl font-semibold text-apple-gray-700">Histórico e Projeção Mensal</h3>
-              <p className="text-sm text-apple-gray-400 mt-1">Despesas, Receitas e Investimentos (últimos 6 meses + próximos 6 meses)</p>
+              <h3 className="text-xl font-semibold fintech-text-primary">Histórico e Projeção Mensal</h3>
+              <p className="text-sm fintech-text-muted mt-1">Despesas, Receitas e Investimentos (últimos 6 meses + próximos 6 meses)</p>
             </div>
           </div>
           <ResponsiveContainer width="100%" height={400}>
             <BarChart data={stats.histogramData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
               <XAxis 
                 dataKey="month" 
-                stroke="#8e8e93"
-                style={{ fontSize: '12px' }}
+                stroke={chartColors.axis}
+                style={{ fontSize: '12px', fill: chartColors.axis }}
               />
               <YAxis 
-                stroke="#8e8e93"
-                style={{ fontSize: '12px' }}
+                stroke={chartColors.axis}
+                style={{ fontSize: '12px', fill: chartColors.axis }}
                 tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}k`}
               />
               <Tooltip 
                 formatter={(value: number) => formatCurrency(value)}
                 contentStyle={{
-                  backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                  backgroundColor: chartColors.tooltipBg,
                   border: 'none',
                   borderRadius: '12px',
                   boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                  color: chartColors.tooltipText,
                 }}
+                labelStyle={{ color: chartColors.tooltipText }}
               />
               <Legend 
-                wrapperStyle={{ paddingTop: '20px' }}
+                wrapperStyle={{ paddingTop: '20px', color: chartColors.legendText }}
               />
-              <Bar dataKey="receitas" fill="#34c759" name="Receitas" radius={[8, 8, 0, 0]} />
-              <Bar dataKey="despesas" fill="#ff3b30" name="Despesas" radius={[8, 8, 0, 0]} />
-              <Bar dataKey="investimentos" fill="#007aff" name="Investimentos" radius={[8, 8, 0, 0]} />
+              <Bar dataKey="receitas" fill="#10b981" name="Receitas" radius={[8, 8, 0, 0]} />
+              <Bar dataKey="despesas" fill="#ef4444" name="Despesas" radius={[8, 8, 0, 0]} />
+              <Bar dataKey="investimentos" fill="#3b82f6" name="Investimentos" radius={[8, 8, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -606,8 +651,8 @@ export default function DashboardStats({ expenses, investments, incomes, loading
           <div className="glass-card p-8 rounded-3xl animate-slide-up lg:col-span-2">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h3 className="text-xl font-semibold text-apple-gray-700">Formas de Pagamento</h3>
-                <p className="text-sm text-apple-gray-400 mt-1">Distribuição dos métodos de pagamento</p>
+                <h3 className="text-xl font-semibold fintech-text-primary">Formas de Pagamento</h3>
+                <p className="text-sm fintech-text-muted mt-1">Distribuição dos métodos de pagamento</p>
               </div>
             </div>
             <ResponsiveContainer width="100%" height={300}>
@@ -617,7 +662,7 @@ export default function DashboardStats({ expenses, investments, incomes, loading
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={(entry) => `${entry.name}`}
+                  label={false}
                   outerRadius={100}
                   fill="#8884d8"
                   dataKey="value"
@@ -629,16 +674,31 @@ export default function DashboardStats({ expenses, investments, incomes, loading
                   ))}
                 </Pie>
                 <Tooltip 
-                  formatter={(value: number) => formatCurrency(value)}
+                  formatter={(value: number) => [formatCurrency(value), 'Valor']}
                   contentStyle={{
-                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                    backgroundColor: chartColors.tooltipBg,
                     border: 'none',
                     borderRadius: '12px',
                     boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                    color: chartColors.tooltipText,
                   }}
+                  labelStyle={{ color: chartColors.tooltipText }}
                 />
               </PieChart>
             </ResponsiveContainer>
+            
+            {/* Legenda customizada */}
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              {stats.paymentMethodsChartData.map((entry, index) => (
+                <div key={entry.name} className="flex items-center gap-2">
+                  <div 
+                    className="w-3 h-3 rounded-full" 
+                    style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                  />
+                  <span className="text-sm fintech-text-secondary truncate">{entry.name}</span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
