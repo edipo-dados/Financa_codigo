@@ -274,8 +274,8 @@ export default function DashboardStats({ expenses, investments, incomes, loading
         </button>
       </div>
 
-      {/* Cards de Estatísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Cards de Estatísticas - Mobile Optimized */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <StatCard
           title="Receitas do Mês"
           value={formatCurrency(stats.monthlyIncomes)}
@@ -306,69 +306,69 @@ export default function DashboardStats({ expenses, investments, incomes, loading
         />
       </div>
 
-      {/* Cards de Status de Pagamento */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="glass-card p-6 rounded-3xl">
+      {/* Cards de Status de Pagamento - Mobile Optimized */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="glass-card p-4 sm:p-6 rounded-2xl sm:rounded-3xl">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-medium text-apple-gray-500">Despesas Pagas</h3>
-            <span className="text-2xl">✓</span>
+            <h3 className="text-xs sm:text-sm font-medium text-apple-gray-500">Despesas Pagas</h3>
+            <span className="text-lg sm:text-2xl">✓</span>
           </div>
-          <p className="text-2xl font-bold text-apple-green">
+          <p className="text-lg sm:text-2xl font-bold text-apple-green">
             {formatCurrency(stats.expensesPaid)}
           </p>
         </div>
 
-        <div className="glass-card p-6 rounded-3xl">
+        <div className="glass-card p-4 sm:p-6 rounded-2xl sm:rounded-3xl">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-medium text-apple-gray-500">Despesas A Pagar</h3>
-            <span className="text-2xl">⏳</span>
+            <h3 className="text-xs sm:text-sm font-medium text-apple-gray-500">Despesas A Pagar</h3>
+            <span className="text-lg sm:text-2xl">⏳</span>
           </div>
-          <p className="text-2xl font-bold text-apple-orange">
+          <p className="text-lg sm:text-2xl font-bold text-apple-orange">
             {formatCurrency(stats.expensesToPay)}
           </p>
         </div>
 
-        <div className="glass-card p-6 rounded-3xl">
+        <div className="glass-card p-4 sm:p-6 rounded-2xl sm:rounded-3xl">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-medium text-apple-gray-500">Receitas Recebidas</h3>
-            <span className="text-2xl">✓</span>
+            <h3 className="text-xs sm:text-sm font-medium text-apple-gray-500">Receitas Recebidas</h3>
+            <span className="text-lg sm:text-2xl">✓</span>
           </div>
-          <p className="text-2xl font-bold text-apple-green">
+          <p className="text-lg sm:text-2xl font-bold text-apple-green">
             {formatCurrency(stats.incomesPaid)}
           </p>
         </div>
 
-        <div className="glass-card p-6 rounded-3xl">
+        <div className="glass-card p-4 sm:p-6 rounded-2xl sm:rounded-3xl">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-medium text-apple-gray-500">Receitas A Receber</h3>
-            <span className="text-2xl">⏳</span>
+            <h3 className="text-xs sm:text-sm font-medium text-apple-gray-500">Receitas A Receber</h3>
+            <span className="text-lg sm:text-2xl">⏳</span>
           </div>
-          <p className="text-2xl font-bold text-apple-orange">
+          <p className="text-lg sm:text-2xl font-bold text-apple-orange">
             {formatCurrency(stats.incomesToReceive)}
           </p>
         </div>
       </div>
 
-      {/* Cards de Projeções Futuras */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="glass-card p-6 rounded-3xl">
+      {/* Cards de Projeções Futuras - Mobile Optimized */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+        <div className="glass-card p-4 sm:p-6 rounded-2xl sm:rounded-3xl">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-lg font-semibold text-apple-gray-700">Receitas Futuras</h3>
-            <span className="text-2xl">📅</span>
+            <h3 className="text-base sm:text-lg font-semibold text-apple-gray-700">Receitas Futuras</h3>
+            <span className="text-xl sm:text-2xl">📅</span>
           </div>
-          <p className="text-sm text-apple-gray-400 mb-3">Próximos 6 meses (recorrências)</p>
-          <p className="text-3xl font-bold text-apple-green">
+          <p className="text-xs sm:text-sm text-apple-gray-400 mb-2 sm:mb-3">Próximos 6 meses (recorrências)</p>
+          <p className="text-2xl sm:text-3xl font-bold text-apple-green">
             {formatCurrency(stats.totalFutureIncomes)}
           </p>
         </div>
 
-        <div className="glass-card p-6 rounded-3xl">
+        <div className="glass-card p-4 sm:p-6 rounded-2xl sm:rounded-3xl">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-lg font-semibold text-apple-gray-700">Despesas Futuras</h3>
-            <span className="text-2xl">📅</span>
+            <h3 className="text-base sm:text-lg font-semibold text-apple-gray-700">Despesas Futuras</h3>
+            <span className="text-xl sm:text-2xl">📅</span>
           </div>
-          <p className="text-sm text-apple-gray-400 mb-3">Próximos 6 meses (recorrências)</p>
-          <p className="text-3xl font-bold text-apple-red">
+          <p className="text-xs sm:text-sm text-apple-gray-400 mb-2 sm:mb-3">Próximos 6 meses (recorrências)</p>
+          <p className="text-2xl sm:text-3xl font-bold text-apple-red">
             {formatCurrency(stats.totalFutureExpenses)}
           </p>
         </div>
@@ -766,8 +766,8 @@ function StatCard({ title, value, icon, color, trend }: StatCardProps) {
 
   return (
     <div className="stat-card group hover:scale-[1.02] transition-transform duration-200">
-      <div className="flex items-start justify-between mb-4">
-        <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${colorClasses[color]} flex items-center justify-center text-2xl shadow-apple`}>
+      <div className="flex items-start justify-between mb-3 sm:mb-4">
+        <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br ${colorClasses[color]} flex items-center justify-center text-xl sm:text-2xl shadow-apple`}>
           {icon}
         </div>
         {trend !== undefined && (
@@ -779,8 +779,8 @@ function StatCard({ title, value, icon, color, trend }: StatCardProps) {
           </div>
         )}
       </div>
-      <h3 className="text-sm text-apple-gray-500 mb-1">{title}</h3>
-      <p className={`text-2xl font-semibold ${colorClasses[color].split(' ')[1]}`}>
+      <h3 className="text-xs sm:text-sm text-apple-gray-500 mb-1">{title}</h3>
+      <p className={`text-lg sm:text-2xl font-semibold ${colorClasses[color].split(' ')[1]}`}>
         {value}
       </p>
     </div>

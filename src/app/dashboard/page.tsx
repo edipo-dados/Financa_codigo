@@ -11,6 +11,7 @@ import ExpensesList from '@/components/ExpensesList'
 import InvestmentsList from '@/components/InvestmentsList'
 import IncomesList from '@/components/IncomesList'
 import Navigation from '@/components/Navigation'
+import MobileBottomNav from '@/components/MobileBottomNav'
 import CategoryManager from '@/components/CategoryManager'
 import InvestmentTypeManager from '@/components/InvestmentTypeManager'
 import IncomeCategoryManager from '@/components/IncomeCategoryManager'
@@ -77,22 +78,24 @@ export default function Dashboard() {
     { id: 'incomes', label: 'Receitas', icon: '💰' },
     { id: 'expenses', label: 'Despesas', icon: '💸' },
     { id: 'investments', label: 'Investimentos', icon: '📈' },
-    { id: 'future', label: 'Lançamentos Futuros', icon: '🔮' },
-    { id: 'creditcard', label: 'Compras no Cartão', icon: '💳' },
-    { id: 'settings', label: 'Configurações', icon: '⚙️' },
+    { id: 'future', label: 'Futuros', icon: '🔮' },
+    { id: 'creditcard', label: 'Cartão', icon: '💳' },
+    { id: 'settings', label: 'Config', icon: '⚙️' },
   ]
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen pb-20 md:pb-0">
       <Navigation />
       
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        <div className="mb-8 animate-slide-up">
-          <h1 className="text-3xl font-semibold fintech-text-primary mb-2">Dashboard</h1>
-          <p className="fintech-text-muted">Gerencie suas finanças de forma inteligente</p>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-8">
+        {/* Header - Mobile Optimized */}
+        <div className="mb-6 sm:mb-8 animate-slide-up">
+          <h1 className="text-2xl sm:text-3xl font-semibold fintech-text-primary mb-1 sm:mb-2">Dashboard</h1>
+          <p className="fintech-text-muted text-sm sm:text-base">Gerencie suas finanças de forma inteligente</p>
         </div>
 
-        <div className="mb-8 flex gap-2 overflow-x-auto scrollbar-hide pb-2">
+        {/* Desktop Tabs - Hidden on Mobile */}
+        <div className="hidden md:flex mb-8 gap-2 overflow-x-auto scrollbar-hide pb-2">
           {tabs.map((tab) => (
             <button
               key={tab.id}
@@ -109,9 +112,10 @@ export default function Dashboard() {
           ))}
         </div>
 
+        {/* Content */}
         <div className="animate-fade-in">
           {activeTab === 'overview' && (
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6">
               <MonthNavigator 
                 currentMonth={currentMonth}
                 onMonthChange={setCurrentMonth}
@@ -159,7 +163,7 @@ export default function Dashboard() {
           )}
 
           {activeTab === 'settings' && (
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6">
               <ThemeSettings />
               <CreditCardManager userId={user.id} />
               <IncomeCategoryManager userId={user.id} />
@@ -169,6 +173,13 @@ export default function Dashboard() {
           )}
         </div>
       </main>
+
+      {/* Mobile Bottom Navigation */}
+      <MobileBottomNav 
+        tabs={tabs}
+        activeTab={activeTab}
+        onTabChange={(tabId) => setActiveTab(tabId as any)}
+      />
     </div>
   )
 }
