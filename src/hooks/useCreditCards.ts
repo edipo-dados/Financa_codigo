@@ -69,6 +69,10 @@ export function useCreditCards(userId: string) {
   }
 
   const updateCreditCard = async (id: string, updates: Partial<CreditCard>) => {
+    if (!isSupabaseConfigured) {
+      return { data: null, error: { message: 'Funcionalidade não disponível no modo demo' } }
+    }
+
     const { data, error } = await supabase
       .from('credit_cards')
       // @ts-ignore

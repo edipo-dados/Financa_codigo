@@ -21,6 +21,7 @@ import FutureLaunches from '@/components/FutureLaunches'
 import CreditCardManager from '@/components/CreditCardManager'
 import CreditCardPurchasesList from '@/components/CreditCardPurchasesList'
 import ThemeSettings from '@/components/ThemeSettings'
+import IncomeReport from '@/components/IncomeReport'
 import { format, startOfMonth, endOfMonth } from 'date-fns'
 
 export default function Dashboard() {
@@ -164,6 +165,11 @@ export default function Dashboard() {
 
           {activeTab === 'settings' && (
             <div className="space-y-4 sm:space-y-6">
+              <IncomeReport 
+                incomes={incomes}
+                investments={investments}
+                userId={user.id}
+              />
               <ThemeSettings />
               <CreditCardManager userId={user.id} />
               <IncomeCategoryManager userId={user.id} />

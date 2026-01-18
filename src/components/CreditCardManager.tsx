@@ -2,14 +2,16 @@
 
 import { useState } from 'react'
 import { useCreditCards } from '@/hooks/useCreditCards'
+import { CreditCard } from '@/lib/creditCard'
 
 interface Props {
   userId: string
 }
 
 export default function CreditCardManager({ userId }: Props) {
-  const { creditCards, loading, addCreditCard, deleteCreditCard } = useCreditCards(userId)
+  const { creditCards, loading, addCreditCard, updateCreditCard, deleteCreditCard } = useCreditCards(userId)
   const [showForm, setShowForm] = useState(false)
+  const [editingCard, setEditingCard] = useState<CreditCard | null>(null)
   const [formData, setFormData] = useState({
     name: '',
     closing_day: 10,
@@ -18,18 +20,7 @@ export default function CreditCardManager({ userId }: Props) {
     color: '#007aff',
   })
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    await addCreditCard({
-      user_id: userId,
-      name: formData.name,
-      closing_day: formData.closing_day,
-      due_day: formData.due_day,
-      credit_limit: formData.credit_limit ? parseFloat(formData.credit_limit) : null,
-      color: formData.color,
-    } as any)
-    
+  const resetForm = () => {
     setFormData({
       name: '',
       closing_day: 10,
@@ -38,6 +29,42 @@ export default function CreditCardManager({ userId }: Props) {
       color: '#007aff',
     })
     setShowForm(false)
+    setEditingCard(null)
+  }
+
+  const handleEdit = (card: CreditCard) => {
+    setEditingCard(card)
+    setFormData({
+      name: card.name,
+      closing_day: card.closing_day,
+      due_day: card.due_day,
+      credit_limit: card.credit_limit ? card.credit_limit.toString() : '',
+      color: card.color,
+    })
+    setShowForm(true)
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    const cardData = {
+      user_id: userId,
+      name: formData.name,
+      closing_day: formData.closing_day,
+      due_day: formData.due_day,
+      credit_limit: formData.credit_limit ? parseFloat(formData.credit_limit) : null,
+      color: formData.color,
+    } as any
+
+    if (editingCard) {
+      // Editando cartão existente
+      await updateCreditCard(editingCard.id, cardData)
+    } else {
+      // Adicionando novo cartão
+      await addCreditCard(cardData)
+    }
+    
+    resetForm()
   }
 
   const handleDelete = async (id: string) => {
@@ -51,25 +78,31 @@ export default function CreditCardManager({ userId }: Props) {
   }
 
   return (
-    <div className="glass-card p-6 rounded-3xl">
-      <div className="flex items-center justify-between mb-6">
+    <div className="glass-card p-4 sm:p-6 rounded-2xl sm:rounded-3xl">
+      <div className="flex items-center justify-between mb-4 sm:mb-6">
         <div>
-          <h3 className="text-xl font-semibold text-apple-gray-700">Cartões de Crédito</h3>
-          <p className="text-sm text-apple-gray-400 mt-1">Gerencie seus cartões</p>
+          <h3 className="text-lg sm:text-xl font-semibold fintech-text-primary">Cartões de Crédito</h3>
+          <p className="text-xs sm:text-sm fintech-text-muted mt-1">Gerencie seus cartões</p>
         </div>
         <button
-          onClick={() => setShowForm(!showForm)}
-          className={showForm ? 'btn-secondary' : 'btn-primary'}
+          onClick={() => {
+            if (showForm) {
+              resetForm()
+            } else {
+              setShowForm(true)
+            }
+          }}
+          className={showForm ? 'btn-secondary text-xs sm:text-sm' : 'btn-primary text-xs sm:text-sm'}
         >
           {showForm ? '✕ Cancelar' : '+ Novo Cartão'}
         </button>
       </div>
 
       {showForm && (
-        <form onSubmit={handleSubmit} className="mb-6 p-6 bg-apple-gray-50 rounded-xl space-y-4 animate-slide-up">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <form onSubmit={handleSubmit} className="mb-4 sm:mb-6 p-4 sm:p-6 bg-gray-50 dark:bg-fintech-dark-elevated rounded-xl space-y-4 animate-slide-up">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-apple-gray-600 mb-2">
+              <label className="block text-sm font-medium fintech-text-secondary mb-2">
                 Nome do Cartão *
               </label>
               <input
@@ -83,7 +116,7 @@ export default function CreditCardManager({ userId }: Props) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-apple-gray-600 mb-2">
+              <label className="block text-sm font-medium fintech-text-secondary mb-2">
                 Cor
               </label>
               <input
@@ -95,7 +128,7 @@ export default function CreditCardManager({ userId }: Props) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-apple-gray-600 mb-2">
+              <label className="block text-sm font-medium fintech-text-secondary mb-2">
                 Dia de Fechamento *
               </label>
               <input
@@ -110,7 +143,7 @@ export default function CreditCardManager({ userId }: Props) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-apple-gray-600 mb-2">
+              <label className="block text-sm font-medium fintech-text-secondary mb-2">
                 Dia de Vencimento *
               </label>
               <input
@@ -124,8 +157,8 @@ export default function CreditCardManager({ userId }: Props) {
               />
             </div>
 
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-apple-gray-600 mb-2">
+            <div className="sm:col-span-2">
+              <label className="block text-sm font-medium fintech-text-secondary mb-2">
                 Limite de Crédito (opcional)
               </label>
               <input
@@ -140,51 +173,60 @@ export default function CreditCardManager({ userId }: Props) {
           </div>
 
           <button type="submit" className="btn-primary w-full">
-            Adicionar Cartão
+            {editingCard ? 'Atualizar Cartão' : 'Adicionar Cartão'}
           </button>
         </form>
       )}
 
       {creditCards.length === 0 ? (
-        <div className="text-center py-12">
-          <div className="w-20 h-20 bg-apple-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <span className="text-4xl">💳</span>
+        <div className="text-center py-8 sm:py-12">
+          <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gray-100 dark:bg-fintech-dark-elevated rounded-full flex items-center justify-center mx-auto mb-4">
+            <span className="text-3xl sm:text-4xl">💳</span>
           </div>
-          <h3 className="text-lg font-semibold text-apple-gray-700 mb-2">Nenhum cartão cadastrado</h3>
-          <p className="text-apple-gray-400 text-sm">Adicione seu primeiro cartão de crédito</p>
+          <h3 className="text-base sm:text-lg font-semibold fintech-text-primary mb-2">Nenhum cartão cadastrado</h3>
+          <p className="fintech-text-muted text-sm">Adicione seu primeiro cartão de crédito</p>
         </div>
       ) : (
         <div className="space-y-3">
           {creditCards.map((card) => (
             <div
               key={card.id}
-              className="flex items-center justify-between p-4 bg-white/50 rounded-xl hover:bg-white transition-colors"
+              className="flex items-center justify-between p-3 sm:p-4 bg-white/50 dark:bg-fintech-dark-surface/50 rounded-xl hover:bg-white dark:hover:bg-fintech-dark-surface transition-colors"
             >
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
                 <div
-                  className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl"
+                  className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center text-xl sm:text-2xl flex-shrink-0"
                   style={{ backgroundColor: `${card.color}15` }}
                 >
                   💳
                 </div>
-                <div>
-                  <h4 className="font-medium text-apple-gray-700">{card.name}</h4>
-                  <p className="text-sm text-apple-gray-500">
+                <div className="min-w-0 flex-1">
+                  <h4 className="font-medium fintech-text-primary truncate">{card.name}</h4>
+                  <p className="text-xs sm:text-sm fintech-text-muted">
                     Fechamento: dia {card.closing_day} | Vencimento: dia {card.due_day}
                   </p>
                   {card.credit_limit && (
-                    <p className="text-xs text-apple-gray-400 mt-1">
+                    <p className="text-xs fintech-text-muted mt-1">
                       Limite: R$ {card.credit_limit.toFixed(2)}
                     </p>
                   )}
                 </div>
               </div>
-              <button
-                onClick={() => handleDelete(card.id)}
-                className="text-apple-red hover:text-apple-red/80 transition-colors font-medium text-sm"
-              >
-                Excluir
-              </button>
+              
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <button
+                  onClick={() => handleEdit(card)}
+                  className="text-apple-blue hover:text-apple-blue/80 transition-colors font-medium text-xs sm:text-sm px-2 py-1 rounded touch-target"
+                >
+                  Editar
+                </button>
+                <button
+                  onClick={() => handleDelete(card.id)}
+                  className="text-red-600 hover:text-red-500 transition-colors font-medium text-xs sm:text-sm px-2 py-1 rounded touch-target"
+                >
+                  Excluir
+                </button>
+              </div>
             </div>
           ))}
         </div>
