@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
+import { supabase, isSupabaseConfigured } from '@/lib/supabase'
 import { CreditCard } from '@/lib/creditCard'
 
 export function useCreditCards(userId: string) {

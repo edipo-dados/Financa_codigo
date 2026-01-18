@@ -1,0 +1,10 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
+  "framework": "nextjs",
+  "installCommand": "npm install",
+  "env": {
+    "NEXT_PUBLIC_SUPABASE_URL": "https://placeholder.supabase.co",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "placeholder-key"
+  }
+}
