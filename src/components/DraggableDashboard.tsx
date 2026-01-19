@@ -123,16 +123,36 @@ export default function DraggableDashboard({
   // Carregar layout salvo ou usar padrão
   useEffect(() => {
     const savedLayout = localStorage.getItem(STORAGE_KEY)
+    console.log('Layout salvo encontrado:', savedLayout)
+    
     if (savedLayout) {
       try {
         const parsed = JSON.parse(savedLayout)
-        setWidgets(parsed)
+        console.log('Widgets salvos:', parsed.length, 'Widgets padrão:', defaultWidgets.length)
+        
+        // Verificar se o layout salvo tem todos os widgets necessários
+        const hasAllWidgets = defaultWidgets.every(defaultWidget => 
+          parsed.some((savedWidget: DashboardWidget) => savedWidget.id === defaultWidget.id)
+        )
+        
+        if (hasAllWidgets && parsed.length === defaultWidgets.length) {
+          console.log('Usando layout salvo')
+          setWidgets(parsed)
+        } else {
+          // Layout salvo está desatualizado, usar padrão e salvar
+          console.log('Layout desatualizado detectado, usando configuração padrão')
+          setWidgets(defaultWidgets)
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultWidgets))
+        }
       } catch (error) {
         console.error('Erro ao carregar layout:', error)
         setWidgets(defaultWidgets)
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultWidgets))
       }
     } else {
+      console.log('Nenhum layout salvo, usando padrão')
       setWidgets(defaultWidgets)
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultWidgets))
     }
   }, [])
 
@@ -278,8 +298,15 @@ export default function DraggableDashboard({
   // Resetar para layout padrão
   const resetLayout = () => {
     setWidgets(defaultWidgets)
-    localStorage.removeItem(STORAGE_KEY)
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultWidgets))
     setIsEditMode(false)
+  }
+
+  // Forçar atualização para mostrar todos os widgets
+  const forceShowAllWidgets = () => {
+    const updatedWidgets = defaultWidgets.map(widget => ({ ...widget, enabled: true }))
+    setWidgets(updatedWidgets)
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedWidgets))
   }
 
   // Classes de tamanho
@@ -304,15 +331,34 @@ export default function DraggableDashboard({
           <p className="text-sm fintech-text-muted">
             {isEditMode ? 'Arraste os widgets para reorganizar' : 'Personalize a disposição dos gráficos'}
           </p>
+          <p className="text-xs fintech-text-muted mt-1">
+            Widgets ativos: {enabledWidgets.length} de {widgets.length}
+          </p>
         </div>
         <div className="flex items-center gap-2">
-          {isEditMode && (
+          {!isEditMode && (
             <button
-              onClick={resetLayout}
-              className="px-3 py-2 text-sm text-red-600 hover:text-red-700 transition-colors"
+              onClick={forceShowAllWidgets}
+              className="px-3 py-2 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
             >
-              🔄 Resetar
+              📊 Mostrar Todos os Widgets
             </button>
+          )}
+          {isEditMode && (
+            <>
+              <button
+                onClick={forceShowAllWidgets}
+                className="px-3 py-2 text-sm text-blue-600 hover:text-blue-700 transition-colors"
+              >
+                📊 Mostrar Todos
+              </button>
+              <button
+                onClick={resetLayout}
+                className="px-3 py-2 text-sm text-red-600 hover:text-red-700 transition-colors"
+              >
+                🔄 Resetar
+              </button>
+            </>
           )}
           <button
             onClick={() => setIsEditMode(!isEditMode)}
