@@ -3,15 +3,19 @@
 import { useState, useEffect } from 'react'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
 import StatsCardsWidget from './widgets/StatsCardsWidget'
-import ExpenseChartWidget from './widgets/ExpenseChartWidget'
-import IncomeChartWidget from './widgets/IncomeChartWidget'
+import DynamicExpenseChart from './widgets/DynamicExpenseChart'
+import DynamicIncomeChart from './widgets/DynamicIncomeChart'
 import FinancialInsightsWidget from './widgets/FinancialInsightsWidget'
 import KPIWidget from './widgets/KPIWidget'
+import FutureProjectionsWidget from './widgets/FutureProjectionsWidget'
+import DynamicProjectionChart from './widgets/DynamicProjectionChart'
+import PaymentStatusWidget from './widgets/PaymentStatusWidget'
+import CreditCardWidget from './widgets/CreditCardWidget'
 import { Expense, Investment, Income } from '@/types'
 
 interface DashboardWidget {
   id: string
-  type: 'stats' | 'income-chart' | 'expense-chart' | 'financial-insights' | 'kpi-widget'
+  type: 'stats' | 'income-chart' | 'expense-chart' | 'financial-insights' | 'kpi-widget' | 'future-projections' | 'projection-chart' | 'payment-status' | 'credit-card'
   title: string
   size: 'small' | 'medium' | 'large' | 'full'
   enabled: boolean
@@ -51,9 +55,30 @@ export default function DraggableDashboard({
       enabled: true
     },
     {
-      id: 'kpi-widget',
-      type: 'kpi-widget',
-      title: 'KPIs Configuráveis',
+      id: 'payment-status',
+      type: 'payment-status',
+      title: 'Status de Pagamentos',
+      size: 'full',
+      enabled: true
+    },
+    {
+      id: 'future-projections',
+      type: 'future-projections',
+      title: 'Projeções Futuras',
+      size: 'medium',
+      enabled: true
+    },
+    {
+      id: 'credit-card',
+      type: 'credit-card',
+      title: 'Fatura do Cartão',
+      size: 'medium',
+      enabled: true
+    },
+    {
+      id: 'projection-chart',
+      type: 'projection-chart',
+      title: 'Gráfico de Projeção',
       size: 'full',
       enabled: true
     },
@@ -69,6 +94,13 @@ export default function DraggableDashboard({
       type: 'income-chart',
       title: 'Gráfico de Receitas',
       size: 'medium',
+      enabled: true
+    },
+    {
+      id: 'kpi-widget',
+      type: 'kpi-widget',
+      title: 'KPIs Configuráveis',
+      size: 'full',
       enabled: true
     },
     {
@@ -112,14 +144,14 @@ export default function DraggableDashboard({
         )
       case 'expense-chart':
         return (
-          <ExpenseChartWidget
+          <DynamicExpenseChart
             expenses={expenses}
             loading={loading}
           />
         )
       case 'income-chart':
         return (
-          <IncomeChartWidget
+          <DynamicIncomeChart
             incomes={incomes}
             loading={loading}
           />
@@ -139,6 +171,43 @@ export default function DraggableDashboard({
             expenses={expenses}
             investments={investments}
             incomes={incomes}
+            loading={loading}
+            startDate={startDate}
+            endDate={endDate}
+          />
+        )
+      case 'future-projections':
+        return (
+          <FutureProjectionsWidget
+            expenses={expenses}
+            investments={investments}
+            incomes={incomes}
+            loading={loading}
+          />
+        )
+      case 'projection-chart':
+        return (
+          <DynamicProjectionChart
+            expenses={expenses}
+            investments={investments}
+            incomes={incomes}
+            loading={loading}
+          />
+        )
+      case 'payment-status':
+        return (
+          <PaymentStatusWidget
+            expenses={expenses}
+            incomes={incomes}
+            loading={loading}
+            startDate={startDate}
+            endDate={endDate}
+          />
+        )
+      case 'credit-card':
+        return (
+          <CreditCardWidget
+            expenses={expenses}
             loading={loading}
             startDate={startDate}
             endDate={endDate}
