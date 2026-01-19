@@ -1,13 +1,12 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { Expense, Investment, Income } from '@/types'
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
 import { useTheme } from '@/contexts/ThemeContext'
 import { formatCurrency } from '@/lib/utils'
 import { calculateFutureOccurrences, groupByMonth } from '@/lib/recurrence'
 import { format, addMonths } from 'date-fns'
-import ChartWrapper from '../ChartWrapper'
 
 interface Props {
   expenses: Expense[]
@@ -18,6 +17,11 @@ interface Props {
 
 export default function ProjectionChartWidget({ expenses, investments, incomes, loading }: Props) {
   const { theme } = useTheme()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const chartColors = {
     grid: theme === 'dark' ? '#374151' : '#f0f0f0',
@@ -64,7 +68,7 @@ export default function ProjectionChartWidget({ expenses, investments, incomes, 
     return chartData
   }, [expenses, investments, incomes])
 
-  if (loading) {
+  if (loading || !mounted) {
     return (
       <div className="fintech-card p-4 sm:p-6 rounded-2xl">
         <div className="animate-pulse">
@@ -97,71 +101,63 @@ export default function ProjectionChartWidget({ expenses, investments, incomes, 
         </div>
       </div>
       
-      <ChartWrapper
-        fallback={
-          <div className="w-full h-80 bg-gray-200 dark:bg-fintech-dark-elevated rounded animate-pulse flex items-center justify-center">
-            <span className="text-gray-500 dark:text-gray-400">Carregando gráfico...</span>
-          </div>
-        }
-      >
-        <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={projectionData}>
-            <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
-            <XAxis 
-              dataKey="month" 
-              stroke={chartColors.axis}
-              style={{ fontSize: '12px', fill: chartColors.axis }}
-            />
-            <YAxis 
-              stroke={chartColors.axis}
-              style={{ fontSize: '12px', fill: chartColors.axis }}
-              tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}k`}
-            />
-            <Tooltip 
-              formatter={(value: number) => formatCurrency(value)}
-              contentStyle={{
-                backgroundColor: chartColors.tooltipBg,
-                border: 'none',
-                borderRadius: '12px',
-                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-                color: chartColors.tooltipText,
-              }}
-              labelStyle={{ color: chartColors.tooltipText }}
-            />
-            <Legend 
-              wrapperStyle={{ paddingTop: '20px', color: chartColors.legendText }}
-              iconType="line"
-            />
-            <Line 
-              type="monotone" 
-              dataKey="receitas" 
-              stroke="#10b981" 
-              strokeWidth={3}
-              name="Receitas"
-              dot={{ fill: '#10b981', r: 4 }}
-              activeDot={{ r: 6 }}
-            />
-            <Line 
-              type="monotone" 
-              dataKey="despesas" 
-              stroke="#ef4444" 
-              strokeWidth={3}
-              name="Despesas"
-              dot={{ fill: '#ef4444', r: 4 }}
-              activeDot={{ r: 6 }}
-            />
-            <Line 
-              type="monotone" 
-              dataKey="saldo" 
-              stroke="#3b82f6" 
-              strokeWidth={2}
-              strokeDasharray="5 5"
-              name="Saldo"
-              dot={{ fill: '#3b82f6', r: 3 }}
-            />
-          </LineChart>
-        </ResponsiveContainer>
-      </ChartWrapper>
+      <ResponsiveContainer width="100%" height={300}>
+        <LineChart data={projectionData}>
+          <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
+          <XAxis 
+            dataKey="month" 
+            stroke={chartColors.axis}
+            style={{ fontSize: '12px', fill: chartColors.axis }}
+          />
+          <YAxis 
+            stroke={chartColors.axis}
+            style={{ fontSize: '12px', fill: chartColors.axis }}
+            tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}k`}
+          />
+          <Tooltip 
+            formatter={(value: number) => formatCurrency(value)}
+            contentStyle={{
+              backgroundColor: chartColors.tooltipBg,
+              border: 'none',
+              borderRadius: '12px',
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+              color: chartColors.tooltipText,
+            }}
+            labelStyle={{ color: chartColors.tooltipText }}
+          />
+          <Legend 
+            wrapperStyle={{ paddingTop: '20px', color: chartColors.legendText }}
+            iconType="line"
+          />
+          <Line 
+            type="monotone" 
+            dataKey="receitas" 
+            stroke="#10b981" 
+            strokeWidth={3}
+            name="Receitas"
+            dot={{ fill: '#10b981', r: 4 }}
+            activeDot={{ r: 6 }}
+          />
+          <Line 
+            type="monotone" 
+            dataKey="despesas" 
+            stroke="#ef4444" 
+            strokeWidth={3}
+            name="Despesas"
+            dot={{ fill: '#ef4444', r: 4 }}
+            activeDot={{ r: 6 }}
+          />
+          <Line 
+            type="monotone" 
+            dataKey="saldo" 
+            stroke="#3b82f6" 
+            strokeWidth={2}
+            strokeDasharray="5 5"
+            name="Saldo"
+            dot={{ fill: '#3b82f6', r: 3 }}
+          />
+        </LineChart>
+      </ResponsiveContainer>
     </div>
   )
 }
