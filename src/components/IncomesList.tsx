@@ -5,6 +5,8 @@ import { useIncomes } from '@/hooks/useIncomes'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 import IncomeForm from './IncomeForm'
+import EditRecurrenceModal from './EditRecurrenceModal'
+import { Income } from '@/types'
 
 interface Props {
   userId: string
@@ -13,8 +15,34 @@ interface Props {
 export default function IncomesList({ userId }: Props) {
   const { incomes, loading, deleteIncome, refetch } = useIncomes(userId)
   const [showForm, setShowForm] = useState(false)
+  const [editingRecurrence, setEditingRecurrence] = useState<Income | null>(null)
 
 
+
+  const handleDeleteRecurrence = async (income: Income) => {
+    const confirmMsg = `Deseja excluir TODA a recorrência "${income.description}"?\n\nIsso excluirá este item e impedirá a criação de futuras ocorrências.`
+    
+    if (!confirm(confirmMsg)) return
+    
+    try {
+      // Excluir todas as ocorrências futuras desta recorrência
+      const { error: deleteError } = await supabase
+        .from('incomes')
+        .delete()
+        .eq('parent_income_id', income.id)
+      
+      if (deleteError) {
+        console.error('Erro ao excluir ocorrências futuras:', deleteError)
+      }
+      
+      // Excluir o item principal
+      await deleteIncome(income.id)
+      refetch()
+    } catch (error) {
+      console.error('Erro ao excluir recorrência:', error)
+      alert('Erro ao excluir recorrência')
+    }
+  }
 
   const handleDelete = async (id: string) => {
     if (confirm('Deseja realmente excluir esta receita?')) {
@@ -139,12 +167,33 @@ export default function IncomesList({ userId }: Props) {
                       </button>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <button
-                        onClick={() => handleDelete(income.id)}
-                        className="text-apple-red hover:text-apple-red/80 transition-colors font-medium"
-                      >
-                        Excluir
-                      </button>
+                      <div className="flex items-center gap-2">
+                        {income.is_recurring && (
+                          <button
+                            onClick={() => setEditingRecurrence(income)}
+                            className="text-apple-blue hover:text-apple-blue/80 transition-colors font-medium text-xs"
+                            title="Editar recorrência"
+                          >
+                            ⚙️ Recorrência
+                          </button>
+                        )}
+                        {income.is_recurring && (
+                          <button
+                            onClick={() => handleDeleteRecurrence(income)}
+                            className="text-apple-orange hover:text-apple-orange/80 transition-colors font-medium text-xs"
+                            title="Excluir toda a recorrência"
+                          >
+                            🗑️ Série
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleDelete(income.id)}
+                          className="text-apple-red hover:text-apple-red/80 transition-colors font-medium text-xs"
+                          title={income.is_recurring ? 'Excluir apenas este item' : 'Excluir receita'}
+                        >
+                          {income.is_recurring ? 'Excluir Item' : 'Excluir'}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -153,6 +202,18 @@ export default function IncomesList({ userId }: Props) {
           </div>
         </div>
       )}
+
+      {/* Modal de Edição de Recorrência */}
+      <EditRecurrenceModal
+        isOpen={!!editingRecurrence}
+        onClose={() => setEditingRecurrence(null)}
+        item={editingRecurrence}
+        type="income"
+        onSuccess={() => {
+          refetch()
+          setEditingRecurrence(null)
+        }}
+      />
     </div>
   )
 }

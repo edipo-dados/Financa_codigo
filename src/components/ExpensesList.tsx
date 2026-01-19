@@ -5,6 +5,8 @@ import { useExpenses } from '@/hooks/useExpenses'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 import ExpenseForm from './ExpenseForm'
+import EditRecurrenceModal from './EditRecurrenceModal'
+import { Expense } from '@/types'
 
 interface Props {
   userId: string
@@ -13,13 +15,37 @@ interface Props {
 export default function ExpensesList({ userId }: Props) {
   const { expenses, loading, deleteExpense, refetch } = useExpenses(userId)
   const [showForm, setShowForm] = useState(false)
-
-
+  const [editingRecurrence, setEditingRecurrence] = useState<Expense | null>(null)
 
   // Filtrar para não mostrar despesas parent de cartão (apenas parcelas)
   const displayExpenses = expenses.filter(e => 
     !e.is_credit_card || e.is_installment
   )
+
+  const handleDeleteRecurrence = async (expense: Expense) => {
+    const confirmMsg = `Deseja excluir TODA a recorrência "${expense.description}"?\n\nIsso excluirá este item e impedirá a criação de futuras ocorrências.`
+    
+    if (!confirm(confirmMsg)) return
+    
+    try {
+      // Excluir todas as ocorrências futuras desta recorrência
+      const { error: deleteError } = await supabase
+        .from('expenses')
+        .delete()
+        .eq('parent_expense_id', expense.id)
+      
+      if (deleteError) {
+        console.error('Erro ao excluir ocorrências futuras:', deleteError)
+      }
+      
+      // Excluir o item principal
+      await deleteExpense(expense.id)
+      refetch()
+    } catch (error) {
+      console.error('Erro ao excluir recorrência:', error)
+      alert('Erro ao excluir recorrência')
+    }
+  }
 
   const handleDelete = async (expense: any) => {
     // Se for parcela de cartão, oferecer opção de excluir a compra completa
@@ -236,16 +262,38 @@ export default function ExpensesList({ userId }: Props) {
                       </button>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <button
-                        onClick={() => handleDelete(expense)}
-                        className="text-apple-red hover:text-apple-red/80 transition-colors font-medium"
-                        title={expense.is_installment 
-                          ? `Excluir toda a compra (${expense.installments} parcelas)`
-                          : 'Excluir despesa'
-                        }
-                      >
-                        {expense.is_installment ? '🗑️ Excluir Compra' : 'Excluir'}
-                      </button>
+                      <div className="flex items-center gap-2">
+                        {expense.is_recurring && (
+                          <button
+                            onClick={() => setEditingRecurrence(expense)}
+                            className="text-apple-blue hover:text-apple-blue/80 transition-colors font-medium text-xs"
+                            title="Editar recorrência"
+                          >
+                            ⚙️ Recorrência
+                          </button>
+                        )}
+                        {expense.is_recurring && (
+                          <button
+                            onClick={() => handleDeleteRecurrence(expense)}
+                            className="text-apple-orange hover:text-apple-orange/80 transition-colors font-medium text-xs"
+                            title="Excluir toda a recorrência"
+                          >
+                            🗑️ Série
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleDelete(expense)}
+                          className="text-apple-red hover:text-apple-red/80 transition-colors font-medium text-xs"
+                          title={expense.is_installment 
+                            ? `Excluir toda a compra (${expense.installments} parcelas)`
+                            : expense.is_recurring 
+                              ? 'Excluir apenas este item'
+                              : 'Excluir despesa'
+                          }
+                        >
+                          {expense.is_installment ? '🗑️ Compra' : expense.is_recurring ? 'Excluir Item' : 'Excluir'}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -254,6 +302,18 @@ export default function ExpensesList({ userId }: Props) {
           </div>
         </div>
       )}
+
+      {/* Modal de Edição de Recorrência */}
+      <EditRecurrenceModal
+        isOpen={!!editingRecurrence}
+        onClose={() => setEditingRecurrence(null)}
+        item={editingRecurrence}
+        type="expense"
+        onSuccess={() => {
+          refetch()
+          setEditingRecurrence(null)
+        }}
+      />
     </div>
   )
 }
