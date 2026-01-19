@@ -376,32 +376,40 @@ export default function DraggableDashboard({
       {/* Painel de Widgets (apenas no modo edição) */}
       {isEditMode && (
         <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
-          <h4 className="font-medium fintech-text-primary mb-3">📊 Widgets Disponíveis</h4>
+          <h4 className="font-medium fintech-text-primary mb-3">📊 Escolha Seus Widgets</h4>
+          <p className="text-sm fintech-text-muted mb-4">Marque/desmarque para mostrar ou ocultar widgets no dashboard</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {widgets.map(widget => (
-              <div key={widget.id} className="flex items-center justify-between p-3 bg-white dark:bg-fintech-dark-surface rounded-lg">
-                <div className="flex items-center gap-2">
+              <div key={widget.id} className="flex items-center justify-between p-3 bg-white dark:bg-fintech-dark-surface rounded-lg border fintech-border">
+                <div className="flex items-center gap-3">
                   <input
                     type="checkbox"
                     checked={widget.enabled}
                     onChange={() => toggleWidget(widget.id)}
-                    className="w-4 h-4 text-apple-blue"
+                    className="w-4 h-4 text-apple-blue rounded focus:ring-apple-blue focus:ring-2"
                   />
-                  <span className="text-sm font-medium fintech-text-primary">{widget.title}</span>
+                  <div>
+                    <span className="text-sm font-medium fintech-text-primary block">{widget.title}</span>
+                    <span className={`text-xs ${widget.enabled ? 'text-green-600 dark:text-green-400' : 'text-gray-500'}`}>
+                      {widget.enabled ? '✓ Visível' : '✗ Oculto'}
+                    </span>
+                  </div>
                 </div>
                 <div className="flex items-center gap-1">
                   {['S', 'M', 'L', 'F'].map((size, index) => {
                     const sizeMap = ['small', 'medium', 'large', 'full']
+                    const sizeLabels = ['Pequeno', 'Médio', 'Grande', 'Completo']
                     return (
                       <button
                         key={size}
                         onClick={() => changeWidgetSize(widget.id, sizeMap[index] as any)}
-                        className={`w-6 h-6 rounded text-xs font-bold transition-colors ${
+                        className={`w-7 h-7 rounded text-xs font-bold transition-colors ${
                           widget.size === sizeMap[index]
                             ? 'bg-apple-blue text-white'
-                            : 'bg-gray-200 dark:bg-fintech-dark-elevated text-gray-600 hover:bg-gray-300'
+                            : 'bg-gray-200 dark:bg-fintech-dark-elevated text-gray-600 hover:bg-gray-300 dark:hover:bg-gray-600'
                         }`}
-                        title={`Tamanho ${sizeMap[index]}`}
+                        title={`Tamanho ${sizeLabels[index]}`}
+                        disabled={!widget.enabled}
                       >
                         {size}
                       </button>
@@ -411,79 +419,135 @@ export default function DraggableDashboard({
               </div>
             ))}
           </div>
+          
+          {/* Ações Rápidas */}
+          <div className="flex items-center justify-between mt-4 pt-4 border-t border-blue-200 dark:border-blue-700">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  const allEnabled = widgets.map(w => ({ ...w, enabled: true }))
+                  setWidgets(allEnabled)
+                  saveLayout(allEnabled)
+                }}
+                className="px-3 py-2 text-sm bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+              >
+                ✓ Marcar Todos
+              </button>
+              <button
+                onClick={() => {
+                  const allDisabled = widgets.map(w => ({ ...w, enabled: false }))
+                  setWidgets(allDisabled)
+                  saveLayout(allDisabled)
+                }}
+                className="px-3 py-2 text-sm bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+              >
+                ✗ Desmarcar Todos
+              </button>
+            </div>
+            <div className="text-sm fintech-text-muted">
+              {enabledWidgets.length} de {widgets.length} widgets ativos
+            </div>
+          </div>
         </div>
       )}
 
       {/* Dashboard Widgets */}
-      <DragDropContext onDragEnd={handleDragEnd}>
-        <Droppable droppableId="dashboard" direction="vertical">
-          {(provided, snapshot) => (
-            <div
-              {...provided.droppableProps}
-              ref={provided.innerRef}
-              className={`grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6 transition-all duration-200 ${
-                snapshot.isDraggingOver ? 'bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4' : ''
-              }`}
-            >
-              {enabledWidgets.map((widget, index) => (
-                <Draggable
-                  key={widget.id}
-                  draggableId={widget.id}
-                  index={index}
-                  isDragDisabled={!isEditMode}
-                >
-                  {(provided, snapshot) => (
-                    <div
-                      ref={provided.innerRef}
-                      {...provided.draggableProps}
-                      className={`
-                        ${getSizeClass(widget.size)}
-                        ${snapshot.isDragging ? 'rotate-1 scale-105 z-50' : ''}
-                        ${isEditMode ? 'ring-2 ring-apple-blue/30 ring-offset-2 dark:ring-offset-fintech-dark-bg' : ''}
-                        transition-all duration-200
-                      `}
-                    >
-                      {/* Widget Header (apenas no modo edição) */}
-                      {isEditMode && (
-                        <div className="mb-2 p-2 bg-white dark:bg-fintech-dark-surface rounded-lg border fintech-border">
-                          <div className="flex items-center justify-between">
-                            <div
-                              {...provided.dragHandleProps}
-                              className="flex items-center gap-2 cursor-grab active:cursor-grabbing"
-                            >
-                              <span className="text-gray-400">⋮⋮</span>
-                              <span className="text-sm font-medium fintech-text-primary">
-                                {widget.title}
-                              </span>
+      {enabledWidgets.length === 0 ? (
+        <div className="text-center py-12 bg-gray-50 dark:bg-fintech-dark-elevated rounded-xl">
+          <span className="text-6xl mb-4 block">📊</span>
+          <h3 className="text-xl font-semibold fintech-text-primary mb-2">Nenhum widget selecionado</h3>
+          <p className="fintech-text-muted mb-4">Clique em "⚙️ Editar Layout" para escolher quais widgets mostrar</p>
+          <button
+            onClick={() => setIsEditMode(true)}
+            className="px-6 py-3 bg-apple-blue text-white rounded-lg hover:bg-apple-blue/90 transition-colors"
+          >
+            ⚙️ Configurar Widgets
+          </button>
+        </div>
+      ) : (
+        <DragDropContext onDragEnd={handleDragEnd}>
+          <Droppable droppableId="dashboard" direction="vertical">
+            {(provided, snapshot) => (
+              <div
+                {...provided.droppableProps}
+                ref={provided.innerRef}
+                className={`grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6 transition-all duration-200 ${
+                  snapshot.isDraggingOver ? 'bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4' : ''
+                }`}
+              >
+                {enabledWidgets.map((widget, index) => (
+                  <Draggable
+                    key={widget.id}
+                    draggableId={widget.id}
+                    index={index}
+                    isDragDisabled={!isEditMode}
+                  >
+                    {(provided, snapshot) => (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.draggableProps}
+                        className={`
+                          ${getSizeClass(widget.size)}
+                          ${snapshot.isDragging ? 'rotate-1 scale-105 z-50' : ''}
+                          ${isEditMode ? 'ring-2 ring-apple-blue/30 ring-offset-2 dark:ring-offset-fintech-dark-bg' : ''}
+                          transition-all duration-200
+                        `}
+                      >
+                        {/* Widget Header (apenas no modo edição) */}
+                        {isEditMode && (
+                          <div className="mb-2 p-2 bg-white dark:bg-fintech-dark-surface rounded-lg border fintech-border">
+                            <div className="flex items-center justify-between">
+                              <div
+                                {...provided.dragHandleProps}
+                                className="flex items-center gap-2 cursor-grab active:cursor-grabbing"
+                              >
+                                <span className="text-gray-400">⋮⋮</span>
+                                <span className="text-sm font-medium fintech-text-primary">
+                                  {widget.title}
+                                </span>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      )}
+                        )}
 
-                      {/* Widget Content */}
-                      <div className={isEditMode ? 'pointer-events-none opacity-75' : ''}>
-                        {createWidgetComponent(widget)}
+                        {/* Widget Content */}
+                        <div className={isEditMode ? 'pointer-events-none opacity-75' : ''}>
+                          {createWidgetComponent(widget)}
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </Draggable>
-              ))}
-              {provided.placeholder}
-            </div>
-          )}
-        </Droppable>
-      </DragDropContext>
+                    )}
+                  </Draggable>
+                ))}
+                {provided.placeholder}
+              </div>
+            )}
+          </Droppable>
+        </DragDropContext>
+      )}
 
       {/* Instruções no modo edição */}
       {isEditMode && (
         <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-800">
-          <h4 className="font-medium text-amber-800 dark:text-amber-300 mb-2">💡 Como personalizar:</h4>
-          <ul className="text-sm text-amber-700 dark:text-amber-400 space-y-1">
-            <li>• <strong>Mostrar/Ocultar:</strong> Use as caixas de seleção para ativar/desativar widgets</li>
-            <li>• <strong>Redimensionar:</strong> Use os botões S/M/L/F para alterar o tamanho dos widgets</li>
-            <li>• <strong>Reorganizar:</strong> Arraste o ícone ⋮⋮ para mover widgets de posição</li>
-            <li>• <strong>Salvar:</strong> Clique em "✓ Salvar" para manter suas alterações</li>
-          </ul>
+          <h4 className="font-medium text-amber-800 dark:text-amber-300 mb-2">💡 Como personalizar seu dashboard:</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-amber-700 dark:text-amber-400">
+            <div>
+              <h5 className="font-semibold mb-2">🎛️ Controles de Widgets:</h5>
+              <ul className="space-y-1">
+                <li>• <strong>☑️ Checkbox:</strong> Marque para mostrar, desmarque para ocultar</li>
+                <li>• <strong>S/M/L/F:</strong> Escolha o tamanho (Pequeno/Médio/Grande/Completo)</li>
+                <li>• <strong>⋮⋮ Arrastar:</strong> Mova widgets para reorganizar posições</li>
+              </ul>
+            </div>
+            <div>
+              <h5 className="font-semibold mb-2">⚡ Ações Rápidas:</h5>
+              <ul className="space-y-1">
+                <li>• <strong>✓ Marcar Todos:</strong> Mostra todos os widgets</li>
+                <li>• <strong>✗ Desmarcar Todos:</strong> Oculta todos os widgets</li>
+                <li>• <strong>🔄 Resetar:</strong> Volta à configuração padrão</li>
+                <li>• <strong>✓ Salvar:</strong> Confirma suas alterações</li>
+              </ul>
+            </div>
+          </div>
         </div>
       )}
     </div>

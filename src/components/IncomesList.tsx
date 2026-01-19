@@ -14,6 +14,12 @@ export default function IncomesList({ userId }: Props) {
   const { incomes, loading, deleteIncome, refetch } = useIncomes(userId)
   const [showForm, setShowForm] = useState(false)
 
+  // Função para atualizar página
+  const handleRefresh = () => {
+    refetch()
+    window.location.reload()
+  }
+
   const handleDelete = async (id: string) => {
     if (confirm('Deseja realmente excluir esta receita?')) {
       await deleteIncome(id)
@@ -43,12 +49,20 @@ export default function IncomesList({ userId }: Props) {
           <h2 className="text-2xl font-semibold text-apple-gray-700">Receitas</h2>
           <p className="text-sm text-apple-gray-400 mt-1">Gerencie suas entradas</p>
         </div>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className={showForm ? 'btn-secondary' : 'btn-primary'}
-        >
-          {showForm ? '✕ Cancelar' : '+ Nova Receita'}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleRefresh}
+            className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm"
+          >
+            🔄 Atualizar
+          </button>
+          <button
+            onClick={() => setShowForm(!showForm)}
+            className={showForm ? 'btn-secondary' : 'btn-primary'}
+          >
+            {showForm ? '✕ Cancelar' : '+ Nova Receita'}
+          </button>
+        </div>
       </div>
 
       {showForm && (

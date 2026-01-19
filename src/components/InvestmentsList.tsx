@@ -10,8 +10,14 @@ interface Props {
 }
 
 export default function InvestmentsList({ userId }: Props) {
-  const { investments, loading, deleteInvestment } = useInvestments(userId)
+  const { investments, loading, deleteInvestment, refetch } = useInvestments(userId)
   const [showForm, setShowForm] = useState(false)
+
+  // Função para atualizar página
+  const handleRefresh = () => {
+    if (refetch) refetch()
+    window.location.reload()
+  }
 
   const handleDelete = async (id: string) => {
     if (confirm('Deseja realmente excluir este investimento?')) {
@@ -32,12 +38,20 @@ export default function InvestmentsList({ userId }: Props) {
           <h2 className="text-2xl font-semibold text-apple-gray-700">Investimentos</h2>
           <p className="text-sm text-apple-gray-400 mt-1">Acompanhe seu patrimônio</p>
         </div>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className={showForm ? 'btn-secondary' : 'btn-primary'}
-        >
-          {showForm ? '✕ Cancelar' : '+ Novo Investimento'}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleRefresh}
+            className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm"
+          >
+            🔄 Atualizar
+          </button>
+          <button
+            onClick={() => setShowForm(!showForm)}
+            className={showForm ? 'btn-secondary' : 'btn-primary'}
+          >
+            {showForm ? '✕ Cancelar' : '+ Novo Investimento'}
+          </button>
+        </div>
       </div>
 
       {showForm && (

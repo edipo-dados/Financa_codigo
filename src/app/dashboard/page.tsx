@@ -156,6 +156,7 @@ export default function Dashboard() {
               expenses={expenses}
               incomes={incomes}
               investments={investments}
+              onRefresh={handleRefresh}
             />
           )}
 
