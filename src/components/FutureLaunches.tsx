@@ -202,13 +202,7 @@ export default function FutureLaunches({ expenses, incomes, investments, onRefre
     }
   }
 
-  // Função para atualizar página
-  const handleRefresh = () => {
-    if (onRefresh) {
-      onRefresh()
-    }
-    window.location.reload()
-  }
+
 
   return (
     <div className="space-y-6">
@@ -217,12 +211,6 @@ export default function FutureLaunches({ expenses, incomes, investments, onRefre
         <div className="flex items-center justify-between">
           <h3 className="text-xl font-semibold text-apple-gray-700">Lançamentos Futuros</h3>
           <div className="flex items-center gap-2">
-            <button
-              onClick={handleRefresh}
-              className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm"
-            >
-              🔄 Atualizar
-            </button>
             <span className="px-3 py-1 bg-apple-blue/10 text-apple-blue text-sm font-medium rounded-lg">
               {filteredLaunches.length} lançamentos
             </span>

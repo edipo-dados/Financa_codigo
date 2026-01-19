@@ -12,11 +12,7 @@ interface Props {
 export default function CreditCardPurchasesList({ userId }: Props) {
   const { expenses, loading, refetch } = useExpenses(userId)
 
-  // Função para atualizar página
-  const handleRefresh = () => {
-    refetch()
-    window.location.reload()
-  }
+
 
   // Filtrar apenas compras parent de cartão (não parcelas)
   const creditCardPurchases = expenses.filter(e => 
@@ -99,12 +95,6 @@ export default function CreditCardPurchasesList({ userId }: Props) {
           <h2 className="text-2xl font-semibold text-apple-gray-700">Compras no Cartão</h2>
           <p className="text-sm text-apple-gray-400 mt-1">Gerencie suas compras parceladas</p>
         </div>
-        <button
-          onClick={handleRefresh}
-          className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm"
-        >
-          🔄 Atualizar
-        </button>
       </div>
 
       <div className="glass-card rounded-3xl overflow-hidden">

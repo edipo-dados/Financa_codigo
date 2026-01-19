@@ -22,6 +22,7 @@ import CreditCardManager from '@/components/CreditCardManager'
 import CreditCardPurchasesList from '@/components/CreditCardPurchasesList'
 import ThemeSettings from '@/components/ThemeSettings'
 import IncomeReport from '@/components/IncomeReport'
+import About from '@/components/About'
 import { format, startOfMonth, endOfMonth } from 'date-fns'
 
 export default function Dashboard() {
@@ -30,7 +31,7 @@ export default function Dashboard() {
   const { expenses, loading: expensesLoading, refetch: refetchExpenses } = useExpenses(user?.id)
   const { investments, loading: investmentsLoading, refetch: refetchInvestments } = useInvestments(user?.id)
   const { incomes, loading: incomesLoading, refetch: refetchIncomes } = useIncomes(user?.id)
-  const [activeTab, setActiveTab] = useState<'overview' | 'incomes' | 'expenses' | 'investments' | 'future' | 'creditcard' | 'settings'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'incomes' | 'expenses' | 'investments' | 'future' | 'creditcard' | 'settings' | 'about'>('overview')
   
   // Estado para navegação de mês
   const [currentMonth, setCurrentMonth] = useState(new Date())
@@ -82,6 +83,7 @@ export default function Dashboard() {
     { id: 'future', label: 'Futuros', icon: '🔮' },
     { id: 'creditcard', label: 'Cartão', icon: '💳' },
     { id: 'settings', label: 'Config', icon: '⚙️' },
+    { id: 'about', label: 'Sobre', icon: '📱' },
   ]
 
   return (
@@ -177,6 +179,10 @@ export default function Dashboard() {
               <CategoryManager userId={user.id} />
               <InvestmentTypeManager userId={user.id} />
             </div>
+          )}
+
+          {activeTab === 'about' && (
+            <About />
           )}
         </div>
       </main>

@@ -12,9 +12,10 @@ import { parseISO } from 'date-fns'
 interface Props {
   userId: string
   onSuccess: () => void
+  onRefresh?: () => void
 }
 
-export default function ExpenseForm({ userId, onSuccess }: Props) {
+export default function ExpenseForm({ userId, onSuccess, onRefresh }: Props) {
   const { addExpense } = useExpenses(userId)
   const { creditCards } = useCreditCards(userId)
   const [categories, setCategories] = useState<ExpenseCategory[]>([])
@@ -171,6 +172,7 @@ export default function ExpenseForm({ userId, onSuccess }: Props) {
         }
 
         onSuccess()
+        if (onRefresh) onRefresh()
         setLoading(false)
         return
       }
@@ -222,6 +224,7 @@ export default function ExpenseForm({ userId, onSuccess }: Props) {
       
       if (!error) {
         onSuccess()
+        if (onRefresh) onRefresh()
       }
     } catch (error) {
       console.error('Error in handleSubmit:', error)

@@ -10,9 +10,10 @@ import { parseISO } from 'date-fns'
 interface Props {
   userId: string
   onSuccess: () => void
+  onRefresh?: () => void
 }
 
-export default function IncomeForm({ userId, onSuccess }: Props) {
+export default function IncomeForm({ userId, onSuccess, onRefresh }: Props) {
   const { addIncome } = useIncomes(userId)
   const [categories, setCategories] = useState<IncomeCategory[]>([])
   const [loading, setLoading] = useState(false)
@@ -124,6 +125,7 @@ export default function IncomeForm({ userId, onSuccess }: Props) {
           recurrence_end_date: '',
         })
         onSuccess()
+        if (onRefresh) onRefresh()
       }
     } catch (err) {
       console.error('Erro inesperado:', err)

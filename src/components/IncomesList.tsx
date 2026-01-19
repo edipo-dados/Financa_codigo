@@ -14,11 +14,7 @@ export default function IncomesList({ userId }: Props) {
   const { incomes, loading, deleteIncome, refetch } = useIncomes(userId)
   const [showForm, setShowForm] = useState(false)
 
-  // Função para atualizar página
-  const handleRefresh = () => {
-    refetch()
-    window.location.reload()
-  }
+
 
   const handleDelete = async (id: string) => {
     if (confirm('Deseja realmente excluir esta receita?')) {
@@ -51,12 +47,6 @@ export default function IncomesList({ userId }: Props) {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={handleRefresh}
-            className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm"
-          >
-            🔄 Atualizar
-          </button>
-          <button
             onClick={() => setShowForm(!showForm)}
             className={showForm ? 'btn-secondary' : 'btn-primary'}
           >
@@ -67,7 +57,11 @@ export default function IncomesList({ userId }: Props) {
 
       {showForm && (
         <div className="glass-card p-6 rounded-3xl animate-slide-up">
-          <IncomeForm userId={userId} onSuccess={() => setShowForm(false)} />
+          <IncomeForm 
+            userId={userId} 
+            onSuccess={() => setShowForm(false)} 
+            onRefresh={refetch}
+          />
         </div>
       )}
 

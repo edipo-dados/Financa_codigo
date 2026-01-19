@@ -8,9 +8,10 @@ import { InvestmentType } from '@/types'
 interface Props {
   userId: string
   onSuccess: () => void
+  onRefresh?: () => void
 }
 
-export default function InvestmentForm({ userId, onSuccess }: Props) {
+export default function InvestmentForm({ userId, onSuccess, onRefresh }: Props) {
   const { addInvestment } = useInvestments(userId)
   const [types, setTypes] = useState<InvestmentType[]>([])
   const [loading, setLoading] = useState(false)
@@ -56,6 +57,7 @@ export default function InvestmentForm({ userId, onSuccess }: Props) {
     
     if (!error) {
       onSuccess()
+      if (onRefresh) onRefresh()
     }
     
     setLoading(false)

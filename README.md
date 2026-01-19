@@ -183,6 +183,24 @@ npm run type-check   # Verifica tipos TypeScript
 npm run lint         # Executa linter
 ```
 
+## 📚 Documentação Completa
+
+### 👤 Para Usuários Finais
+- **[📖 Manual do Usuário](MANUAL_DO_USUARIO.md)** - Guia completo e detalhado para usar todas as funcionalidades
+- **📥 Download PDF** - Disponível na seção "Sobre" da aplicação (aba "Manual")
+- **📱 Seção "Sobre"** - Disponível dentro da aplicação (aba "Sobre" no dashboard)
+
+### 👨‍💻 Para Desenvolvedores
+- **[🔧 Documentação Técnica](DOCUMENTACAO_TECNICA.md)** - Arquitetura, componentes, hooks e implementação detalhada
+- **[⚙️ Guia de Setup](SETUP.md)** - Configuração completa do ambiente de desenvolvimento
+- **[🗄️ Configuração Supabase](CONFIGURAR_SUPABASE_REAL.md)** - Setup detalhado do banco de dados
+
+### 📋 Guias Específicos
+- **[📊 Dashboard Configurável](DASHBOARD_CONFIGURAVEL_GUIDE.md)** - Como personalizar widgets e layouts
+- **[📱 Responsividade Mobile](MOBILE_RESPONSIVENESS_GUIDE.md)** - Design responsivo e mobile-first
+- **[📄 Informe de Rendimentos](INFORME_RENDIMENTOS_GUIDE.md)** - Geração de relatórios financeiros
+- **[🪟 Setup Windows](WINDOWS_SETUP.md)** - Instruções específicas para Windows
+
 ## 🎯 Funcionalidades Implementadas
 
 ### ✅ Versão 1.0.0
