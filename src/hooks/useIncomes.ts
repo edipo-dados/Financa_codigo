@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
+import { supabase, isSupabaseConfigured } from '@/lib/supabase'
 import { Income } from '@/types'
 
 export function useIncomes(userId: string | undefined) {
@@ -7,7 +7,19 @@ export function useIncomes(userId: string | undefined) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!userId) return
+    if (!userId) {
+      setLoading(false)
+      return
+    }
+
+    if (!isSupabaseConfigured) {
+      // Modo demo - dados mockados
+      setTimeout(() => {
+        setIncomes([])
+        setLoading(false)
+      }, 300)
+      return
+    }
 
     fetchIncomes()
   }, [userId])

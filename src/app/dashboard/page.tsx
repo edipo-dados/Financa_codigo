@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useExpenses } from '@/hooks/useExpenses'
 import { useInvestments } from '@/hooks/useInvestments'
 import { useIncomes } from '@/hooks/useIncomes'
-import DashboardStats from '@/components/DashboardStats'
+import DraggableDashboard from '@/components/DraggableDashboard'
 import ExpensesList from '@/components/ExpensesList'
 import InvestmentsList from '@/components/InvestmentsList'
 import IncomesList from '@/components/IncomesList'
@@ -127,7 +127,7 @@ export default function Dashboard() {
                 onPeriodChange={setCurrentPeriod}
               />
               
-              <DashboardStats
+              <DraggableDashboard
                 expenses={expenses}
                 investments={investments}
                 incomes={incomes}

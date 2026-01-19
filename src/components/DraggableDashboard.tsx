@@ -1,0 +1,359 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
+import StatsCardsWidget from './widgets/StatsCardsWidget'
+import ExpenseChartWidget from './widgets/ExpenseChartWidget'
+import IncomeChartWidget from './widgets/IncomeChartWidget'
+import FinancialInsightsWidget from './widgets/FinancialInsightsWidget'
+import KPIWidget from './widgets/KPIWidget'
+import { Expense, Investment, Income } from '@/types'
+
+interface DashboardWidget {
+  id: string
+  type: 'stats' | 'income-chart' | 'expense-chart' | 'financial-insights' | 'kpi-widget'
+  title: string
+  size: 'small' | 'medium' | 'large' | 'full'
+  enabled: boolean
+}
+
+interface Props {
+  expenses: Expense[]
+  investments: Investment[]
+  incomes: Income[]
+  loading: boolean
+  onRefresh?: () => void
+  startDate?: string
+  endDate?: string
+}
+
+const STORAGE_KEY = 'dashboard-layout'
+
+export default function DraggableDashboard({ 
+  expenses, 
+  investments, 
+  incomes, 
+  loading, 
+  onRefresh, 
+  startDate, 
+  endDate 
+}: Props) {
+  const [isEditMode, setIsEditMode] = useState(false)
+  const [widgets, setWidgets] = useState<DashboardWidget[]>([])
+
+  // Configuração padrão dos widgets
+  const defaultWidgets: DashboardWidget[] = [
+    {
+      id: 'stats-cards',
+      type: 'stats',
+      title: 'Cartões de Estatísticas',
+      size: 'full',
+      enabled: true
+    },
+    {
+      id: 'kpi-widget',
+      type: 'kpi-widget',
+      title: 'KPIs Configuráveis',
+      size: 'full',
+      enabled: true
+    },
+    {
+      id: 'expense-chart',
+      type: 'expense-chart',
+      title: 'Gráfico de Despesas',
+      size: 'medium',
+      enabled: true
+    },
+    {
+      id: 'income-chart',
+      type: 'income-chart',
+      title: 'Gráfico de Receitas',
+      size: 'medium',
+      enabled: true
+    },
+    {
+      id: 'financial-insights',
+      type: 'financial-insights',
+      title: 'Análise Inteligente com IA',
+      size: 'full',
+      enabled: true
+    }
+  ]
+
+  // Carregar layout salvo ou usar padrão
+  useEffect(() => {
+    const savedLayout = localStorage.getItem(STORAGE_KEY)
+    if (savedLayout) {
+      try {
+        const parsed = JSON.parse(savedLayout)
+        setWidgets(parsed)
+      } catch (error) {
+        console.error('Erro ao carregar layout:', error)
+        setWidgets(defaultWidgets)
+      }
+    } else {
+      setWidgets(defaultWidgets)
+    }
+  }, [])
+
+  // Criar componente baseado no tipo
+  const createWidgetComponent = (widget: DashboardWidget) => {
+    switch (widget.type) {
+      case 'stats':
+        return (
+          <StatsCardsWidget
+            expenses={expenses}
+            investments={investments}
+            incomes={incomes}
+            loading={loading}
+            startDate={startDate}
+            endDate={endDate}
+          />
+        )
+      case 'expense-chart':
+        return (
+          <ExpenseChartWidget
+            expenses={expenses}
+            loading={loading}
+          />
+        )
+      case 'income-chart':
+        return (
+          <IncomeChartWidget
+            incomes={incomes}
+            loading={loading}
+          />
+        )
+      case 'financial-insights':
+        return (
+          <FinancialInsightsWidget
+            expenses={expenses}
+            investments={investments}
+            incomes={incomes}
+            loading={loading}
+          />
+        )
+      case 'kpi-widget':
+        return (
+          <KPIWidget
+            expenses={expenses}
+            investments={investments}
+            incomes={incomes}
+            loading={loading}
+            startDate={startDate}
+            endDate={endDate}
+          />
+        )
+      default:
+        return (
+          <div className="fintech-card p-6 rounded-2xl text-center">
+            <span className="text-4xl mb-2 block">🚧</span>
+            <p className="fintech-text-muted">Widget em desenvolvimento</p>
+          </div>
+        )
+    }
+  }
+
+  // Salvar layout
+  const saveLayout = (newWidgets: DashboardWidget[]) => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(newWidgets))
+  }
+
+  // Manipular drag and drop
+  const handleDragEnd = (result: DropResult) => {
+    if (!result.destination) return
+
+    const newWidgets = Array.from(widgets)
+    const [reorderedWidget] = newWidgets.splice(result.source.index, 1)
+    newWidgets.splice(result.destination.index, 0, reorderedWidget)
+
+    setWidgets(newWidgets)
+    saveLayout(newWidgets)
+  }
+
+  // Alterar tamanho do widget
+  const changeWidgetSize = (widgetId: string, newSize: 'small' | 'medium' | 'large' | 'full') => {
+    const newWidgets = widgets.map(widget =>
+      widget.id === widgetId ? { ...widget, size: newSize } : widget
+    )
+    setWidgets(newWidgets)
+    saveLayout(newWidgets)
+  }
+
+  // Alternar visibilidade do widget
+  const toggleWidget = (widgetId: string) => {
+    const newWidgets = widgets.map(widget =>
+      widget.id === widgetId ? { ...widget, enabled: !widget.enabled } : widget
+    )
+    setWidgets(newWidgets)
+    saveLayout(newWidgets)
+  }
+
+  // Resetar para layout padrão
+  const resetLayout = () => {
+    setWidgets(defaultWidgets)
+    localStorage.removeItem(STORAGE_KEY)
+    setIsEditMode(false)
+  }
+
+  // Classes de tamanho
+  const getSizeClass = (size: string) => {
+    switch (size) {
+      case 'small': return 'col-span-1'
+      case 'medium': return 'col-span-1 lg:col-span-2'
+      case 'large': return 'col-span-1 lg:col-span-3'
+      case 'full': return 'col-span-full'
+      default: return 'col-span-full'
+    }
+  }
+
+  const enabledWidgets = widgets.filter(widget => widget.enabled)
+
+  return (
+    <div className="space-y-4">
+      {/* Controles de Edição */}
+      <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-fintech-dark-elevated rounded-xl">
+        <div>
+          <h3 className="font-semibold fintech-text-primary">⚙️ Configurar Dashboard</h3>
+          <p className="text-sm fintech-text-muted">
+            {isEditMode ? 'Arraste os widgets para reorganizar' : 'Personalize a disposição dos gráficos'}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          {isEditMode && (
+            <button
+              onClick={resetLayout}
+              className="px-3 py-2 text-sm text-red-600 hover:text-red-700 transition-colors"
+            >
+              🔄 Resetar
+            </button>
+          )}
+          <button
+            onClick={() => setIsEditMode(!isEditMode)}
+            className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+              isEditMode 
+                ? 'bg-green-500 text-white hover:bg-green-600' 
+                : 'bg-apple-blue text-white hover:bg-apple-blue/90'
+            }`}
+          >
+            {isEditMode ? '✓ Salvar' : '⚙️ Editar Layout'}
+          </button>
+        </div>
+      </div>
+
+      {/* Painel de Widgets (apenas no modo edição) */}
+      {isEditMode && (
+        <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
+          <h4 className="font-medium fintech-text-primary mb-3">📊 Widgets Disponíveis</h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {widgets.map(widget => (
+              <div key={widget.id} className="flex items-center justify-between p-3 bg-white dark:bg-fintech-dark-surface rounded-lg">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={widget.enabled}
+                    onChange={() => toggleWidget(widget.id)}
+                    className="w-4 h-4 text-apple-blue"
+                  />
+                  <span className="text-sm font-medium fintech-text-primary">{widget.title}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  {['S', 'M', 'L', 'F'].map((size, index) => {
+                    const sizeMap = ['small', 'medium', 'large', 'full']
+                    return (
+                      <button
+                        key={size}
+                        onClick={() => changeWidgetSize(widget.id, sizeMap[index] as any)}
+                        className={`w-6 h-6 rounded text-xs font-bold transition-colors ${
+                          widget.size === sizeMap[index]
+                            ? 'bg-apple-blue text-white'
+                            : 'bg-gray-200 dark:bg-fintech-dark-elevated text-gray-600 hover:bg-gray-300'
+                        }`}
+                        title={`Tamanho ${sizeMap[index]}`}
+                      >
+                        {size}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Dashboard Widgets */}
+      <DragDropContext onDragEnd={handleDragEnd}>
+        <Droppable droppableId="dashboard" direction="vertical">
+          {(provided, snapshot) => (
+            <div
+              {...provided.droppableProps}
+              ref={provided.innerRef}
+              className={`grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6 transition-all duration-200 ${
+                snapshot.isDraggingOver ? 'bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4' : ''
+              }`}
+            >
+              {enabledWidgets.map((widget, index) => (
+                <Draggable
+                  key={widget.id}
+                  draggableId={widget.id}
+                  index={index}
+                  isDragDisabled={!isEditMode}
+                >
+                  {(provided, snapshot) => (
+                    <div
+                      ref={provided.innerRef}
+                      {...provided.draggableProps}
+                      className={`
+                        ${getSizeClass(widget.size)}
+                        ${snapshot.isDragging ? 'rotate-1 scale-105 z-50' : ''}
+                        ${isEditMode ? 'ring-2 ring-apple-blue/30 ring-offset-2 dark:ring-offset-fintech-dark-bg' : ''}
+                        transition-all duration-200
+                      `}
+                    >
+                      {/* Widget Header (apenas no modo edição) */}
+                      {isEditMode && (
+                        <div className="mb-2 p-2 bg-white dark:bg-fintech-dark-surface rounded-lg border fintech-border">
+                          <div className="flex items-center justify-between">
+                            <div
+                              {...provided.dragHandleProps}
+                              className="flex items-center gap-2 cursor-grab active:cursor-grabbing"
+                            >
+                              <span className="text-gray-400">⋮⋮</span>
+                              <span className="text-sm font-medium fintech-text-primary">
+                                {widget.title}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Widget Content */}
+                      <div className={isEditMode ? 'pointer-events-none opacity-75' : ''}>
+                        {createWidgetComponent(widget)}
+                      </div>
+                    </div>
+                  )}
+                </Draggable>
+              ))}
+              {provided.placeholder}
+            </div>
+          )}
+        </Droppable>
+      </DragDropContext>
+
+      {/* Instruções no modo edição */}
+      {isEditMode && (
+        <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-800">
+          <h4 className="font-medium text-amber-800 dark:text-amber-300 mb-2">💡 Como personalizar:</h4>
+          <ul className="text-sm text-amber-700 dark:text-amber-400 space-y-1">
+            <li>• <strong>Mostrar/Ocultar:</strong> Use as caixas de seleção para ativar/desativar widgets</li>
+            <li>• <strong>Redimensionar:</strong> Use os botões S/M/L/F para alterar o tamanho dos widgets</li>
+            <li>• <strong>Reorganizar:</strong> Arraste o ícone ⋮⋮ para mover widgets de posição</li>
+            <li>• <strong>Salvar:</strong> Clique em "✓ Salvar" para manter suas alterações</li>
+          </ul>
+        </div>
+      )}
+    </div>
+  )
+}
