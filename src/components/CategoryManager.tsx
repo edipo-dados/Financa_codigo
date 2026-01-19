@@ -71,7 +71,6 @@ export default function CategoryManager({ userId }: Props) {
     <div className="glass-card p-6 rounded-3xl animate-slide-up">
       <div className="mb-6">
         <h3 className="text-xl font-semibold text-apple-gray-700">Categorias de Despesas</h3>
-        <p className="text-sm text-apple-gray-400 mt-1">Organize seus gastos por categoria</p>
       </div>
 
       <form onSubmit={handleAdd} className="mb-6 space-y-4">

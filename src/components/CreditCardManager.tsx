@@ -82,7 +82,6 @@ export default function CreditCardManager({ userId }: Props) {
       <div className="flex items-center justify-between mb-4 sm:mb-6">
         <div>
           <h3 className="text-lg sm:text-xl font-semibold fintech-text-primary">Cartões de Crédito</h3>
-          <p className="text-xs sm:text-sm fintech-text-muted mt-1">Gerencie seus cartões</p>
         </div>
         <button
           onClick={() => {

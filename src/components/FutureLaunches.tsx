@@ -6,6 +6,7 @@ import { calculateFutureOccurrences } from '@/lib/recurrence'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { format } from 'date-fns'
 import { supabase } from '@/lib/supabase'
+import EditRecurrenceModal from './EditRecurrenceModal'
 
 interface Props {
   expenses: Expense[]
@@ -25,6 +26,7 @@ interface FutureLaunch {
   category?: string
   color?: string
   originalId: string // ID do item original (expense ou income)
+  originalItem?: Expense | Income | Investment // Item original completo
 }
 
 export default function FutureLaunches({ expenses, incomes, investments, onRefresh }: Props) {
@@ -33,6 +35,7 @@ export default function FutureLaunches({ expenses, incomes, investments, onRefre
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
   const [isDeleting, setIsDeleting] = useState(false)
   const [isSelectionMode, setIsSelectionMode] = useState(false)
+  const [editingRecurrence, setEditingRecurrence] = useState<{ item: Expense | Income | Investment, type: LaunchType } | null>(null)
 
   const futureLaunches = useMemo(() => {
     const launches: FutureLaunch[] = []
@@ -50,6 +53,7 @@ export default function FutureLaunches({ expenses, incomes, investments, onRefre
           launches.push({
             id: `income-${income.id}-${format(occ.date, 'yyyy-MM-dd')}`,
             originalId: income.id,
+            originalItem: income,
             date: occ.date,
             amount: occ.amount,
             description: income.description,
@@ -69,12 +73,38 @@ export default function FutureLaunches({ expenses, incomes, investments, onRefre
           launches.push({
             id: `expense-${expense.id}-${format(occ.date, 'yyyy-MM-dd')}`,
             originalId: expense.id,
+            originalItem: expense,
             date: occ.date,
             amount: occ.amount,
             description: expense.description,
             type: 'expense',
             category: expense.category?.name,
             color: expense.category?.color || '#ff3b30',
+          })
+        }
+      })
+    })
+
+    // Investimentos futuros (recorrências - incluindo mês atual)
+    investments.filter(i => i.is_recurring).forEach(investment => {
+      // Adaptar investment para a interface esperada pela função
+      const adaptedInvestment = {
+        ...investment,
+        amount: investment.initial_amount // Usar initial_amount como amount
+      }
+      const futureOccurrences = calculateFutureOccurrences([adaptedInvestment], monthsAhead)
+      futureOccurrences.forEach(occ => {
+        if (occ.date >= startOfCurrentMonth) {
+          launches.push({
+            id: `investment-${investment.id}-${format(occ.date, 'yyyy-MM-dd')}`,
+            originalId: investment.id,
+            originalItem: investment,
+            date: occ.date,
+            amount: occ.amount,
+            description: investment.name,
+            type: 'investment',
+            category: investment.investment_type?.name,
+            color: '#007aff',
           })
         }
       })
@@ -90,6 +120,7 @@ export default function FutureLaunches({ expenses, incomes, investments, onRefre
       launches.push({
         id: `installment-${expense.id}`,
         originalId: expense.id,
+        originalItem: expense,
         date: new Date(expense.expense_date),
         amount: expense.amount,
         description: expense.description,
@@ -116,11 +147,16 @@ export default function FutureLaunches({ expenses, incomes, investments, onRefre
     const totalExpenses = futureLaunches
       .filter(l => l.type === 'expense')
       .reduce((sum, l) => sum + l.amount, 0)
+
+    const totalInvestments = futureLaunches
+      .filter(l => l.type === 'investment')
+      .reduce((sum, l) => sum + l.amount, 0)
     
     return {
       totalIncomes,
       totalExpenses,
-      balance: totalIncomes - totalExpenses,
+      totalInvestments,
+      balance: totalIncomes - totalExpenses - totalInvestments,
     }
   }, [futureLaunches])
 
@@ -156,6 +192,16 @@ export default function FutureLaunches({ expenses, incomes, investments, onRefre
     setSelectedItems(new Set())
   }
 
+  // Função de edição
+  const handleEdit = (launch: FutureLaunch) => {
+    if (launch.originalItem && (launch.type === 'expense' || launch.type === 'income' || launch.type === 'investment')) {
+      setEditingRecurrence({
+        item: launch.originalItem,
+        type: launch.type
+      })
+    }
+  }
+
   // Função de exclusão
   const handleDelete = async (itemIds: string[]) => {
     if (!itemIds.length) return
@@ -169,6 +215,8 @@ export default function FutureLaunches({ expenses, incomes, investments, onRefre
           await supabase.from('incomes').delete().eq('id', item.originalId)
         } else if (item.type === 'expense') {
           await supabase.from('expenses').delete().eq('id', item.originalId)
+        } else if (item.type === 'investment') {
+          await supabase.from('investments').delete().eq('id', item.originalId)
         }
       }
 
@@ -201,8 +249,6 @@ export default function FutureLaunches({ expenses, incomes, investments, onRefre
       handleDelete(Array.from(selectedItems))
     }
   }
-
-
 
   return (
     <div className="space-y-6">
@@ -305,7 +351,7 @@ export default function FutureLaunches({ expenses, incomes, investments, onRefre
       </div>
 
       {/* Resumo */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="glass-card p-6 rounded-3xl">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm text-apple-gray-500">Total Receitas</span>
@@ -323,6 +369,16 @@ export default function FutureLaunches({ expenses, incomes, investments, onRefre
           </div>
           <p className="text-2xl font-bold text-apple-red">
             {formatCurrency(summary.totalExpenses)}
+          </p>
+        </div>
+
+        <div className="glass-card p-6 rounded-3xl">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm text-apple-gray-500">Total Investimentos</span>
+            <span className="text-2xl">📈</span>
+          </div>
+          <p className="text-2xl font-bold text-apple-blue">
+            {formatCurrency(summary.totalInvestments)}
           </p>
         </div>
 
@@ -348,7 +404,7 @@ export default function FutureLaunches({ expenses, incomes, investments, onRefre
               Nenhum lançamento futuro
             </h3>
             <p className="text-apple-gray-400 text-sm">
-              Cadastre receitas ou despesas recorrentes para ver projeções futuras
+              Cadastre receitas, despesas ou investimentos recorrentes para ver projeções futuras
             </p>
           </div>
         ) : (
@@ -415,19 +471,30 @@ export default function FutureLaunches({ expenses, incomes, investments, onRefre
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold">
-                      <span className={launch.type === 'income' ? 'text-apple-green' : 'text-apple-red'}>
+                      <span className={launch.type === 'income' ? 'text-apple-green' : launch.type === 'investment' ? 'text-apple-blue' : 'text-apple-red'}>
                         {launch.type === 'income' ? '+' : '-'} {formatCurrency(launch.amount)}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       {!isSelectionMode && (
-                        <button
-                          onClick={() => handleSingleDelete(launch.id)}
-                          disabled={isDeleting}
-                          className="px-3 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-xs disabled:opacity-50"
-                        >
-                          🗑️ Excluir
-                        </button>
+                        <div className="flex items-center gap-2">
+                          {launch.originalItem && (launch.originalItem as any).is_recurring && (
+                            <button
+                              onClick={() => handleEdit(launch)}
+                              className="px-3 py-1 bg-apple-blue text-white rounded-lg hover:bg-apple-blue/90 transition-colors text-xs"
+                              title="Editar recorrência"
+                            >
+                              ✏️ Editar
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleSingleDelete(launch.id)}
+                            disabled={isDeleting}
+                            className="px-3 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-xs disabled:opacity-50"
+                          >
+                            🗑️ Excluir
+                          </button>
+                        </div>
                       )}
                     </td>
                   </tr>
@@ -437,6 +504,22 @@ export default function FutureLaunches({ expenses, incomes, investments, onRefre
           </div>
         )}
       </div>
+
+      {/* Modal de Edição de Recorrência */}
+      {editingRecurrence && (
+        <EditRecurrenceModal
+          isOpen={!!editingRecurrence}
+          onClose={() => setEditingRecurrence(null)}
+          item={editingRecurrence.item}
+          type={editingRecurrence.type}
+          onSuccess={() => {
+            if (onRefresh) {
+              onRefresh()
+            }
+            setEditingRecurrence(null)
+          }}
+        />
+      )}
     </div>
   )
 }

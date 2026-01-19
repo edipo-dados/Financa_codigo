@@ -60,7 +60,6 @@ export default function InvestmentTypeManager({ userId }: Props) {
     <div className="glass-card p-6 rounded-3xl animate-slide-up">
       <div className="mb-6">
         <h3 className="text-xl font-semibold text-apple-gray-700">Tipos de Investimento</h3>
-        <p className="text-sm text-apple-gray-400 mt-1">Classifique seus investimentos</p>
       </div>
 
       <form onSubmit={handleAdd} className="mb-6 flex gap-3">

@@ -132,7 +132,6 @@ export default function ExpensesList({ userId }: Props) {
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-semibold text-apple-gray-700">Despesas</h2>
-          <p className="text-sm text-apple-gray-400 mt-1">Gerencie seus gastos</p>
         </div>
         <div className="flex items-center gap-2">
           <button

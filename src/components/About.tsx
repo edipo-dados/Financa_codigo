@@ -18,7 +18,6 @@ export default function About() {
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-semibold text-apple-gray-700">Sobre a Aplicação</h2>
-          <p className="text-sm text-apple-gray-400 mt-1">Conheça mais sobre o sistema</p>
         </div>
       </div>
 

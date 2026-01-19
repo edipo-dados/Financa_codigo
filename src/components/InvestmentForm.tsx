@@ -3,7 +3,9 @@
 import { useState, useEffect } from 'react'
 import { useInvestments } from '@/hooks/useInvestments'
 import { supabase } from '@/lib/supabase'
-import { InvestmentType } from '@/types'
+import { InvestmentType, RecurrenceFrequency, RecurrenceEndType } from '@/types'
+import { validateRecurrenceConfig, getRecurrenceDescription } from '@/lib/recurrence'
+import { parseISO } from 'date-fns'
 
 interface Props {
   userId: string
@@ -23,6 +25,11 @@ export default function InvestmentForm({ userId, onSuccess, onRefresh }: Props) 
     initial_amount: '',
     investment_date: new Date().toISOString().split('T')[0],
     expected_return: '',
+    is_recurring: false,
+    recurrence_frequency: 'monthly' as RecurrenceFrequency,
+    recurrence_end_type: 'never' as RecurrenceEndType,
+    recurrence_count: '12',
+    recurrence_end_date: '',
   })
 
   useEffect(() => {
@@ -42,6 +49,24 @@ export default function InvestmentForm({ userId, onSuccess, onRefresh }: Props) 
     e.preventDefault()
     setLoading(true)
 
+    // Validar recorrência se habilitada
+    if (formData.is_recurring) {
+      const config = {
+        startDate: parseISO(formData.investment_date),
+        frequency: formData.recurrence_frequency,
+        endType: formData.recurrence_end_type,
+        endDate: formData.recurrence_end_date ? parseISO(formData.recurrence_end_date) : undefined,
+        occurrences: formData.recurrence_count ? parseInt(formData.recurrence_count) : undefined,
+      }
+      
+      const validation = validateRecurrenceConfig(config)
+      if (!validation.valid) {
+        alert(validation.error)
+        setLoading(false)
+        return
+      }
+    }
+
     const investment = {
       user_id: userId,
       name: formData.name,
@@ -51,6 +76,13 @@ export default function InvestmentForm({ userId, onSuccess, onRefresh }: Props) 
       current_amount: parseFloat(formData.initial_amount),
       investment_date: formData.investment_date,
       expected_return: formData.expected_return ? parseFloat(formData.expected_return) : null,
+      is_recurring: formData.is_recurring,
+      recurrence_frequency: formData.is_recurring ? formData.recurrence_frequency : null,
+      recurrence_start_date: formData.is_recurring ? formData.investment_date : null,
+      recurrence_end_type: formData.is_recurring ? formData.recurrence_end_type : null,
+      recurrence_end_date: formData.is_recurring && formData.recurrence_end_type === 'on_date' ? formData.recurrence_end_date : null,
+      recurrence_count: formData.is_recurring && formData.recurrence_end_type === 'after_occurrences' ? parseInt(formData.recurrence_count) : null,
+      parent_investment_id: null,
     }
 
     const { error } = await addInvestment(investment)
@@ -61,6 +93,24 @@ export default function InvestmentForm({ userId, onSuccess, onRefresh }: Props) 
     }
     
     setLoading(false)
+  }
+
+  const getRecurrencePreview = () => {
+    if (!formData.is_recurring) return null
+    
+    try {
+      const config = {
+        startDate: parseISO(formData.investment_date),
+        frequency: formData.recurrence_frequency,
+        endType: formData.recurrence_end_type,
+        endDate: formData.recurrence_end_date ? parseISO(formData.recurrence_end_date) : undefined,
+        occurrences: formData.recurrence_count ? parseInt(formData.recurrence_count) : undefined,
+      }
+      
+      return getRecurrenceDescription(config)
+    } catch {
+      return 'Configuração inválida'
+    }
   }
 
   return (
@@ -149,6 +199,96 @@ export default function InvestmentForm({ userId, onSuccess, onRefresh }: Props) 
             className="input-field"
             placeholder="Ex: 10.5"
           />
+        </div>
+
+        {/* Seção de Recorrência */}
+        <div className="md:col-span-2 p-4 bg-apple-blue/5 rounded-xl border border-apple-blue/20">
+          <div className="flex items-center gap-3 mb-4">
+            <input
+              type="checkbox"
+              id="is_recurring"
+              checked={formData.is_recurring}
+              onChange={(e) => setFormData({ ...formData, is_recurring: e.target.checked })}
+              className="w-4 h-4 text-apple-blue rounded focus:ring-apple-blue"
+            />
+            <label htmlFor="is_recurring" className="text-sm font-medium text-apple-gray-700">
+              💰 Investimento Recorrente (Ex: aportes mensais)
+            </label>
+          </div>
+
+          {formData.is_recurring && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-apple-gray-600 mb-2">
+                    Frequência
+                  </label>
+                  <select
+                    value={formData.recurrence_frequency}
+                    onChange={(e) => setFormData({ ...formData, recurrence_frequency: e.target.value as RecurrenceFrequency })}
+                    className="input-field"
+                  >
+                    <option value="daily">Diária</option>
+                    <option value="weekly">Semanal</option>
+                    <option value="monthly">Mensal</option>
+                    <option value="yearly">Anual</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-apple-gray-600 mb-2">
+                    Término
+                  </label>
+                  <select
+                    value={formData.recurrence_end_type}
+                    onChange={(e) => setFormData({ ...formData, recurrence_end_type: e.target.value as RecurrenceEndType })}
+                    className="input-field"
+                  >
+                    <option value="never">Sem fim</option>
+                    <option value="after_occurrences">Após X aportes</option>
+                    <option value="on_date">Até data específica</option>
+                  </select>
+                </div>
+              </div>
+
+              {formData.recurrence_end_type === 'after_occurrences' && (
+                <div>
+                  <label className="block text-sm font-medium text-apple-gray-600 mb-2">
+                    Número de Aportes
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="365"
+                    value={formData.recurrence_count}
+                    onChange={(e) => setFormData({ ...formData, recurrence_count: e.target.value })}
+                    className="input-field"
+                    placeholder="Ex: 12"
+                  />
+                </div>
+              )}
+
+              {formData.recurrence_end_type === 'on_date' && (
+                <div>
+                  <label className="block text-sm font-medium text-apple-gray-600 mb-2">
+                    Data Final
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.recurrence_end_date}
+                    onChange={(e) => setFormData({ ...formData, recurrence_end_date: e.target.value })}
+                    className="input-field"
+                  />
+                </div>
+              )}
+
+              <div className="p-3 bg-white rounded-lg border border-apple-gray-200">
+                <p className="text-sm text-apple-gray-600">
+                  <strong>Resumo:</strong> {getRecurrencePreview()}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

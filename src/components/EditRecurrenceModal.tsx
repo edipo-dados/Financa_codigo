@@ -2,15 +2,15 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Expense, Income, RecurrenceFrequency, RecurrenceEndType } from '@/types'
+import { Expense, Income, Investment, RecurrenceFrequency, RecurrenceEndType } from '@/types'
 import { validateRecurrenceConfig, getRecurrenceDescription, generateRecurrenceOccurrences } from '@/lib/recurrence'
 import { parseISO } from 'date-fns'
 
 interface Props {
   isOpen: boolean
   onClose: () => void
-  item: Expense | Income | null
-  type: 'expense' | 'income'
+  item: Expense | Income | Investment | null
+  type: 'expense' | 'income' | 'investment'
   onSuccess: () => void
 }
 
@@ -38,8 +38,17 @@ export default function EditRecurrenceModal({ isOpen, onClose, item, type, onSuc
   const getPreviewOccurrences = () => {
     if (!item) return []
     
+    let startDate: Date
+    if (type === 'expense') {
+      startDate = parseISO(item.recurrence_start_date || (item as Expense).expense_date)
+    } else if (type === 'income') {
+      startDate = parseISO(item.recurrence_start_date || (item as Income).income_date)
+    } else {
+      startDate = parseISO(item.recurrence_start_date || (item as Investment).investment_date)
+    }
+    
     const config = {
-      startDate: parseISO(item.recurrence_start_date || (type === 'expense' ? (item as Expense).expense_date : (item as Income).income_date)),
+      startDate,
       frequency: formData.recurrence_frequency,
       endType: formData.recurrence_end_type,
       endDate: formData.recurrence_end_date ? parseISO(formData.recurrence_end_date) : undefined,
@@ -59,8 +68,17 @@ export default function EditRecurrenceModal({ isOpen, onClose, item, type, onSuc
     
     try {
       // Validar recorrência
+      let startDate: Date
+      if (type === 'expense') {
+        startDate = parseISO(item.recurrence_start_date || (item as Expense).expense_date)
+      } else if (type === 'income') {
+        startDate = parseISO(item.recurrence_start_date || (item as Income).income_date)
+      } else {
+        startDate = parseISO(item.recurrence_start_date || (item as Investment).investment_date)
+      }
+      
       const config = {
-        startDate: parseISO(item.recurrence_start_date || (type === 'expense' ? (item as Expense).expense_date : (item as Income).income_date)),
+        startDate,
         frequency: formData.recurrence_frequency,
         endType: formData.recurrence_end_type,
         endDate: formData.recurrence_end_date ? parseISO(formData.recurrence_end_date) : undefined,
@@ -86,9 +104,19 @@ export default function EditRecurrenceModal({ isOpen, onClose, item, type, onSuc
               recurrence_count: formData.recurrence_end_type === 'after_occurrences' ? parseInt(formData.recurrence_count) : null,
             })
             .eq('id', item.id)
-        } else {
+        } else if (type === 'income') {
           await (supabase as any)
             .from('incomes')
+            .update({
+              recurrence_frequency: formData.recurrence_frequency,
+              recurrence_end_type: formData.recurrence_end_type,
+              recurrence_end_date: formData.recurrence_end_type === 'on_date' ? formData.recurrence_end_date : null,
+              recurrence_count: formData.recurrence_end_type === 'after_occurrences' ? parseInt(formData.recurrence_count) : null,
+            })
+            .eq('id', item.id)
+        } else {
+          await (supabase as any)
+            .from('investments')
             .update({
               recurrence_frequency: formData.recurrence_frequency,
               recurrence_end_type: formData.recurrence_end_type,
@@ -115,7 +143,8 @@ export default function EditRecurrenceModal({ isOpen, onClose, item, type, onSuc
   const handleDeleteRecurrence = async () => {
     if (!item) return
     
-    const confirmMsg = `Deseja realmente remover a recorrência deste ${type === 'expense' ? 'gasto' : 'receita'}?\n\nIsso não excluirá o item atual, apenas removerá a configuração de recorrência.`
+    const itemType = type === 'expense' ? 'gasto' : type === 'income' ? 'receita' : 'investimento'
+    const confirmMsg = `Deseja realmente remover a recorrência deste ${itemType}?\n\nIsso não excluirá o item atual, apenas removerá a configuração de recorrência.`
     
     if (!confirm(confirmMsg)) return
     
@@ -136,9 +165,21 @@ export default function EditRecurrenceModal({ isOpen, onClose, item, type, onSuc
               recurrence_count: null,
             })
             .eq('id', item.id)
-        } else {
+        } else if (type === 'income') {
           await (supabase as any)
             .from('incomes')
+            .update({
+              is_recurring: false,
+              recurrence_frequency: null,
+              recurrence_start_date: null,
+              recurrence_end_type: null,
+              recurrence_end_date: null,
+              recurrence_count: null,
+            })
+            .eq('id', item.id)
+        } else {
+          await (supabase as any)
+            .from('investments')
             .update({
               is_recurring: false,
               recurrence_frequency: null,
@@ -178,7 +219,7 @@ export default function EditRecurrenceModal({ isOpen, onClose, item, type, onSuc
                 Editar Recorrência
               </h3>
               <p className="text-sm text-apple-gray-500 mt-1">
-                {item.description}
+                {type === 'investment' ? (item as Investment).name : (item as Expense | Income).description}
               </p>
             </div>
             <button
@@ -268,7 +309,15 @@ export default function EditRecurrenceModal({ isOpen, onClose, item, type, onSuc
                 </div>
                 <p className="text-xs text-apple-gray-500 mb-2">
                   {getRecurrenceDescription({
-                    startDate: parseISO(item.recurrence_start_date || (type === 'expense' ? (item as Expense).expense_date : (item as Income).income_date)),
+                    startDate: (() => {
+                      if (type === 'expense') {
+                        return parseISO(item.recurrence_start_date || (item as Expense).expense_date)
+                      } else if (type === 'income') {
+                        return parseISO(item.recurrence_start_date || (item as Income).income_date)
+                      } else {
+                        return parseISO(item.recurrence_start_date || (item as Investment).investment_date)
+                      }
+                    })(),
                     frequency: formData.recurrence_frequency,
                     endType: formData.recurrence_end_type,
                     endDate: formData.recurrence_end_date ? parseISO(formData.recurrence_end_date) : undefined,

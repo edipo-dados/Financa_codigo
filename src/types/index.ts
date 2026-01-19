@@ -90,6 +90,13 @@ export interface Investment {
   current_amount: number
   investment_date: string
   expected_return: number | null
+  is_recurring: boolean
+  recurrence_frequency: RecurrenceFrequency | null
+  recurrence_start_date: string | null
+  recurrence_end_date: string | null
+  recurrence_count: number | null
+  recurrence_end_type: RecurrenceEndType | null
+  parent_investment_id: string | null
   created_at: string
   updated_at: string
   investment_type?: InvestmentType

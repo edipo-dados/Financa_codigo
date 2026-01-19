@@ -93,7 +93,6 @@ export default function CreditCardPurchasesList({ userId }: Props) {
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-semibold text-apple-gray-700">Compras no Cartão</h2>
-          <p className="text-sm text-apple-gray-400 mt-1">Gerencie suas compras parceladas</p>
         </div>
       </div>
 

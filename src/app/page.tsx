@@ -67,9 +67,6 @@ export default function Home() {
           <h1 className="text-4xl font-semibold fintech-text-primary mb-2">
             Controle Financeiro
           </h1>
-          <p className="fintech-text-muted text-sm">
-            Gerencie suas finanças com elegância e simplicidade
-          </p>
         </div>
         <AuthForm />
       </div>

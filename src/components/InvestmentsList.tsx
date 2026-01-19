@@ -3,7 +3,10 @@
 import { useState } from 'react'
 import { useInvestments } from '@/hooks/useInvestments'
 import { formatCurrency, formatDate } from '@/lib/utils'
+import { supabase } from '@/lib/supabase'
 import InvestmentForm from './InvestmentForm'
+import EditRecurrenceModal from './EditRecurrenceModal'
+import { Investment } from '@/types'
 
 interface Props {
   userId: string
@@ -12,12 +15,37 @@ interface Props {
 export default function InvestmentsList({ userId }: Props) {
   const { investments, loading, deleteInvestment, refetch } = useInvestments(userId)
   const [showForm, setShowForm] = useState(false)
+  const [editingRecurrence, setEditingRecurrence] = useState<Investment | null>(null)
 
-
+  const handleDeleteRecurrence = async (investment: Investment) => {
+    const confirmMsg = `Deseja excluir TODA a recorrência "${investment.name}"?\n\nIsso excluirá este item e impedirá a criação de futuras ocorrências.`
+    
+    if (!confirm(confirmMsg)) return
+    
+    try {
+      // Excluir todas as ocorrências futuras desta recorrência
+      const { error: deleteError } = await supabase
+        .from('investments')
+        .delete()
+        .eq('parent_investment_id', investment.id)
+      
+      if (deleteError) {
+        console.error('Erro ao excluir ocorrências futuras:', deleteError)
+      }
+      
+      // Excluir o item principal
+      await deleteInvestment(investment.id)
+      refetch()
+    } catch (error) {
+      console.error('Erro ao excluir recorrência:', error)
+      alert('Erro ao excluir recorrência')
+    }
+  }
 
   const handleDelete = async (id: string) => {
     if (confirm('Deseja realmente excluir este investimento?')) {
       await deleteInvestment(id)
+      refetch()
     }
   }
 
@@ -32,7 +60,6 @@ export default function InvestmentsList({ userId }: Props) {
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-semibold text-apple-gray-700">Investimentos</h2>
-          <p className="text-sm text-apple-gray-400 mt-1">Acompanhe seu patrimônio</p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -82,10 +109,15 @@ export default function InvestmentsList({ userId }: Props) {
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex-1">
                     <h3 className="font-semibold text-lg text-apple-gray-700 mb-1">{investment.name}</h3>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       {investment.investment_type && (
                         <span className="text-xs px-2 py-1 bg-apple-blue/10 text-apple-blue rounded-lg font-medium">
                           {investment.investment_type.name}
+                        </span>
+                      )}
+                      {investment.is_recurring && (
+                        <span className="text-xs px-2 py-1 bg-apple-green/10 text-apple-green rounded-lg font-medium">
+                          Recorrente
                         </span>
                       )}
                     </div>
@@ -93,12 +125,33 @@ export default function InvestmentsList({ userId }: Props) {
                       <p className="text-xs text-apple-gray-400 mt-1">{investment.institution}</p>
                     )}
                   </div>
-                  <button
-                    onClick={() => handleDelete(investment.id)}
-                    className="text-apple-red hover:text-apple-red/80 transition-colors text-sm font-medium"
-                  >
-                    ✕
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {investment.is_recurring && (
+                      <>
+                        <button
+                          onClick={() => setEditingRecurrence(investment)}
+                          className="text-apple-blue hover:text-apple-blue/80 transition-colors text-xs font-medium"
+                          title="Editar recorrência"
+                        >
+                          ⚙️
+                        </button>
+                        <button
+                          onClick={() => handleDeleteRecurrence(investment)}
+                          className="text-apple-orange hover:text-apple-orange/80 transition-colors text-xs font-medium"
+                          title="Excluir toda a recorrência"
+                        >
+                          🗑️
+                        </button>
+                      </>
+                    )}
+                    <button
+                      onClick={() => handleDelete(investment.id)}
+                      className="text-apple-red hover:text-apple-red/80 transition-colors text-sm font-medium"
+                      title={investment.is_recurring ? 'Excluir apenas este item' : 'Excluir investimento'}
+                    >
+                      ✕
+                    </button>
+                  </div>
                 </div>
 
                 <div className="space-y-3 pt-4 border-t border-apple-gray-100">
@@ -135,6 +188,18 @@ export default function InvestmentsList({ userId }: Props) {
           })}
         </div>
       )}
+
+      {/* Modal de Edição de Recorrência */}
+      <EditRecurrenceModal
+        isOpen={!!editingRecurrence}
+        onClose={() => setEditingRecurrence(null)}
+        item={editingRecurrence}
+        type="investment"
+        onSuccess={() => {
+          refetch()
+          setEditingRecurrence(null)
+        }}
+      />
     </div>
   )
 }

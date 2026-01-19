@@ -94,7 +94,6 @@ export default function Dashboard() {
         {/* Header - Mobile Optimized */}
         <div className="mb-6 sm:mb-8 animate-slide-up">
           <h1 className="text-2xl sm:text-3xl font-semibold fintech-text-primary mb-1 sm:mb-2">Dashboard</h1>
-          <p className="fintech-text-muted text-sm sm:text-base">Gerencie suas finanças de forma inteligente</p>
         </div>
 
         {/* Desktop Tabs - Hidden on Mobile */}
