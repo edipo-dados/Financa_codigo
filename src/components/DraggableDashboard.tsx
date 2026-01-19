@@ -11,11 +11,12 @@ import FutureProjectionsWidget from './widgets/FutureProjectionsWidget'
 import DynamicProjectionChart from './widgets/DynamicProjectionChart'
 import PaymentStatusWidget from './widgets/PaymentStatusWidget'
 import CreditCardWidget from './widgets/CreditCardWidget'
+import CurrentBalanceWidget from './widgets/CurrentBalanceWidget'
 import { Expense, Investment, Income } from '@/types'
 
 interface DashboardWidget {
   id: string
-  type: 'stats' | 'income-chart' | 'expense-chart' | 'financial-insights' | 'kpi-widget' | 'future-projections' | 'projection-chart' | 'payment-status' | 'credit-card'
+  type: 'stats' | 'income-chart' | 'expense-chart' | 'financial-insights' | 'kpi-widget' | 'future-projections' | 'projection-chart' | 'payment-status' | 'credit-card' | 'current-balance'
   title: string
   size: 'small' | 'medium' | 'large' | 'full'
   enabled: boolean
@@ -47,6 +48,13 @@ export default function DraggableDashboard({
 
   // Configuração padrão dos widgets
   const defaultWidgets: DashboardWidget[] = [
+    {
+      id: 'current-balance',
+      type: 'current-balance',
+      title: 'Saldo Atual',
+      size: 'medium',
+      enabled: true
+    },
     {
       id: 'stats-cards',
       type: 'stats',
@@ -131,6 +139,15 @@ export default function DraggableDashboard({
   // Criar componente baseado no tipo
   const createWidgetComponent = (widget: DashboardWidget) => {
     switch (widget.type) {
+      case 'current-balance':
+        return (
+          <CurrentBalanceWidget
+            expenses={expenses}
+            investments={investments}
+            incomes={incomes}
+            loading={loading}
+          />
+        )
       case 'stats':
         return (
           <StatsCardsWidget

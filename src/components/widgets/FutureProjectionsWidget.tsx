@@ -4,7 +4,7 @@ import { useMemo } from 'react'
 import { Expense, Investment, Income } from '@/types'
 import { formatCurrency } from '@/lib/utils'
 import { calculateFutureOccurrences, groupByMonth } from '@/lib/recurrence'
-import { format, addMonths } from 'date-fns'
+import { format, addMonths, startOfMonth, endOfMonth } from 'date-fns'
 
 interface Props {
   expenses: Expense[]
@@ -15,7 +15,7 @@ interface Props {
 
 export default function FutureProjectionsWidget({ expenses, investments, incomes, loading }: Props) {
   const projectionData = useMemo(() => {
-    // Calcular projeções futuras (próximos 6 meses)
+    // 1. Calcular projeções baseadas em recorrências
     const futureIncomes = calculateFutureOccurrences(
       incomes.filter(i => i.is_recurring),
       6
@@ -25,19 +25,70 @@ export default function FutureProjectionsWidget({ expenses, investments, incomes
       6
     )
 
-    // Agrupar por mês
+    // 2. Calcular médias mensais dos últimos 3 meses para projeção
+    const today = new Date()
+    const threeMonthsAgo = addMonths(today, -3)
+    
+    const recentIncomes = incomes.filter(i => 
+      new Date(i.income_date) >= threeMonthsAgo && !i.is_recurring
+    )
+    const recentExpenses = expenses.filter(e => 
+      new Date(e.expense_date) >= threeMonthsAgo && !e.is_recurring
+    )
+
+    const avgMonthlyIncomes = recentIncomes.length > 0 
+      ? recentIncomes.reduce((sum, i) => sum + Number(i.amount), 0) / 3 
+      : 0
+    const avgMonthlyExpenses = recentExpenses.length > 0 
+      ? recentExpenses.reduce((sum, e) => sum + Number(e.amount), 0) / 3 
+      : 0
+
+    // 3. Projetar investimentos futuros (baseado na média dos últimos investimentos)
+    const recentInvestments = investments.filter(inv => 
+      new Date(inv.investment_date) >= threeMonthsAgo
+    )
+    const avgMonthlyInvestments = recentInvestments.length > 0
+      ? recentInvestments.reduce((sum, inv) => sum + Number(inv.initial_amount), 0) / 3
+      : 0
+
+    // 4. Combinar recorrências + projeções baseadas em histórico
+    const totalFutureIncomes = futureIncomes.reduce((sum, occ) => sum + occ.amount, 0) + (avgMonthlyIncomes * 6)
+    const totalFutureExpenses = futureExpenses.reduce((sum, occ) => sum + occ.amount, 0) + (avgMonthlyExpenses * 6)
+    const totalFutureInvestments = avgMonthlyInvestments * 6
+
+    // 5. Agrupar por mês
     const incomesByMonth = groupByMonth(futureIncomes)
     const expensesByMonth = groupByMonth(futureExpenses)
 
-    // Calcular totais
-    const totalFutureIncomes = futureIncomes.reduce((sum, occ) => sum + occ.amount, 0)
-    const totalFutureExpenses = futureExpenses.reduce((sum, occ) => sum + occ.amount, 0)
+    // 6. Adicionar projeções baseadas em histórico aos meses
+    const projectedMonths = []
+    for (let i = 0; i < 6; i++) {
+      const month = format(addMonths(today, i), 'yyyy-MM')
+      const monthLabel = format(addMonths(today, i), 'MMM/yy')
+      
+      const incomeMonth = incomesByMonth.find(m => m.month === month)
+      const expenseMonth = expensesByMonth.find(m => m.month === month)
+      
+      const monthIncomes = (incomeMonth?.total || 0) + avgMonthlyIncomes
+      const monthExpenses = (expenseMonth?.total || 0) + avgMonthlyExpenses
+      const monthInvestments = avgMonthlyInvestments
+      
+      projectedMonths.push({
+        month: monthLabel,
+        incomes: monthIncomes,
+        expenses: monthExpenses,
+        investments: monthInvestments,
+        balance: monthIncomes - monthExpenses - monthInvestments
+      })
+    }
 
     return {
       totalFutureIncomes,
       totalFutureExpenses,
-      incomesByMonth,
-      expensesByMonth,
+      totalFutureInvestments,
+      projectedMonths,
+      hasRecurringData: futureIncomes.length > 0 || futureExpenses.length > 0,
+      hasHistoricalData: avgMonthlyIncomes > 0 || avgMonthlyExpenses > 0 || avgMonthlyInvestments > 0,
     }
   }, [expenses, investments, incomes])
 
@@ -46,7 +97,8 @@ export default function FutureProjectionsWidget({ expenses, investments, incomes
       <div className="fintech-card p-4 sm:p-6 rounded-2xl">
         <div className="animate-pulse">
           <div className="h-6 bg-gray-200 dark:bg-fintech-dark-elevated rounded mb-4 w-1/2"></div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="h-24 bg-gray-200 dark:bg-fintech-dark-elevated rounded"></div>
             <div className="h-24 bg-gray-200 dark:bg-fintech-dark-elevated rounded"></div>
             <div className="h-24 bg-gray-200 dark:bg-fintech-dark-elevated rounded"></div>
           </div>
@@ -57,84 +109,102 @@ export default function FutureProjectionsWidget({ expenses, investments, incomes
 
   return (
     <div className="fintech-card p-4 sm:p-6 rounded-2xl">
-      <h3 className="text-lg font-semibold fintech-text-primary mb-4">📅 Projeções Futuras</h3>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-semibold fintech-text-primary">📅 Projeções Futuras</h3>
+        <div className="text-xs fintech-text-muted">
+          {projectionData.hasRecurringData && projectionData.hasHistoricalData && "Recorrências + Histórico"}
+          {projectionData.hasRecurringData && !projectionData.hasHistoricalData && "Baseado em Recorrências"}
+          {!projectionData.hasRecurringData && projectionData.hasHistoricalData && "Baseado no Histórico"}
+          {!projectionData.hasRecurringData && !projectionData.hasHistoricalData && "Sem dados suficientes"}
+        </div>
+      </div>
       
       {/* Cards de Projeções Futuras */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <div className="bg-white/50 dark:bg-fintech-dark-surface/50 p-4 rounded-xl hover:bg-white dark:hover:bg-fintech-dark-surface transition-colors">
           <div className="flex items-center justify-between mb-2">
-            <h4 className="text-base font-semibold fintech-text-primary">Receitas Futuras</h4>
-            <span className="text-xl">📅</span>
+            <h4 className="text-sm font-semibold fintech-text-primary">Receitas Futuras</h4>
+            <span className="text-lg">💰</span>
           </div>
-          <p className="text-xs fintech-text-muted mb-2">Próximos 6 meses (recorrências)</p>
-          <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+          <p className="text-xs fintech-text-muted mb-2">Próximos 6 meses</p>
+          <p className="text-xl font-bold text-green-600 dark:text-green-400">
             {formatCurrency(projectionData.totalFutureIncomes)}
           </p>
         </div>
 
         <div className="bg-white/50 dark:bg-fintech-dark-surface/50 p-4 rounded-xl hover:bg-white dark:hover:bg-fintech-dark-surface transition-colors">
           <div className="flex items-center justify-between mb-2">
-            <h4 className="text-base font-semibold fintech-text-primary">Despesas Futuras</h4>
-            <span className="text-xl">📅</span>
+            <h4 className="text-sm font-semibold fintech-text-primary">Despesas Futuras</h4>
+            <span className="text-lg">💸</span>
           </div>
-          <p className="text-xs fintech-text-muted mb-2">Próximos 6 meses (recorrências)</p>
-          <p className="text-2xl font-bold text-red-600 dark:text-red-400">
+          <p className="text-xs fintech-text-muted mb-2">Próximos 6 meses</p>
+          <p className="text-xl font-bold text-red-600 dark:text-red-400">
             {formatCurrency(projectionData.totalFutureExpenses)}
+          </p>
+        </div>
+
+        <div className="bg-white/50 dark:bg-fintech-dark-surface/50 p-4 rounded-xl hover:bg-white dark:hover:bg-fintech-dark-surface transition-colors">
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="text-sm font-semibold fintech-text-primary">Investimentos Futuros</h4>
+            <span className="text-lg">📈</span>
+          </div>
+          <p className="text-xs fintech-text-muted mb-2">Próximos 6 meses</p>
+          <p className="text-xl font-bold text-blue-600 dark:text-blue-400">
+            {formatCurrency(projectionData.totalFutureInvestments)}
           </p>
         </div>
       </div>
 
       {/* Detalhamento por Mês */}
-      <div className="space-y-3">
-        <h4 className="text-sm font-medium fintech-text-secondary">Detalhamento Mensal:</h4>
-        
-        {Array.from({ length: 6 }, (_, i) => {
-          const month = format(addMonths(new Date(), i), 'yyyy-MM')
-          const monthLabel = format(addMonths(new Date(), i), 'MMM/yy')
+      {(projectionData.hasRecurringData || projectionData.hasHistoricalData) && (
+        <div className="space-y-3">
+          <h4 className="text-sm font-medium fintech-text-secondary">Projeção Mensal:</h4>
           
-          const incomeMonth = projectionData.incomesByMonth.find(m => m.month === month)
-          const expenseMonth = projectionData.expensesByMonth.find(m => m.month === month)
-          
-          const monthIncomes = incomeMonth?.total || 0
-          const monthExpenses = expenseMonth?.total || 0
-          const monthBalance = monthIncomes - monthExpenses
+          {projectionData.projectedMonths.map((monthData, index) => {
+            if (monthData.incomes === 0 && monthData.expenses === 0 && monthData.investments === 0) return null
 
-          if (monthIncomes === 0 && monthExpenses === 0) return null
-
-          return (
-            <div key={month} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-fintech-dark-elevated rounded-lg">
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-medium fintech-text-primary w-12">{monthLabel}</span>
-                <div className="flex items-center gap-4 text-xs">
-                  {monthIncomes > 0 && (
-                    <span className="text-green-600 dark:text-green-400">
-                      +{formatCurrency(monthIncomes)}
-                    </span>
-                  )}
-                  {monthExpenses > 0 && (
-                    <span className="text-red-600 dark:text-red-400">
-                      -{formatCurrency(monthExpenses)}
-                    </span>
-                  )}
+            return (
+              <div key={index} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-fintech-dark-elevated rounded-lg">
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium fintech-text-primary w-12">{monthData.month}</span>
+                  <div className="flex items-center gap-3 text-xs">
+                    {monthData.incomes > 0 && (
+                      <span className="text-green-600 dark:text-green-400">
+                        +{formatCurrency(monthData.incomes)}
+                      </span>
+                    )}
+                    {monthData.expenses > 0 && (
+                      <span className="text-red-600 dark:text-red-400">
+                        -{formatCurrency(monthData.expenses)}
+                      </span>
+                    )}
+                    {monthData.investments > 0 && (
+                      <span className="text-blue-600 dark:text-blue-400">
+                        📈{formatCurrency(monthData.investments)}
+                      </span>
+                    )}
+                  </div>
                 </div>
+                <span className={`text-sm font-semibold ${
+                  monthData.balance >= 0 
+                    ? 'text-green-600 dark:text-green-400' 
+                    : 'text-red-600 dark:text-red-400'
+                }`}>
+                  {monthData.balance >= 0 ? '+' : ''}{formatCurrency(monthData.balance)}
+                </span>
               </div>
-              <span className={`text-sm font-semibold ${
-                monthBalance >= 0 
-                  ? 'text-green-600 dark:text-green-400' 
-                  : 'text-red-600 dark:text-red-400'
-              }`}>
-                {monthBalance >= 0 ? '+' : ''}{formatCurrency(monthBalance)}
-              </span>
-            </div>
-          )
-        })}
-      </div>
+            )
+          })}
+        </div>
+      )}
 
-      {projectionData.totalFutureIncomes === 0 && projectionData.totalFutureExpenses === 0 && (
+      {!projectionData.hasRecurringData && !projectionData.hasHistoricalData && (
         <div className="text-center py-8">
           <span className="text-4xl mb-2 block">📅</span>
-          <p className="fintech-text-muted">Nenhuma receita ou despesa recorrente configurada</p>
-          <p className="text-xs fintech-text-muted mt-1">Configure recorrências para ver projeções futuras</p>
+          <p className="fintech-text-muted">Dados insuficientes para projeções</p>
+          <p className="text-xs fintech-text-muted mt-1">
+            Configure recorrências ou adicione mais transações para ver projeções futuras
+          </p>
         </div>
       )}
     </div>
