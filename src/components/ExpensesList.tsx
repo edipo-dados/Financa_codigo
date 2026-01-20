@@ -7,6 +7,7 @@ import { formatCurrency, formatDate } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 import ExpenseForm from './ExpenseForm'
 import EditRecurrenceModal from './EditRecurrenceModal'
+import EditValueModal from './EditValueModal'
 import { Expense } from '@/types'
 
 interface Props {
@@ -18,6 +19,7 @@ export default function ExpensesList({ userId }: Props) {
   const { members } = useFamilyMembers(userId)
   const [showForm, setShowForm] = useState(false)
   const [editingRecurrence, setEditingRecurrence] = useState<Expense | null>(null)
+  const [editingValue, setEditingValue] = useState<Expense | null>(null)
   
   // Estados dos filtros
   const [showFilters, setShowFilters] = useState(false)
@@ -472,6 +474,13 @@ export default function ExpensesList({ userId }: Props) {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setEditingValue(expense)}
+                          className="text-apple-green hover:text-apple-green/80 transition-colors font-medium text-xs"
+                          title="Editar valor desta ocorrência"
+                        >
+                          💰 Valor
+                        </button>
                         {expense.is_recurring && (
                           <button
                             onClick={() => setEditingRecurrence(expense)}
@@ -523,6 +532,25 @@ export default function ExpensesList({ userId }: Props) {
           setEditingRecurrence(null)
         }}
       />
+
+      {/* Modal de Edição de Valor */}
+      {editingValue && (
+        <EditValueModal
+          isOpen={!!editingValue}
+          onClose={() => setEditingValue(null)}
+          item={{
+            id: editingValue.id,
+            description: editingValue.description,
+            amount: editingValue.amount,
+            type: 'expense',
+            date: editingValue.expense_date
+          }}
+          onSuccess={() => {
+            refetch()
+            setEditingValue(null)
+          }}
+        />
+      )}
     </div>
   )
 }

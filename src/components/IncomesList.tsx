@@ -7,6 +7,7 @@ import { formatCurrency, formatDate } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 import IncomeForm from './IncomeForm'
 import EditRecurrenceModal from './EditRecurrenceModal'
+import EditValueModal from './EditValueModal'
 import { Income } from '@/types'
 
 interface Props {
@@ -18,6 +19,7 @@ export default function IncomesList({ userId }: Props) {
   const { members } = useFamilyMembers(userId)
   const [showForm, setShowForm] = useState(false)
   const [editingRecurrence, setEditingRecurrence] = useState<Income | null>(null)
+  const [editingValue, setEditingValue] = useState<Income | null>(null)
   
   // Estados dos filtros
   const [showFilters, setShowFilters] = useState(false)
@@ -377,6 +379,13 @@ export default function IncomesList({ userId }: Props) {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setEditingValue(income)}
+                          className="text-apple-green hover:text-apple-green/80 transition-colors font-medium text-xs"
+                          title="Editar valor desta ocorrência"
+                        >
+                          💰 Valor
+                        </button>
                         {income.is_recurring && (
                           <button
                             onClick={() => setEditingRecurrence(income)}
@@ -423,6 +432,25 @@ export default function IncomesList({ userId }: Props) {
           setEditingRecurrence(null)
         }}
       />
+
+      {/* Modal de Edição de Valor */}
+      {editingValue && (
+        <EditValueModal
+          isOpen={!!editingValue}
+          onClose={() => setEditingValue(null)}
+          item={{
+            id: editingValue.id,
+            description: editingValue.description,
+            amount: editingValue.amount,
+            type: 'income',
+            date: editingValue.income_date
+          }}
+          onSuccess={() => {
+            refetch()
+            setEditingValue(null)
+          }}
+        />
+      )}
     </div>
   )
 }

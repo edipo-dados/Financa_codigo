@@ -8,6 +8,7 @@ import { format } from 'date-fns'
 import { supabase } from '@/lib/supabase'
 import { useFamilyMembers } from '@/hooks/useFamilyMembers'
 import EditRecurrenceModal from './EditRecurrenceModal'
+import EditValueModal from './EditValueModal'
 
 interface Props {
   userId: string
@@ -44,6 +45,7 @@ export default function FutureLaunches({ userId, expenses, incomes, investments,
   const [isDeleting, setIsDeleting] = useState(false)
   const [isSelectionMode, setIsSelectionMode] = useState(false)
   const [editingRecurrence, setEditingRecurrence] = useState<{ item: Expense | Income | Investment, type: LaunchType } | null>(null)
+  const [editingValue, setEditingValue] = useState<FutureLaunch | null>(null)
   
   // Estados dos filtros
   const [showFilters, setShowFilters] = useState(false)
@@ -710,6 +712,13 @@ export default function FutureLaunches({ userId, expenses, incomes, investments,
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       {!isSelectionMode && (
                         <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setEditingValue(launch)}
+                            className="px-3 py-1 bg-apple-green text-white rounded-lg hover:bg-apple-green/90 transition-colors text-xs"
+                            title="Editar valor desta ocorrência"
+                          >
+                            💰 Valor
+                          </button>
                           {launch.originalItem && (launch.originalItem as any).is_recurring && (
                             <button
                               onClick={() => handleEdit(launch)}
@@ -749,6 +758,27 @@ export default function FutureLaunches({ userId, expenses, incomes, investments,
               onRefresh()
             }
             setEditingRecurrence(null)
+          }}
+        />
+      )}
+
+      {/* Modal de Edição de Valor */}
+      {editingValue && (
+        <EditValueModal
+          isOpen={!!editingValue}
+          onClose={() => setEditingValue(null)}
+          item={{
+            id: editingValue.originalId,
+            description: editingValue.description,
+            amount: editingValue.amount,
+            type: editingValue.type,
+            date: format(editingValue.date, 'yyyy-MM-dd')
+          }}
+          onSuccess={() => {
+            if (onRefresh) {
+              onRefresh()
+            }
+            setEditingValue(null)
           }}
         />
       )}

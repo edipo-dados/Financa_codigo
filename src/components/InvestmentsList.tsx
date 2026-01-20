@@ -7,6 +7,7 @@ import { formatCurrency, formatDate } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 import InvestmentForm from './InvestmentForm'
 import EditRecurrenceModal from './EditRecurrenceModal'
+import EditValueModal from './EditValueModal'
 import { Investment } from '@/types'
 
 interface Props {
@@ -18,6 +19,7 @@ export default function InvestmentsList({ userId }: Props) {
   const { members } = useFamilyMembers(userId)
   const [showForm, setShowForm] = useState(false)
   const [editingRecurrence, setEditingRecurrence] = useState<Investment | null>(null)
+  const [editingValue, setEditingValue] = useState<Investment | null>(null)
   
   // Estados dos filtros
   const [showFilters, setShowFilters] = useState(false)
@@ -312,6 +314,13 @@ export default function InvestmentsList({ userId }: Props) {
                     )}
                   </div>
                   <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setEditingValue(investment)}
+                      className="text-apple-green hover:text-apple-green/80 transition-colors text-xs font-medium"
+                      title="Editar valor desta ocorrência"
+                    >
+                      💰
+                    </button>
                     {investment.is_recurring && (
                       <>
                         <button
@@ -386,6 +395,25 @@ export default function InvestmentsList({ userId }: Props) {
           setEditingRecurrence(null)
         }}
       />
+
+      {/* Modal de Edição de Valor */}
+      {editingValue && (
+        <EditValueModal
+          isOpen={!!editingValue}
+          onClose={() => setEditingValue(null)}
+          item={{
+            id: editingValue.id,
+            description: editingValue.name,
+            amount: editingValue.initial_amount,
+            type: 'investment',
+            date: editingValue.investment_date
+          }}
+          onSuccess={() => {
+            refetch()
+            setEditingValue(null)
+          }}
+        />
+      )}
     </div>
   )
 }
