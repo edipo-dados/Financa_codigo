@@ -2,6 +2,19 @@ export type RecurrenceFrequency = 'daily' | 'weekly' | 'monthly' | 'yearly'
 export type RecurrenceEndType = 'never' | 'after_occurrences' | 'on_date'
 export type TransactionType = 'deposit' | 'withdrawal' | 'return'
 
+export interface FamilyMember {
+  id: string
+  user_id: string
+  name: string
+  email: string | null
+  phone: string | null
+  relationship: string | null
+  color: string
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
 export interface CreditCard {
   id: string
   user_id: string
@@ -18,6 +31,7 @@ export interface Expense {
   id: string
   user_id: string
   category_id: string | null
+  member_id: string | null
   amount: number
   description: string
   expense_date: string
@@ -41,6 +55,7 @@ export interface Expense {
   updated_at: string
   category?: ExpenseCategory
   credit_card?: CreditCard
+  member?: FamilyMember
 }
 
 export interface ExpenseCategory {
@@ -55,6 +70,7 @@ export interface Income {
   id: string
   user_id: string
   category_id: string | null
+  member_id: string | null
   amount: number
   description: string
   income_date: string
@@ -70,6 +86,7 @@ export interface Income {
   created_at: string
   updated_at: string
   category?: IncomeCategory
+  member?: FamilyMember
 }
 
 export interface IncomeCategory {
@@ -84,6 +101,7 @@ export interface Investment {
   id: string
   user_id: string
   investment_type_id: string | null
+  member_id: string | null
   name: string
   institution: string | null
   initial_amount: number
@@ -100,6 +118,7 @@ export interface Investment {
   created_at: string
   updated_at: string
   investment_type?: InvestmentType
+  member?: FamilyMember
   transactions?: InvestmentTransaction[]
 }
 

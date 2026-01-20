@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useIncomes } from '@/hooks/useIncomes'
+import { useFamilyMembers } from '@/hooks/useFamilyMembers'
 import { supabase } from '@/lib/supabase'
 import { IncomeCategory } from '@/types'
 import { generateRecurrenceOccurrences, getRecurrenceDescription, validateRecurrenceConfig, RecurrenceFrequency, RecurrenceEndType } from '@/lib/recurrence'
@@ -15,6 +16,7 @@ interface Props {
 
 export default function IncomeForm({ userId, onSuccess, onRefresh }: Props) {
   const { addIncome } = useIncomes(userId)
+  const { members } = useFamilyMembers(userId)
   const [categories, setCategories] = useState<IncomeCategory[]>([])
   const [loading, setLoading] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
@@ -24,6 +26,7 @@ export default function IncomeForm({ userId, onSuccess, onRefresh }: Props) {
     description: '',
     income_date: new Date().toISOString().split('T')[0],
     category_id: '',
+    member_id: '',
     source: '',
     is_recurring: false,
     recurrence_frequency: 'monthly' as RecurrenceFrequency,
@@ -91,6 +94,7 @@ export default function IncomeForm({ userId, onSuccess, onRefresh }: Props) {
         description: formData.description,
         income_date: formData.income_date,
         category_id: formData.category_id || null,
+        member_id: formData.member_id || null,
         source: formData.source || null,
         is_recurring: formData.is_recurring,
         recurrence_frequency: formData.is_recurring ? formData.recurrence_frequency : null,
@@ -196,6 +200,30 @@ export default function IncomeForm({ userId, onSuccess, onRefresh }: Props) {
               <option key={cat.id} value={cat.id}>{cat.name}</option>
             ))}
           </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-apple-gray-600 mb-2">
+            Membro da Família
+          </label>
+          <select
+            value={formData.member_id}
+            onChange={(e) => setFormData({ ...formData, member_id: e.target.value })}
+            className="input-field"
+          >
+            <option value="">Selecione um membro (opcional)</option>
+            {members.map((member) => (
+              <option key={member.id} value={member.id}>
+                <span style={{ color: member.color }}>●</span> {member.name}
+                {member.relationship && ` (${member.relationship})`}
+              </option>
+            ))}
+          </select>
+          {members.length === 0 && (
+            <p className="text-xs text-apple-gray-400 mt-1">
+              Cadastre membros da família em Configurações para organizar melhor suas receitas
+            </p>
+          )}
         </div>
 
         <div>

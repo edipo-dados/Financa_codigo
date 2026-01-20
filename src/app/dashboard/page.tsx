@@ -23,6 +23,7 @@ import CreditCardPurchasesList from '@/components/CreditCardPurchasesList'
 import ThemeSettings from '@/components/ThemeSettings'
 import IncomeReport from '@/components/IncomeReport'
 import About from '@/components/About'
+import FamilyMemberManager from '@/components/FamilyMemberManager'
 import { format, startOfMonth, endOfMonth } from 'date-fns'
 
 export default function Dashboard() {
@@ -162,6 +163,7 @@ export default function Dashboard() {
 
           {activeTab === 'settings' && (
             <div className="space-y-4 sm:space-y-6">
+              <FamilyMemberManager userId={user.id} />
               <IncomeReport 
                 incomes={incomes}
                 investments={investments}

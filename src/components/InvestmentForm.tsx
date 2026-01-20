@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useInvestments } from '@/hooks/useInvestments'
+import { useFamilyMembers } from '@/hooks/useFamilyMembers'
 import { supabase } from '@/lib/supabase'
 import { InvestmentType, RecurrenceFrequency, RecurrenceEndType } from '@/types'
 import { validateRecurrenceConfig, getRecurrenceDescription } from '@/lib/recurrence'
@@ -15,6 +16,7 @@ interface Props {
 
 export default function InvestmentForm({ userId, onSuccess, onRefresh }: Props) {
   const { addInvestment } = useInvestments(userId)
+  const { members } = useFamilyMembers(userId)
   const [types, setTypes] = useState<InvestmentType[]>([])
   const [loading, setLoading] = useState(false)
   
@@ -25,6 +27,7 @@ export default function InvestmentForm({ userId, onSuccess, onRefresh }: Props) 
     initial_amount: '',
     investment_date: new Date().toISOString().split('T')[0],
     expected_return: '',
+    member_id: '',
     is_recurring: false,
     recurrence_frequency: 'monthly' as RecurrenceFrequency,
     recurrence_end_type: 'never' as RecurrenceEndType,
@@ -71,6 +74,7 @@ export default function InvestmentForm({ userId, onSuccess, onRefresh }: Props) 
       user_id: userId,
       name: formData.name,
       investment_type_id: formData.investment_type_id || null,
+      member_id: formData.member_id || null,
       institution: formData.institution || null,
       initial_amount: parseFloat(formData.initial_amount),
       current_amount: parseFloat(formData.initial_amount),
@@ -144,6 +148,30 @@ export default function InvestmentForm({ userId, onSuccess, onRefresh }: Props) 
               <option key={type.id} value={type.id}>{type.name}</option>
             ))}
           </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-apple-gray-600 mb-2">
+            Membro da Família
+          </label>
+          <select
+            value={formData.member_id}
+            onChange={(e) => setFormData({ ...formData, member_id: e.target.value })}
+            className="input-field"
+          >
+            <option value="">Selecione um membro (opcional)</option>
+            {members.map((member) => (
+              <option key={member.id} value={member.id}>
+                <span style={{ color: member.color }}>●</span> {member.name}
+                {member.relationship && ` (${member.relationship})`}
+              </option>
+            ))}
+          </select>
+          {members.length === 0 && (
+            <p className="text-xs text-apple-gray-400 mt-1">
+              Cadastre membros da família em Configurações para organizar melhor seus investimentos
+            </p>
+          )}
         </div>
 
         <div>
