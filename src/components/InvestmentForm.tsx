@@ -95,6 +95,14 @@ export default function InvestmentForm({ userId, onSuccess, onRefresh }: Props) 
       current_amount: parseFloat(formData.initial_amount),
       investment_date: formData.investment_date,
       expected_return: formData.expected_return ? parseFloat(formData.expected_return) : null,
+      // Campos de recorrência com valores padrão (temporariamente desabilitados)
+      is_recurring: false,
+      recurrence_frequency: null,
+      recurrence_start_date: null,
+      recurrence_end_date: null,
+      recurrence_count: null,
+      recurrence_end_type: null,
+      parent_investment_id: null,
     }
 
     console.log('InvestmentForm: Tentando adicionar investimento:', investment)
