@@ -16,6 +16,15 @@
 - [x] **Resumo Expandido**: 4 cards (receitas, despesas, investimentos, saldo)
 - [x] **Atualização Tempo Real**: Mudanças refletem imediatamente
 
+### 🔍 Filtros Colapsáveis (NOVO)
+- [x] **ExpensesList**: Filtros ocultos por padrão com toggle ▶️/🔽
+- [x] **IncomesList**: Filtros ocultos por padrão com toggle ▶️/🔽
+- [x] **InvestmentsList**: Filtros ocultos por padrão com toggle ▶️/🔽
+- [x] **FutureLaunches**: Filtros ocultos por padrão com toggle ▶️/🔽
+- [x] **Badge "Ativos"**: Aparece quando filtros estão aplicados
+- [x] **Funcionalidade Completa**: Todos os filtros mantidos (membro, categoria, status, data, busca)
+- [x] **Interface Limpa**: Filtros só aparecem quando necessário
+
 ### 🎨 Interface Limpa e Profissional (NOVO)
 - [x] **Frases Removidas**: "Gerencie suas finanças" e similares
 - [x] **Títulos Diretos**: Sem descrições redundantes
@@ -125,6 +134,15 @@
 - [ ] **Categorias**: Títulos limpos
 - [ ] **Sobre**: Título direto
 
+### 10. Teste Filtros Colapsáveis (NOVO)
+- [ ] **Despesas**: Filtros iniciam ocultos, toggle ▶️/🔽 funciona
+- [ ] **Receitas**: Filtros iniciam ocultos, toggle ▶️/🔽 funciona
+- [ ] **Investimentos**: Filtros iniciam ocultos, toggle ▶️/🔽 funciona
+- [ ] **Futuros**: Filtros iniciam ocultos, toggle ▶️/🔽 funciona
+- [ ] **Badge "Ativos"**: Aparece quando filtros aplicados
+- [ ] **Funcionalidade**: Todos os filtros funcionam normalmente
+- [ ] **Interface**: Mais limpa com filtros ocultos por padrão
+
 ### 9. Verificar Responsividade
 - [ ] **Mobile**: Interface funciona em celular
 - [ ] **Tablet**: Interface funciona em tablet
@@ -208,6 +226,7 @@ npm list next react react-dom
 
 Marque ✅ quando cada item estiver funcionando:
 
+- [ ] **Filtros Colapsáveis**: Funcionando em todas as páginas
 - [ ] **Deploy Completo**: Vercel processou sem erros
 - [ ] **Recorrências Investimentos**: Totalmente funcional
 - [ ] **Edição em Futuros**: Funcionando para todos os tipos
@@ -240,8 +259,9 @@ Após confirmar que tudo está funcionando:
 **🚀 SISTEMA COMPLETO IMPLEMENTADO:**
 ✨ Recorrências para investimentos
 ✏️ Edição de recorrências futuras  
+🔍 Filtros colapsáveis em todas as páginas
 🎨 Interface limpa e profissional
 ⚡ Next.js 16.1.4 com Turbopack
 📱 Totalmente responsivo
 
-**Todas as funcionalidades de recorrência + interface profissional prontas para produção!** 🚀✨
+**Todas as funcionalidades de recorrência + filtros colapsáveis + interface profissional prontas para produção!** 🚀✨
