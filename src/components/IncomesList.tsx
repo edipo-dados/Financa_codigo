@@ -20,6 +20,7 @@ export default function IncomesList({ userId }: Props) {
   const [editingRecurrence, setEditingRecurrence] = useState<Income | null>(null)
   
   // Estados dos filtros
+  const [showFilters, setShowFilters] = useState(false)
   const [filters, setFilters] = useState({
     member: '',
     category: '',
@@ -143,16 +144,31 @@ export default function IncomesList({ userId }: Props) {
       {/* Filtros */}
       <div className="glass-card p-4 rounded-2xl">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-semibold text-apple-gray-700">🔍 Filtros</h3>
           <button
-            onClick={clearFilters}
-            className="text-xs text-apple-blue hover:text-apple-blue/80 font-medium"
+            onClick={() => setShowFilters(!showFilters)}
+            className="flex items-center gap-2 text-sm font-semibold text-apple-gray-700 hover:text-apple-blue transition-colors"
           >
-            Limpar Filtros
+            <span>{showFilters ? '🔽' : '▶️'}</span>
+            🔍 Filtros
+            {(filters.member || filters.category || filters.status || filters.dateFrom || filters.dateTo || filters.search) && (
+              <span className="ml-2 px-2 py-0.5 bg-apple-blue text-white text-xs rounded-full">
+                Ativos
+              </span>
+            )}
           </button>
+          {showFilters && (
+            <button
+              onClick={clearFilters}
+              className="text-xs text-apple-blue hover:text-apple-blue/80 font-medium"
+            >
+              Limpar Filtros
+            </button>
+          )}
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        {showFilters && (
+        <div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {/* Busca */}
           <div>
             <label className="block text-xs font-medium text-apple-gray-600 mb-1">
@@ -247,13 +263,15 @@ export default function IncomesList({ userId }: Props) {
             />
           </div>
         </div>
-
+        
         {/* Resumo dos filtros */}
         <div className="mt-3 pt-3 border-t border-apple-gray-200">
           <p className="text-xs text-apple-gray-500">
             Mostrando {filteredIncomes.length} de {incomes.length} receitas
           </p>
         </div>
+        </div>
+        )}
       </div>
 
       {showForm && (

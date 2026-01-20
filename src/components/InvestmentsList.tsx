@@ -20,6 +20,7 @@ export default function InvestmentsList({ userId }: Props) {
   const [editingRecurrence, setEditingRecurrence] = useState<Investment | null>(null)
   
   // Estados dos filtros
+  const [showFilters, setShowFilters] = useState(false)
   const [filters, setFilters] = useState({
     member: '',
     type: '',
@@ -136,16 +137,31 @@ export default function InvestmentsList({ userId }: Props) {
       {/* Filtros */}
       <div className="glass-card p-6 rounded-3xl">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-apple-gray-700">Filtros</h3>
           <button
-            onClick={clearFilters}
-            className="text-sm text-apple-blue hover:text-apple-blue/80 transition-colors"
+            onClick={() => setShowFilters(!showFilters)}
+            className="flex items-center gap-2 text-lg font-semibold text-apple-gray-700 hover:text-apple-blue transition-colors"
           >
-            Limpar filtros
+            <span>{showFilters ? '🔽' : '▶️'}</span>
+            🔍 Filtros
+            {(filters.member || filters.type || filters.dateFrom || filters.dateTo || filters.search) && (
+              <span className="ml-2 px-2 py-0.5 bg-apple-blue text-white text-xs rounded-full">
+                Ativos
+              </span>
+            )}
           </button>
+          {showFilters && (
+            <button
+              onClick={clearFilters}
+              className="text-sm text-apple-blue hover:text-apple-blue/80 transition-colors"
+            >
+              Limpar filtros
+            </button>
+          )}
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        {showFilters && (
+        <div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           {/* Filtro por Membro */}
           <div>
             <label className="block text-sm font-medium text-apple-gray-600 mb-2">
@@ -223,17 +239,19 @@ export default function InvestmentsList({ userId }: Props) {
               className="input-field text-sm"
             />
           </div>
+          </div>
+          
+          {/* Resumo dos filtros */}
+          <div className="mt-4 flex items-center gap-4 text-sm text-apple-gray-500">
+            <span>
+              Mostrando {filteredInvestments.length} de {investments.length} investimentos
+            </span>
+            {(filters.member || filters.type || filters.dateFrom || filters.dateTo || filters.search) && (
+              <span className="text-apple-blue">• Filtros ativos</span>
+            )}
+          </div>
         </div>
-
-        {/* Resumo dos filtros */}
-        <div className="mt-4 flex items-center gap-4 text-sm text-apple-gray-500">
-          <span>
-            Mostrando {filteredInvestments.length} de {investments.length} investimentos
-          </span>
-          {(filters.member || filters.type || filters.dateFrom || filters.dateTo || filters.search) && (
-            <span className="text-apple-blue">• Filtros ativos</span>
-          )}
-        </div>
+        )}
       </div>
 
       {loading ? (
