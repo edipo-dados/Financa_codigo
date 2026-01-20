@@ -9,6 +9,7 @@ import IncomeForm from './IncomeForm'
 import EditRecurrenceModal from './EditRecurrenceModal'
 import EditValueModal from './EditValueModal'
 import EditIncomeModal from './EditIncomeModal'
+import ActionsDropdown from './ActionsDropdown'
 import { Income } from '@/types'
 
 interface Props {
@@ -138,7 +139,11 @@ export default function IncomesList({ userId }: Props) {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowForm(!showForm)}
-            className={showForm ? 'btn-secondary' : 'btn-primary'}
+            className={`px-6 py-3 rounded-xl font-medium text-sm transition-all duration-200 ${
+              showForm 
+                ? 'bg-gray-100 text-gray-700 hover:bg-gray-200' 
+                : 'bg-apple-blue text-white hover:bg-opacity-90'
+            }`}
           >
             {showForm ? '✕ Cancelar' : '+ Nova Receita'}
           </button>
@@ -152,8 +157,9 @@ export default function IncomesList({ userId }: Props) {
             onClick={() => setShowFilters(!showFilters)}
             className="flex items-center gap-2 text-sm font-semibold text-apple-gray-700 hover:text-apple-blue transition-colors"
           >
-            <span>{showFilters ? '🔽' : '▶️'}</span>
-            🔍 Filtros
+            <span className="text-base">{showFilters ? '🔽' : '▶️'}</span>
+            <span className="text-base">🔍</span>
+            <span>Filtros</span>
             {(filters.member || filters.category || filters.status || filters.dateFrom || filters.dateTo || filters.search) && (
               <span className="ml-2 px-2 py-0.5 bg-apple-blue text-white text-xs rounded-full">
                 Ativos
@@ -380,47 +386,52 @@ export default function IncomesList({ userId }: Props) {
                       </button>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => setEditingIncome(income)}
-                          className="text-apple-blue hover:text-apple-blue/80 transition-colors font-medium text-xs"
-                          title="Editar informações da receita"
-                        >
-                          ✏️ Editar
-                        </button>
-                        <button
-                          onClick={() => setEditingValue(income)}
-                          className="text-apple-green hover:text-apple-green/80 transition-colors font-medium text-xs"
-                          title="Editar valor desta ocorrência"
-                        >
-                          💰 Valor
-                        </button>
-                        {income.is_recurring && (
-                          <button
-                            onClick={() => setEditingRecurrence(income)}
-                            className="text-apple-blue hover:text-apple-blue/80 transition-colors font-medium text-xs"
-                            title="Editar recorrência"
-                          >
-                            ⚙️ Recorrência
-                          </button>
-                        )}
-                        {income.is_recurring && (
-                          <button
-                            onClick={() => handleDeleteRecurrence(income)}
-                            className="text-apple-orange hover:text-apple-orange/80 transition-colors font-medium text-xs"
-                            title="Excluir toda a recorrência"
-                          >
-                            🗑️ Série
-                          </button>
-                        )}
-                        <button
-                          onClick={() => handleDelete(income.id)}
-                          className="text-apple-red hover:text-apple-red/80 transition-colors font-medium text-xs"
-                          title={income.is_recurring ? 'Excluir apenas este item' : 'Excluir receita'}
-                        >
-                          {income.is_recurring ? 'Excluir Item' : 'Excluir'}
-                        </button>
-                      </div>
+                      <ActionsDropdown
+                        actions={[
+                          {
+                            id: 'edit',
+                            label: 'Editar',
+                            icon: '✏️',
+                            color: 'text-apple-blue hover:text-apple-blue/80',
+                            onClick: () => setEditingIncome(income),
+                            title: 'Editar informações da receita'
+                          },
+                          {
+                            id: 'edit-value',
+                            label: 'Editar Valor',
+                            icon: '💰',
+                            color: 'text-apple-green hover:text-apple-green/80',
+                            onClick: () => setEditingValue(income),
+                            title: 'Editar valor desta ocorrência'
+                          },
+                          ...(income.is_recurring ? [
+                            {
+                              id: 'edit-recurrence',
+                              label: 'Editar Recorrência',
+                              icon: '⚙️',
+                              color: 'text-apple-blue hover:text-apple-blue/80',
+                              onClick: () => setEditingRecurrence(income),
+                              title: 'Editar recorrência'
+                            },
+                            {
+                              id: 'delete-series',
+                              label: 'Excluir Série',
+                              icon: '🗑️',
+                              color: 'text-apple-orange hover:text-apple-orange/80',
+                              onClick: () => handleDeleteRecurrence(income),
+                              title: 'Excluir toda a recorrência'
+                            }
+                          ] : []),
+                          {
+                            id: 'delete',
+                            label: income.is_recurring ? 'Excluir Item' : 'Excluir',
+                            icon: '✕',
+                            color: 'text-apple-red hover:text-apple-red/80',
+                            onClick: () => handleDelete(income.id),
+                            title: income.is_recurring ? 'Excluir apenas este item' : 'Excluir receita'
+                          }
+                        ]}
+                      />
                     </td>
                   </tr>
                 ))}

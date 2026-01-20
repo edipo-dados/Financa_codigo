@@ -9,6 +9,7 @@ import InvestmentForm from './InvestmentForm'
 import EditRecurrenceModal from './EditRecurrenceModal'
 import EditValueModal from './EditValueModal'
 import EditInvestmentModal from './EditInvestmentModal'
+import ActionsDropdown from './ActionsDropdown'
 import { Investment } from '@/types'
 
 interface Props {
@@ -121,7 +122,11 @@ export default function InvestmentsList({ userId }: Props) {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowForm(!showForm)}
-            className={showForm ? 'btn-secondary' : 'btn-primary'}
+            className={`px-6 py-3 rounded-xl font-medium text-sm transition-all duration-200 ${
+              showForm 
+                ? 'bg-gray-100 text-gray-700 hover:bg-gray-200' 
+                : 'bg-apple-blue text-white hover:bg-opacity-90'
+            }`}
           >
             {showForm ? '✕ Cancelar' : '+ Novo Investimento'}
           </button>
@@ -145,8 +150,9 @@ export default function InvestmentsList({ userId }: Props) {
             onClick={() => setShowFilters(!showFilters)}
             className="flex items-center gap-2 text-sm font-semibold text-apple-gray-700 hover:text-apple-blue transition-colors"
           >
-            <span>{showFilters ? '🔽' : '▶️'}</span>
-            🔍 Filtros
+            <span className="text-base">{showFilters ? '🔽' : '▶️'}</span>
+            <span className="text-base">🔍</span>
+            <span>Filtros</span>
             {(filters.member || filters.type || filters.dateFrom || filters.dateTo || filters.search) && (
               <span className="ml-2 px-2 py-0.5 bg-apple-blue text-white text-xs rounded-full">
                 Ativos
@@ -316,45 +322,52 @@ export default function InvestmentsList({ userId }: Props) {
                     )}
                   </div>
                   <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setEditingInvestment(investment)}
-                      className="text-apple-blue hover:text-apple-blue/80 transition-colors text-xs font-medium"
-                      title="Editar informações do investimento"
-                    >
-                      ✏️
-                    </button>
-                    <button
-                      onClick={() => setEditingValue(investment)}
-                      className="text-apple-green hover:text-apple-green/80 transition-colors text-xs font-medium"
-                      title="Editar valor desta ocorrência"
-                    >
-                      💰
-                    </button>
-                    {investment.is_recurring && (
-                      <>
-                        <button
-                          onClick={() => setEditingRecurrence(investment)}
-                          className="text-apple-blue hover:text-apple-blue/80 transition-colors text-xs font-medium"
-                          title="Editar recorrência"
-                        >
-                          ⚙️
-                        </button>
-                        <button
-                          onClick={() => handleDeleteRecurrence(investment)}
-                          className="text-apple-orange hover:text-apple-orange/80 transition-colors text-xs font-medium"
-                          title="Excluir toda a recorrência"
-                        >
-                          🗑️
-                        </button>
-                      </>
-                    )}
-                    <button
-                      onClick={() => handleDelete(investment.id)}
-                      className="text-apple-red hover:text-apple-red/80 transition-colors text-sm font-medium"
-                      title={investment.is_recurring ? 'Excluir apenas este item' : 'Excluir investimento'}
-                    >
-                      ✕
-                    </button>
+                    <ActionsDropdown
+                      actions={[
+                        {
+                          id: 'edit',
+                          label: 'Editar',
+                          icon: '✏️',
+                          color: 'text-apple-blue hover:text-apple-blue/80',
+                          onClick: () => setEditingInvestment(investment),
+                          title: 'Editar informações do investimento'
+                        },
+                        {
+                          id: 'edit-value',
+                          label: 'Editar Valor',
+                          icon: '💰',
+                          color: 'text-apple-green hover:text-apple-green/80',
+                          onClick: () => setEditingValue(investment),
+                          title: 'Editar valor desta ocorrência'
+                        },
+                        ...(investment.is_recurring ? [
+                          {
+                            id: 'edit-recurrence',
+                            label: 'Editar Recorrência',
+                            icon: '⚙️',
+                            color: 'text-apple-blue hover:text-apple-blue/80',
+                            onClick: () => setEditingRecurrence(investment),
+                            title: 'Editar recorrência'
+                          },
+                          {
+                            id: 'delete-series',
+                            label: 'Excluir Série',
+                            icon: '🗑️',
+                            color: 'text-apple-orange hover:text-apple-orange/80',
+                            onClick: () => handleDeleteRecurrence(investment),
+                            title: 'Excluir toda a recorrência'
+                          }
+                        ] : []),
+                        {
+                          id: 'delete',
+                          label: investment.is_recurring ? 'Excluir Item' : 'Excluir',
+                          icon: '✕',
+                          color: 'text-apple-red hover:text-apple-red/80',
+                          onClick: () => handleDelete(investment.id),
+                          title: investment.is_recurring ? 'Excluir apenas este item' : 'Excluir investimento'
+                        }
+                      ]}
+                    />
                   </div>
                 </div>
 

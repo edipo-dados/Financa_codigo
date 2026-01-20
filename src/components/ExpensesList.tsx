@@ -9,6 +9,7 @@ import ExpenseForm from './ExpenseForm'
 import EditRecurrenceModal from './EditRecurrenceModal'
 import EditValueModal from './EditValueModal'
 import EditExpenseModal from './EditExpenseModal'
+import ActionsDropdown from './ActionsDropdown'
 import { Expense } from '@/types'
 
 interface Props {
@@ -199,7 +200,11 @@ export default function ExpensesList({ userId }: Props) {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowForm(!showForm)}
-            className={showForm ? 'btn-secondary' : 'btn-primary'}
+            className={`px-6 py-3 rounded-xl font-medium text-sm transition-all duration-200 ${
+              showForm 
+                ? 'bg-gray-100 text-gray-700 hover:bg-gray-200' 
+                : 'bg-apple-blue text-white hover:bg-opacity-90'
+            }`}
           >
             {showForm ? '✕ Cancelar' : '+ Nova Despesa'}
           </button>
@@ -230,8 +235,9 @@ export default function ExpensesList({ userId }: Props) {
             onClick={() => setShowFilters(!showFilters)}
             className="flex items-center gap-2 text-sm font-semibold text-apple-gray-700 hover:text-apple-blue transition-colors"
           >
-            <span>{showFilters ? '🔽' : '▶️'}</span>
-            🔍 Filtros
+            <span className="text-base">{showFilters ? '🔽' : '▶️'}</span>
+            <span className="text-base">🔍</span>
+            <span>Filtros</span>
             {(filters.member || filters.category || filters.status || filters.dateFrom || filters.dateTo || filters.search) && (
               <span className="ml-2 px-2 py-0.5 bg-apple-blue text-white text-xs rounded-full">
                 Ativos
@@ -475,52 +481,56 @@ export default function ExpensesList({ userId }: Props) {
                       </button>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => setEditingExpense(expense)}
-                          className="text-apple-blue hover:text-apple-blue/80 transition-colors font-medium text-xs"
-                          title="Editar informações da despesa"
-                        >
-                          ✏️ Editar
-                        </button>
-                        <button
-                          onClick={() => setEditingValue(expense)}
-                          className="text-apple-green hover:text-apple-green/80 transition-colors font-medium text-xs"
-                          title="Editar valor desta ocorrência"
-                        >
-                          💰 Valor
-                        </button>
-                        {expense.is_recurring && (
-                          <button
-                            onClick={() => setEditingRecurrence(expense)}
-                            className="text-apple-blue hover:text-apple-blue/80 transition-colors font-medium text-xs"
-                            title="Editar recorrência"
-                          >
-                            ⚙️ Recorrência
-                          </button>
-                        )}
-                        {expense.is_recurring && (
-                          <button
-                            onClick={() => handleDeleteRecurrence(expense)}
-                            className="text-apple-orange hover:text-apple-orange/80 transition-colors font-medium text-xs"
-                            title="Excluir toda a recorrência"
-                          >
-                            🗑️ Série
-                          </button>
-                        )}
-                        <button
-                          onClick={() => handleDelete(expense)}
-                          className="text-apple-red hover:text-apple-red/80 transition-colors font-medium text-xs"
-                          title={expense.is_installment 
-                            ? `Excluir toda a compra (${expense.installments} parcelas)`
-                            : expense.is_recurring 
-                              ? 'Excluir apenas este item'
-                              : 'Excluir despesa'
+                      <ActionsDropdown
+                        actions={[
+                          {
+                            id: 'edit',
+                            label: 'Editar',
+                            icon: '✏️',
+                            color: 'text-apple-blue hover:text-apple-blue/80',
+                            onClick: () => setEditingExpense(expense),
+                            title: 'Editar informações da despesa'
+                          },
+                          {
+                            id: 'edit-value',
+                            label: 'Editar Valor',
+                            icon: '💰',
+                            color: 'text-apple-green hover:text-apple-green/80',
+                            onClick: () => setEditingValue(expense),
+                            title: 'Editar valor desta ocorrência'
+                          },
+                          ...(expense.is_recurring ? [
+                            {
+                              id: 'edit-recurrence',
+                              label: 'Editar Recorrência',
+                              icon: '⚙️',
+                              color: 'text-apple-blue hover:text-apple-blue/80',
+                              onClick: () => setEditingRecurrence(expense),
+                              title: 'Editar recorrência'
+                            },
+                            {
+                              id: 'delete-series',
+                              label: 'Excluir Série',
+                              icon: '🗑️',
+                              color: 'text-apple-orange hover:text-apple-orange/80',
+                              onClick: () => handleDeleteRecurrence(expense),
+                              title: 'Excluir toda a recorrência'
+                            }
+                          ] : []),
+                          {
+                            id: 'delete',
+                            label: expense.is_installment ? 'Excluir Compra' : expense.is_recurring ? 'Excluir Item' : 'Excluir',
+                            icon: expense.is_installment ? '🗑️' : '✕',
+                            color: 'text-apple-red hover:text-apple-red/80',
+                            onClick: () => handleDelete(expense),
+                            title: expense.is_installment 
+                              ? `Excluir toda a compra (${expense.installments} parcelas)`
+                              : expense.is_recurring 
+                                ? 'Excluir apenas este item'
+                                : 'Excluir despesa'
                           }
-                        >
-                          {expense.is_installment ? '🗑️ Compra' : expense.is_recurring ? 'Excluir Item' : 'Excluir'}
-                        </button>
-                      </div>
+                        ]}
+                      />
                     </td>
                   </tr>
                 ))}
