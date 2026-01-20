@@ -20,6 +20,7 @@ export default function ExpensesList({ userId }: Props) {
   const [editingRecurrence, setEditingRecurrence] = useState<Expense | null>(null)
   
   // Estados dos filtros
+  const [showFilters, setShowFilters] = useState(false)
   const [filters, setFilters] = useState({
     member: '',
     category: '',
@@ -221,117 +222,134 @@ export default function ExpensesList({ userId }: Props) {
       {/* Filtros */}
       <div className="glass-card p-4 rounded-2xl">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-semibold text-apple-gray-700">🔍 Filtros</h3>
           <button
-            onClick={clearFilters}
-            className="text-xs text-apple-blue hover:text-apple-blue/80 font-medium"
+            onClick={() => setShowFilters(!showFilters)}
+            className="flex items-center gap-2 text-sm font-semibold text-apple-gray-700 hover:text-apple-blue transition-colors"
           >
-            Limpar Filtros
+            <span>{showFilters ? '🔽' : '▶️'}</span>
+            🔍 Filtros
+            {(filters.member || filters.category || filters.status || filters.dateFrom || filters.dateTo || filters.search) && (
+              <span className="ml-2 px-2 py-0.5 bg-apple-blue text-white text-xs rounded-full">
+                Ativos
+              </span>
+            )}
           </button>
+          {showFilters && (
+            <button
+              onClick={clearFilters}
+              className="text-xs text-apple-blue hover:text-apple-blue/80 font-medium"
+            >
+              Limpar Filtros
+            </button>
+          )}
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {/* Busca */}
-          <div>
-            <label className="block text-xs font-medium text-apple-gray-600 mb-1">
-              Buscar
-            </label>
-            <input
-              type="text"
-              value={filters.search}
-              onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-              className="w-full px-3 py-2 text-sm border border-apple-gray-200 rounded-lg focus:ring-1 focus:ring-apple-blue focus:border-apple-blue"
-              placeholder="Descrição da despesa..."
-            />
-          </div>
+        {showFilters && (
+        <div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {/* Busca */}
+            <div>
+              <label className="block text-xs font-medium text-apple-gray-600 mb-1">
+                Buscar
+              </label>
+              <input
+                type="text"
+                value={filters.search}
+                onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+                className="w-full px-3 py-2 text-sm border border-apple-gray-200 rounded-lg focus:ring-1 focus:ring-apple-blue focus:border-apple-blue"
+                placeholder="Descrição da despesa..."
+              />
+            </div>
 
-          {/* Membro da Família */}
-          <div>
-            <label className="block text-xs font-medium text-apple-gray-600 mb-1">
-              Membro da Família
-            </label>
-            <select
-              value={filters.member}
-              onChange={(e) => setFilters({ ...filters, member: e.target.value })}
-              className="w-full px-3 py-2 text-sm border border-apple-gray-200 rounded-lg focus:ring-1 focus:ring-apple-blue focus:border-apple-blue"
-            >
-              <option value="">Todos os membros</option>
-              {members.map((member) => (
-                <option key={member.id} value={member.id}>
-                  {member.name} {member.relationship && `(${member.relationship})`}
-                </option>
-              ))}
-            </select>
-          </div>
+            {/* Membro da Família */}
+            <div>
+              <label className="block text-xs font-medium text-apple-gray-600 mb-1">
+                Membro da Família
+              </label>
+              <select
+                value={filters.member}
+                onChange={(e) => setFilters({ ...filters, member: e.target.value })}
+                className="w-full px-3 py-2 text-sm border border-apple-gray-200 rounded-lg focus:ring-1 focus:ring-apple-blue focus:border-apple-blue"
+              >
+                <option value="">Todos os membros</option>
+                {members.map((member) => (
+                  <option key={member.id} value={member.id}>
+                    {member.name} {member.relationship && `(${member.relationship})`}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          {/* Categoria */}
-          <div>
-            <label className="block text-xs font-medium text-apple-gray-600 mb-1">
-              Categoria
-            </label>
-            <select
-              value={filters.category}
-              onChange={(e) => setFilters({ ...filters, category: e.target.value })}
-              className="w-full px-3 py-2 text-sm border border-apple-gray-200 rounded-lg focus:ring-1 focus:ring-apple-blue focus:border-apple-blue"
-            >
-              <option value="">Todas as categorias</option>
-              {categories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
-          </div>
+            {/* Categoria */}
+            <div>
+              <label className="block text-xs font-medium text-apple-gray-600 mb-1">
+                Categoria
+              </label>
+              <select
+                value={filters.category}
+                onChange={(e) => setFilters({ ...filters, category: e.target.value })}
+                className="w-full px-3 py-2 text-sm border border-apple-gray-200 rounded-lg focus:ring-1 focus:ring-apple-blue focus:border-apple-blue"
+              >
+                <option value="">Todas as categorias</option>
+                {categories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          {/* Status */}
-          <div>
-            <label className="block text-xs font-medium text-apple-gray-600 mb-1">
-              Status
-            </label>
-            <select
-              value={filters.status}
-              onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-              className="w-full px-3 py-2 text-sm border border-apple-gray-200 rounded-lg focus:ring-1 focus:ring-apple-blue focus:border-apple-blue"
-            >
-              <option value="">Todos os status</option>
-              <option value="paid">Pago</option>
-              <option value="unpaid">A Pagar</option>
-            </select>
-          </div>
+            {/* Status */}
+            <div>
+              <label className="block text-xs font-medium text-apple-gray-600 mb-1">
+                Status
+              </label>
+              <select
+                value={filters.status}
+                onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+                className="w-full px-3 py-2 text-sm border border-apple-gray-200 rounded-lg focus:ring-1 focus:ring-apple-blue focus:border-apple-blue"
+              >
+                <option value="">Todos os status</option>
+                <option value="paid">Pago</option>
+                <option value="unpaid">A Pagar</option>
+              </select>
+            </div>
 
-          {/* Data De */}
-          <div>
-            <label className="block text-xs font-medium text-apple-gray-600 mb-1">
-              Data De
-            </label>
-            <input
-              type="date"
-              value={filters.dateFrom}
-              onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
-              className="w-full px-3 py-2 text-sm border border-apple-gray-200 rounded-lg focus:ring-1 focus:ring-apple-blue focus:border-apple-blue"
-            />
-          </div>
+            {/* Data De */}
+            <div>
+              <label className="block text-xs font-medium text-apple-gray-600 mb-1">
+                Data De
+              </label>
+              <input
+                type="date"
+                value={filters.dateFrom}
+                onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
+                className="w-full px-3 py-2 text-sm border border-apple-gray-200 rounded-lg focus:ring-1 focus:ring-apple-blue focus:border-apple-blue"
+              />
+            </div>
 
-          {/* Data Até */}
-          <div>
-            <label className="block text-xs font-medium text-apple-gray-600 mb-1">
-              Data Até
-            </label>
-            <input
-              type="date"
-              value={filters.dateTo}
-              onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
-              className="w-full px-3 py-2 text-sm border border-apple-gray-200 rounded-lg focus:ring-1 focus:ring-apple-blue focus:border-apple-blue"
-            />
+            {/* Data Até */}
+            <div>
+              <label className="block text-xs font-medium text-apple-gray-600 mb-1">
+                Data Até
+              </label>
+              <input
+                type="date"
+                value={filters.dateTo}
+                onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
+                className="w-full px-3 py-2 text-sm border border-apple-gray-200 rounded-lg focus:ring-1 focus:ring-apple-blue focus:border-apple-blue"
+              />
+            </div>
+          </div>
+          
+          {/* Resumo dos filtros */}
+          <div className="mt-3 pt-3 border-t border-apple-gray-200">
+            <p className="text-xs text-apple-gray-500">
+              Mostrando {filteredExpenses.length} de {displayExpenses.length} despesas
+            </p>
           </div>
         </div>
-
-        {/* Resumo dos filtros */}
-        <div className="mt-3 pt-3 border-t border-apple-gray-200">
-          <p className="text-xs text-apple-gray-500">
-            Mostrando {filteredExpenses.length} de {displayExpenses.length} despesas
-          </p>
-        </div>
+        )}
       </div>
 
       {showForm && (
