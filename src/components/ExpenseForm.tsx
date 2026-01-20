@@ -277,6 +277,35 @@ export default function ExpenseForm({ userId, onSuccess, onRefresh }: Props) {
 
         <div className="md:col-span-2">
           <label className="block text-sm font-medium text-apple-gray-600 mb-2">
+            Forma de Pagamento *
+          </label>
+          <select
+            value={formData.payment_method}
+            onChange={(e) => {
+              const isCreditCard = e.target.value === 'credit_card'
+              setFormData({ 
+                ...formData, 
+                payment_method: e.target.value,
+                is_credit_card: isCreditCard,
+                is_recurring: isCreditCard ? false : formData.is_recurring
+              })
+            }}
+            className="input-field"
+            required
+          >
+            <option value="cash">Dinheiro</option>
+            <option value="debit">Débito</option>
+            <option value="credit_card">Cartão de Crédito</option>
+            <option value="pix">PIX</option>
+            <option value="transfer">Transferência</option>
+          </select>
+          <p className="text-xs text-apple-gray-500 mt-1">
+            ⚠️ Selecione primeiro a forma de pagamento - ela altera os campos do formulário
+          </p>
+        </div>
+
+        <div className="md:col-span-2">
+          <label className="block text-sm font-medium text-apple-gray-600 mb-2">
             Descrição *
           </label>
           <input
@@ -327,32 +356,6 @@ export default function ExpenseForm({ userId, onSuccess, onRefresh }: Props) {
               Cadastre membros da família em Configurações para organizar melhor suas despesas
             </p>
           )}
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-apple-gray-600 mb-2">
-            Forma de Pagamento *
-          </label>
-          <select
-            value={formData.payment_method}
-            onChange={(e) => {
-              const isCreditCard = e.target.value === 'credit_card'
-              setFormData({ 
-                ...formData, 
-                payment_method: e.target.value,
-                is_credit_card: isCreditCard,
-                is_recurring: isCreditCard ? false : formData.is_recurring
-              })
-            }}
-            className="input-field"
-            required
-          >
-            <option value="cash">Dinheiro</option>
-            <option value="debit">Débito</option>
-            <option value="credit_card">Cartão de Crédito</option>
-            <option value="pix">PIX</option>
-            <option value="transfer">Transferência</option>
-          </select>
         </div>
 
         {formData.is_credit_card && formData.payment_method === 'credit_card' && (
@@ -434,21 +437,7 @@ export default function ExpenseForm({ userId, onSuccess, onRefresh }: Props) {
         )}
 
         {!formData.is_credit_card && (
-          <div>
-            <label className="block text-sm font-medium text-apple-gray-600 mb-2">
-              Forma de Pagamento
-            </label>
-            <input
-              type="text"
-              value={formData.payment_method === 'cash' ? '' : formData.payment_method}
-              onChange={(e) => setFormData({ ...formData, payment_method: e.target.value })}
-              className="input-field"
-              placeholder="Ex: Cartão de crédito"
-            />
-          </div>
-        )}
-
-        <div className="md:col-span-2 flex items-center gap-3 p-4 bg-apple-gray-50 rounded-xl">
+          <div className="md:col-span-2 flex items-center gap-3 p-4 bg-apple-gray-50 rounded-xl">
           <input
             type="checkbox"
             id="recurring"
