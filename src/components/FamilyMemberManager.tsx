@@ -192,8 +192,8 @@ export default function FamilyMemberManager({ userId }: Props) {
 
       {/* Modal de Formulário */}
       {showForm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4">
-          <div className="bg-white rounded-lg w-full max-w-xs mx-auto shadow-xl max-h-[80vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-[9999] p-4 pt-8 overflow-y-auto">
+          <div className="bg-white rounded-lg w-full max-w-xs mx-auto shadow-xl my-auto">
             {/* Header compacto */}
             <div className="flex items-center justify-between p-3 border-b border-gray-200 bg-gray-50">
               <h3 className="text-sm font-semibold text-gray-800">
@@ -209,7 +209,7 @@ export default function FamilyMemberManager({ userId }: Props) {
 
             {/* Form compacto */}
             <div className="p-3">
-              <form onSubmit={handleSubmit} className="space-y-3">
+              <div className="space-y-3">
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">
                     Nome *
@@ -286,24 +286,25 @@ export default function FamilyMemberManager({ userId }: Props) {
                     ))}
                   </div>
                 </div>
+              </div>
 
-                {/* Botões compactos */}
-                <div className="flex gap-2 pt-2">
-                  <button
-                    type="button"
-                    onClick={resetForm}
-                    className="flex-1 px-3 py-1.5 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    className="flex-1 px-3 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
-                  >
-                    {editingMember ? 'Salvar' : 'Adicionar'}
-                  </button>
-                </div>
-              </form>
+              {/* Botões sempre visíveis */}
+              <div className="flex gap-2 pt-4 border-t border-gray-200 mt-4">
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="flex-1 px-3 py-2 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300 font-medium"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  className="flex-1 px-3 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 font-medium"
+                >
+                  {editingMember ? 'Salvar' : 'Adicionar'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
