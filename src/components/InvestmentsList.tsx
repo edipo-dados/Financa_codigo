@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase'
 import InvestmentForm from './InvestmentForm'
 import EditRecurrenceModal from './EditRecurrenceModal'
 import EditValueModal from './EditValueModal'
+import EditInvestmentModal from './EditInvestmentModal'
 import { Investment } from '@/types'
 
 interface Props {
@@ -20,6 +21,7 @@ export default function InvestmentsList({ userId }: Props) {
   const [showForm, setShowForm] = useState(false)
   const [editingRecurrence, setEditingRecurrence] = useState<Investment | null>(null)
   const [editingValue, setEditingValue] = useState<Investment | null>(null)
+  const [editingInvestment, setEditingInvestment] = useState<Investment | null>(null)
   
   // Estados dos filtros
   const [showFilters, setShowFilters] = useState(false)
@@ -315,6 +317,13 @@ export default function InvestmentsList({ userId }: Props) {
                   </div>
                   <div className="flex items-center gap-2">
                     <button
+                      onClick={() => setEditingInvestment(investment)}
+                      className="text-apple-blue hover:text-apple-blue/80 transition-colors text-xs font-medium"
+                      title="Editar informações do investimento"
+                    >
+                      ✏️
+                    </button>
+                    <button
                       onClick={() => setEditingValue(investment)}
                       className="text-apple-green hover:text-apple-green/80 transition-colors text-xs font-medium"
                       title="Editar valor desta ocorrência"
@@ -411,6 +420,19 @@ export default function InvestmentsList({ userId }: Props) {
           onSuccess={() => {
             refetch()
             setEditingValue(null)
+          }}
+        />
+      )}
+
+      {/* Modal de Edição de Investimento */}
+      {editingInvestment && (
+        <EditInvestmentModal
+          isOpen={!!editingInvestment}
+          onClose={() => setEditingInvestment(null)}
+          investment={editingInvestment}
+          onSuccess={() => {
+            refetch()
+            setEditingInvestment(null)
           }}
         />
       )}

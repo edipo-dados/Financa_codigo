@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase'
 import IncomeForm from './IncomeForm'
 import EditRecurrenceModal from './EditRecurrenceModal'
 import EditValueModal from './EditValueModal'
+import EditIncomeModal from './EditIncomeModal'
 import { Income } from '@/types'
 
 interface Props {
@@ -20,6 +21,7 @@ export default function IncomesList({ userId }: Props) {
   const [showForm, setShowForm] = useState(false)
   const [editingRecurrence, setEditingRecurrence] = useState<Income | null>(null)
   const [editingValue, setEditingValue] = useState<Income | null>(null)
+  const [editingIncome, setEditingIncome] = useState<Income | null>(null)
   
   // Estados dos filtros
   const [showFilters, setShowFilters] = useState(false)
@@ -380,6 +382,13 @@ export default function IncomesList({ userId }: Props) {
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <div className="flex items-center gap-2">
                         <button
+                          onClick={() => setEditingIncome(income)}
+                          className="text-apple-blue hover:text-apple-blue/80 transition-colors font-medium text-xs"
+                          title="Editar informações da receita"
+                        >
+                          ✏️ Editar
+                        </button>
+                        <button
                           onClick={() => setEditingValue(income)}
                           className="text-apple-green hover:text-apple-green/80 transition-colors font-medium text-xs"
                           title="Editar valor desta ocorrência"
@@ -448,6 +457,19 @@ export default function IncomesList({ userId }: Props) {
           onSuccess={() => {
             refetch()
             setEditingValue(null)
+          }}
+        />
+      )}
+
+      {/* Modal de Edição de Receita */}
+      {editingIncome && (
+        <EditIncomeModal
+          isOpen={!!editingIncome}
+          onClose={() => setEditingIncome(null)}
+          income={editingIncome}
+          onSuccess={() => {
+            refetch()
+            setEditingIncome(null)
           }}
         />
       )}

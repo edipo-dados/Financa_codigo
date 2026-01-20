@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase'
 import ExpenseForm from './ExpenseForm'
 import EditRecurrenceModal from './EditRecurrenceModal'
 import EditValueModal from './EditValueModal'
+import EditExpenseModal from './EditExpenseModal'
 import { Expense } from '@/types'
 
 interface Props {
@@ -20,6 +21,7 @@ export default function ExpensesList({ userId }: Props) {
   const [showForm, setShowForm] = useState(false)
   const [editingRecurrence, setEditingRecurrence] = useState<Expense | null>(null)
   const [editingValue, setEditingValue] = useState<Expense | null>(null)
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null)
   
   // Estados dos filtros
   const [showFilters, setShowFilters] = useState(false)
@@ -475,6 +477,13 @@ export default function ExpensesList({ userId }: Props) {
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <div className="flex items-center gap-2">
                         <button
+                          onClick={() => setEditingExpense(expense)}
+                          className="text-apple-blue hover:text-apple-blue/80 transition-colors font-medium text-xs"
+                          title="Editar informações da despesa"
+                        >
+                          ✏️ Editar
+                        </button>
+                        <button
                           onClick={() => setEditingValue(expense)}
                           className="text-apple-green hover:text-apple-green/80 transition-colors font-medium text-xs"
                           title="Editar valor desta ocorrência"
@@ -548,6 +557,19 @@ export default function ExpensesList({ userId }: Props) {
           onSuccess={() => {
             refetch()
             setEditingValue(null)
+          }}
+        />
+      )}
+
+      {/* Modal de Edição de Despesa */}
+      {editingExpense && (
+        <EditExpenseModal
+          isOpen={!!editingExpense}
+          onClose={() => setEditingExpense(null)}
+          expense={editingExpense}
+          onSuccess={() => {
+            refetch()
+            setEditingExpense(null)
           }}
         />
       )}
