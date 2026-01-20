@@ -121,6 +121,7 @@ export default function IncomeForm({ userId, onSuccess, onRefresh }: Props) {
           description: '',
           income_date: new Date().toISOString().split('T')[0],
           category_id: '',
+          member_id: '',
           source: '',
           is_recurring: false,
           recurrence_frequency: 'monthly',
