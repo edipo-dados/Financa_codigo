@@ -91,11 +91,6 @@ export default function Dashboard() {
       <Navigation />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-8">
-        {/* Header - Mobile Optimized */}
-        <div className="mb-6 sm:mb-8 animate-slide-up">
-          <h1 className="text-2xl sm:text-3xl font-semibold fintech-text-primary mb-1 sm:mb-2">Visão Geral</h1>
-        </div>
-
         {/* Desktop Tabs - Hidden on Mobile */}
         <div className="hidden md:flex mb-8 gap-2 overflow-x-auto scrollbar-hide pb-2">
           {tabs.map((tab) => (
