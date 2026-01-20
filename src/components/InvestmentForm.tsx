@@ -65,8 +65,7 @@ export default function InvestmentForm({ userId, onSuccess, onRefresh }: Props) 
       return
     }
 
-    // Validar recorrência se habilitada (temporariamente desabilitado até migração)
-    /*
+    // Validar recorrência se habilitada
     if (formData.is_recurring) {
       const config = {
         startDate: parseISO(formData.investment_date),
@@ -83,7 +82,6 @@ export default function InvestmentForm({ userId, onSuccess, onRefresh }: Props) 
         return
       }
     }
-    */
 
     const investment = {
       user_id: userId,
@@ -95,13 +93,13 @@ export default function InvestmentForm({ userId, onSuccess, onRefresh }: Props) 
       current_amount: parseFloat(formData.initial_amount),
       investment_date: formData.investment_date,
       expected_return: formData.expected_return ? parseFloat(formData.expected_return) : null,
-      // Campos de recorrência com valores padrão (temporariamente desabilitados)
-      is_recurring: false,
-      recurrence_frequency: null,
-      recurrence_start_date: null,
-      recurrence_end_date: null,
-      recurrence_count: null,
-      recurrence_end_type: null,
+      // Campos de recorrência
+      is_recurring: formData.is_recurring,
+      recurrence_frequency: formData.is_recurring ? formData.recurrence_frequency : null,
+      recurrence_start_date: formData.is_recurring ? formData.investment_date : null,
+      recurrence_end_date: formData.is_recurring && formData.recurrence_end_date ? formData.recurrence_end_date : null,
+      recurrence_count: formData.is_recurring && formData.recurrence_count ? parseInt(formData.recurrence_count) : null,
+      recurrence_end_type: formData.is_recurring ? formData.recurrence_end_type : null,
       parent_investment_id: null,
     }
 
@@ -251,8 +249,7 @@ export default function InvestmentForm({ userId, onSuccess, onRefresh }: Props) 
           />
         </div>
 
-        {/* Seção de Recorrência - Temporariamente desabilitada até migração do banco */}
-        {/*
+        {/* Seção de Recorrência */}
         <div className="md:col-span-2 p-4 bg-apple-blue/5 rounded-xl border border-apple-blue/20">
           <div className="flex items-center gap-3 mb-4">
             <input
@@ -341,7 +338,6 @@ export default function InvestmentForm({ userId, onSuccess, onRefresh }: Props) 
             </div>
           )}
         </div>
-        */}
       </div>
 
       <button
