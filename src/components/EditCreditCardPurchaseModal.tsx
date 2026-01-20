@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { useFamilyMembers } from '@/hooks/useFamilyMembers'
 import { useCreditCards } from '@/hooks/useCreditCards'
 import { Expense, ExpenseCategory } from '@/types'
+import { createInstallmentsData, validateCreditCardPurchase } from '@/lib/creditCard'
 
 interface Props {
   isOpen: boolean
@@ -115,40 +116,111 @@ export default function EditCreditCardPurchaseModal({ isOpen, onClose, purchase,
       if (fetchError) {
         console.error('Erro ao buscar parcelas:', fetchError)
       } else if (installments && installments.length > 0) {
-        // Atualizar informações básicas das parcelas (descrição, categoria, membro, cartão)
-        const installmentUpdates = {
-          description: formData.description.trim(),
-          category_id: formData.category_id || null,
-          member_id: formData.member_id || null,
-          credit_card_id: formData.credit_card_id,
-          purchase_date: formData.purchase_date,
-          total_amount: totalAmount,
-          installments: formData.installments
-        }
+        // Verificar se precisa recalcular datas das parcelas
+        const needsDateRecalculation = formData.purchase_date !== (purchase.purchase_date || purchase.expense_date)
+        const needsAmountRecalculation = formData.installments !== purchase.installments || totalAmount !== (purchase.total_amount || purchase.amount)
 
-        const { error: installmentsError } = await (supabase as any)
-          .from('expenses')
-          .update(installmentUpdates)
-          .eq('parent_expense_id', purchase.id)
+        if (needsDateRecalculation || needsAmountRecalculation) {
+          // Buscar informações do cartão para recalcular datas
+          const selectedCard = creditCards.find(c => c.id === formData.credit_card_id)
+          if (!selectedCard) {
+            alert('Erro: Cartão não encontrado para recálculo de datas')
+            setLoading(false)
+            return
+          }
 
-        if (installmentsError) {
-          console.error('Erro ao atualizar parcelas:', installmentsError)
-          alert('Aviso: Compra atualizada, mas houve erro ao atualizar algumas parcelas: ' + installmentsError.message)
-        }
+          // Gerar novos dados das parcelas com datas recalculadas
+          const newInstallmentsData = createInstallmentsData(
+            totalAmount,
+            formData.installments,
+            formData.purchase_date,
+            selectedCard.closing_day,
+            formData.description.trim()
+          )
 
-        // Se o número de parcelas ou valor total mudou, recalcular valores das parcelas
-        if (formData.installments !== purchase.installments || totalAmount !== (purchase.total_amount || purchase.amount)) {
-          const newInstallmentAmount = totalAmount / formData.installments
+          // Atualizar cada parcela com nova data e valor
+          for (let i = 0; i < Math.min(installments.length, newInstallmentsData.length); i++) {
+            const installment = installments[i]
+            const newData = newInstallmentsData[i]
 
-          // Atualizar valor de cada parcela
-          for (const installment of installments) {
             await (supabase as any)
               .from('expenses')
-              .update({ 
-                amount: newInstallmentAmount,
-                description: `${formData.description.trim()} - Parcela ${(installment as any).installment_number}/${formData.installments}`
+              .update({
+                amount: newData.amount,
+                description: newData.description,
+                expense_date: newData.expense_date, // Nova data calculada
+                category_id: formData.category_id || null,
+                member_id: formData.member_id || null,
+                credit_card_id: formData.credit_card_id,
+                purchase_date: formData.purchase_date,
+                total_amount: totalAmount,
+                installments: formData.installments
               })
               .eq('id', (installment as any).id)
+          }
+
+          // Se o número de parcelas aumentou, criar novas parcelas
+          if (formData.installments > installments.length) {
+            const newInstallments = newInstallmentsData.slice(installments.length).map(inst => ({
+              user_id: purchase.user_id,
+              amount: inst.amount,
+              description: inst.description,
+              expense_date: inst.expense_date,
+              category_id: formData.category_id || null,
+              member_id: formData.member_id || null,
+              payment_method: 'credit_card',
+              is_credit_card: true,
+              credit_card_id: formData.credit_card_id,
+              total_amount: totalAmount,
+              installments: formData.installments,
+              installment_number: inst.installment_number,
+              purchase_date: formData.purchase_date,
+              parent_expense_id: purchase.id,
+              is_installment: true,
+              is_recurring: false,
+              is_paid: false,
+            }))
+
+            const { error: newInstallmentsError } = await (supabase as any)
+              .from('expenses')
+              .insert(newInstallments)
+
+            if (newInstallmentsError) {
+              console.error('Erro ao criar novas parcelas:', newInstallmentsError)
+              alert('Aviso: Algumas parcelas podem não ter sido criadas: ' + newInstallmentsError.message)
+            }
+          }
+
+          // Se o número de parcelas diminuiu, excluir parcelas extras
+          if (formData.installments < installments.length) {
+            const installmentsToDelete = installments.slice(formData.installments)
+            for (const installment of installmentsToDelete) {
+              await (supabase as any)
+                .from('expenses')
+                .delete()
+                .eq('id', (installment as any).id)
+            }
+          }
+        } else {
+          // Apenas atualizar informações básicas das parcelas (sem recalcular datas/valores)
+          const installmentUpdates = {
+            description: formData.description.trim(),
+            category_id: formData.category_id || null,
+            member_id: formData.member_id || null,
+            credit_card_id: formData.credit_card_id,
+            purchase_date: formData.purchase_date,
+            total_amount: totalAmount,
+            installments: formData.installments
+          }
+
+          const { error: installmentsError } = await (supabase as any)
+            .from('expenses')
+            .update(installmentUpdates)
+            .eq('parent_expense_id', purchase.id)
+
+          if (installmentsError) {
+            console.error('Erro ao atualizar parcelas:', installmentsError)
+            alert('Aviso: Compra atualizada, mas houve erro ao atualizar algumas parcelas: ' + installmentsError.message)
           }
         }
       }
@@ -334,7 +406,13 @@ export default function EditCreditCardPurchaseModal({ isOpen, onClose, purchase,
               <span className="text-lg">⚠️</span>
               <div className="text-sm text-apple-gray-600">
                 <p className="font-medium mb-1">Importante:</p>
-                <p>Alterações no valor total ou número de parcelas irão recalcular automaticamente o valor de cada parcela. Todas as parcelas desta compra serão atualizadas.</p>
+                <ul className="space-y-1 text-xs">
+                  <li>• Alterações no valor total ou número de parcelas irão recalcular automaticamente o valor de cada parcela</li>
+                  <li>• Alterações na data da compra irão recalcular as datas de vencimento de todas as parcelas</li>
+                  <li>• Todas as parcelas desta compra serão atualizadas com as novas informações</li>
+                  <li>• Se aumentar o número de parcelas, novas parcelas serão criadas</li>
+                  <li>• Se diminuir o número de parcelas, as parcelas extras serão excluídas</li>
+                </ul>
               </div>
             </div>
           </div>
