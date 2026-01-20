@@ -28,7 +28,11 @@ export function useIncomes(userId: string | undefined) {
     setLoading(true)
     const { data, error } = await supabase
       .from('incomes')
-      .select('*, category:income_categories(*)')
+      .select(`
+        *, 
+        category:income_categories(*),
+        member:family_members(*)
+      `)
       .eq('user_id', userId!)
       .order('income_date', { ascending: false })
 

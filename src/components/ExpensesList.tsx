@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useExpenses } from '@/hooks/useExpenses'
+import { useFamilyMembers } from '@/hooks/useFamilyMembers'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 import ExpenseForm from './ExpenseForm'
@@ -14,13 +15,70 @@ interface Props {
 
 export default function ExpensesList({ userId }: Props) {
   const { expenses, loading, deleteExpense, refetch } = useExpenses(userId)
+  const { members } = useFamilyMembers(userId)
   const [showForm, setShowForm] = useState(false)
   const [editingRecurrence, setEditingRecurrence] = useState<Expense | null>(null)
+  
+  // Estados dos filtros
+  const [filters, setFilters] = useState({
+    member: '',
+    category: '',
+    status: '',
+    dateFrom: '',
+    dateTo: '',
+    search: ''
+  })
 
   // Filtrar para não mostrar despesas parent de cartão (apenas parcelas)
   const displayExpenses = expenses.filter(e => 
     !e.is_credit_card || e.is_installment
   )
+
+  // Aplicar filtros
+  const filteredExpenses = useMemo(() => {
+    return displayExpenses.filter(expense => {
+      // Filtro por membro
+      if (filters.member && expense.member_id !== filters.member) return false
+      
+      // Filtro por categoria
+      if (filters.category && expense.category_id !== filters.category) return false
+      
+      // Filtro por status
+      if (filters.status === 'paid' && !expense.is_paid) return false
+      if (filters.status === 'unpaid' && expense.is_paid) return false
+      
+      // Filtro por data
+      if (filters.dateFrom && expense.expense_date < filters.dateFrom) return false
+      if (filters.dateTo && expense.expense_date > filters.dateTo) return false
+      
+      // Filtro por busca
+      if (filters.search && !expense.description.toLowerCase().includes(filters.search.toLowerCase())) return false
+      
+      return true
+    })
+  }, [displayExpenses, filters])
+
+  // Obter categorias únicas
+  const categories = useMemo(() => {
+    const uniqueCategories = new Map()
+    expenses.forEach(expense => {
+      if (expense.category) {
+        uniqueCategories.set(expense.category.id, expense.category)
+      }
+    })
+    return Array.from(uniqueCategories.values())
+  }, [expenses])
+
+  const clearFilters = () => {
+    setFilters({
+      member: '',
+      category: '',
+      status: '',
+      dateFrom: '',
+      dateTo: '',
+      search: ''
+    })
+  }
 
   const handleDeleteRecurrence = async (expense: Expense) => {
     const confirmMsg = `Deseja excluir TODA a recorrência "${expense.description}"?\n\nIsso excluirá este item e impedirá a criação de futuras ocorrências.`
@@ -160,6 +218,122 @@ export default function ExpensesList({ userId }: Props) {
         </div>
       )}
 
+      {/* Filtros */}
+      <div className="glass-card p-4 rounded-2xl">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold text-apple-gray-700">🔍 Filtros</h3>
+          <button
+            onClick={clearFilters}
+            className="text-xs text-apple-blue hover:text-apple-blue/80 font-medium"
+          >
+            Limpar Filtros
+          </button>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {/* Busca */}
+          <div>
+            <label className="block text-xs font-medium text-apple-gray-600 mb-1">
+              Buscar
+            </label>
+            <input
+              type="text"
+              value={filters.search}
+              onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+              className="w-full px-3 py-2 text-sm border border-apple-gray-200 rounded-lg focus:ring-1 focus:ring-apple-blue focus:border-apple-blue"
+              placeholder="Descrição da despesa..."
+            />
+          </div>
+
+          {/* Membro da Família */}
+          <div>
+            <label className="block text-xs font-medium text-apple-gray-600 mb-1">
+              Membro da Família
+            </label>
+            <select
+              value={filters.member}
+              onChange={(e) => setFilters({ ...filters, member: e.target.value })}
+              className="w-full px-3 py-2 text-sm border border-apple-gray-200 rounded-lg focus:ring-1 focus:ring-apple-blue focus:border-apple-blue"
+            >
+              <option value="">Todos os membros</option>
+              {members.map((member) => (
+                <option key={member.id} value={member.id}>
+                  {member.name} {member.relationship && `(${member.relationship})`}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Categoria */}
+          <div>
+            <label className="block text-xs font-medium text-apple-gray-600 mb-1">
+              Categoria
+            </label>
+            <select
+              value={filters.category}
+              onChange={(e) => setFilters({ ...filters, category: e.target.value })}
+              className="w-full px-3 py-2 text-sm border border-apple-gray-200 rounded-lg focus:ring-1 focus:ring-apple-blue focus:border-apple-blue"
+            >
+              <option value="">Todas as categorias</option>
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Status */}
+          <div>
+            <label className="block text-xs font-medium text-apple-gray-600 mb-1">
+              Status
+            </label>
+            <select
+              value={filters.status}
+              onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+              className="w-full px-3 py-2 text-sm border border-apple-gray-200 rounded-lg focus:ring-1 focus:ring-apple-blue focus:border-apple-blue"
+            >
+              <option value="">Todos os status</option>
+              <option value="paid">Pago</option>
+              <option value="unpaid">A Pagar</option>
+            </select>
+          </div>
+
+          {/* Data De */}
+          <div>
+            <label className="block text-xs font-medium text-apple-gray-600 mb-1">
+              Data De
+            </label>
+            <input
+              type="date"
+              value={filters.dateFrom}
+              onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
+              className="w-full px-3 py-2 text-sm border border-apple-gray-200 rounded-lg focus:ring-1 focus:ring-apple-blue focus:border-apple-blue"
+            />
+          </div>
+
+          {/* Data Até */}
+          <div>
+            <label className="block text-xs font-medium text-apple-gray-600 mb-1">
+              Data Até
+            </label>
+            <input
+              type="date"
+              value={filters.dateTo}
+              onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
+              className="w-full px-3 py-2 text-sm border border-apple-gray-200 rounded-lg focus:ring-1 focus:ring-apple-blue focus:border-apple-blue"
+            />
+          </div>
+        </div>
+
+        {/* Resumo dos filtros */}
+        <div className="mt-3 pt-3 border-t border-apple-gray-200">
+          <p className="text-xs text-apple-gray-500">
+            Mostrando {filteredExpenses.length} de {displayExpenses.length} despesas
+          </p>
+        </div>
+      </div>
+
       {showForm && (
         <div className="glass-card p-6 rounded-3xl animate-slide-up">
           <ExpenseForm 
@@ -177,13 +351,20 @@ export default function ExpensesList({ userId }: Props) {
             <p className="text-apple-gray-400 text-sm">Carregando despesas...</p>
           </div>
         </div>
-      ) : displayExpenses.length === 0 ? (
+      ) : filteredExpenses.length === 0 ? (
         <div className="glass-card p-12 rounded-3xl text-center">
           <div className="w-20 h-20 bg-apple-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <span className="text-4xl">💸</span>
           </div>
-          <h3 className="text-lg font-semibold text-apple-gray-700 mb-2">Nenhuma despesa cadastrada</h3>
-          <p className="text-apple-gray-400 text-sm">Comece adicionando sua primeira despesa</p>
+          <h3 className="text-lg font-semibold text-apple-gray-700 mb-2">
+            {displayExpenses.length === 0 ? 'Nenhuma despesa cadastrada' : 'Nenhuma despesa encontrada'}
+          </h3>
+          <p className="text-apple-gray-400 text-sm">
+            {displayExpenses.length === 0 
+              ? 'Comece adicionando sua primeira despesa'
+              : 'Tente ajustar os filtros para encontrar suas despesas'
+            }
+          </p>
         </div>
       ) : (
         <div className="glass-card rounded-3xl overflow-hidden">
@@ -193,6 +374,7 @@ export default function ExpensesList({ userId }: Props) {
                 <tr className="border-b border-apple-gray-200">
                   <th className="px-6 py-4 text-left text-xs font-semibold text-apple-gray-500 uppercase tracking-wider">Data</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-apple-gray-500 uppercase tracking-wider">Descrição</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-apple-gray-500 uppercase tracking-wider">Membro</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-apple-gray-500 uppercase tracking-wider">Categoria</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-apple-gray-500 uppercase tracking-wider">Valor</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-apple-gray-500 uppercase tracking-wider">Status</th>
@@ -200,7 +382,7 @@ export default function ExpensesList({ userId }: Props) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-apple-gray-100">
-                {displayExpenses.map((expense) => (
+                {filteredExpenses.map((expense) => (
                   <tr key={expense.id} className="hover:bg-apple-gray-50/50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-apple-gray-600">
                       {formatDate(expense.expense_date)}
@@ -232,6 +414,16 @@ export default function ExpensesList({ userId }: Props) {
                         >
                           💳 {expense.credit_card.name}
                         </span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      {expense.member ? (
+                        <span className="inline-flex items-center gap-2 px-2 py-1 rounded-lg text-xs" style={{ backgroundColor: `${expense.member.color}15` }}>
+                          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: expense.member.color }} />
+                          <span style={{ color: expense.member.color }}>{expense.member.name}</span>
+                        </span>
+                      ) : (
+                        <span className="text-apple-gray-400 text-xs">-</span>
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">

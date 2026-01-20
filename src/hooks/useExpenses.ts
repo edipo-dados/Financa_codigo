@@ -28,7 +28,12 @@ export function useExpenses(userId: string | undefined) {
     setLoading(true)
     const { data, error } = await supabase
       .from('expenses')
-      .select('*, category:expense_categories(*), credit_card:credit_cards(*)')
+      .select(`
+        *, 
+        category:expense_categories(*), 
+        credit_card:credit_cards(*),
+        member:family_members(*)
+      `)
       .eq('user_id', userId!)
       .order('expense_date', { ascending: false })
 

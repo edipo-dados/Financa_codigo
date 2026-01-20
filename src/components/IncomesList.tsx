@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useIncomes } from '@/hooks/useIncomes'
+import { useFamilyMembers } from '@/hooks/useFamilyMembers'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 import IncomeForm from './IncomeForm'
@@ -14,8 +15,65 @@ interface Props {
 
 export default function IncomesList({ userId }: Props) {
   const { incomes, loading, deleteIncome, refetch } = useIncomes(userId)
+  const { members } = useFamilyMembers(userId)
   const [showForm, setShowForm] = useState(false)
   const [editingRecurrence, setEditingRecurrence] = useState<Income | null>(null)
+  
+  // Estados dos filtros
+  const [filters, setFilters] = useState({
+    member: '',
+    category: '',
+    status: '',
+    dateFrom: '',
+    dateTo: '',
+    search: ''
+  })
+
+  // Aplicar filtros
+  const filteredIncomes = useMemo(() => {
+    return incomes.filter(income => {
+      // Filtro por membro
+      if (filters.member && income.member_id !== filters.member) return false
+      
+      // Filtro por categoria
+      if (filters.category && income.category_id !== filters.category) return false
+      
+      // Filtro por status
+      if (filters.status === 'paid' && !income.is_paid) return false
+      if (filters.status === 'unpaid' && income.is_paid) return false
+      
+      // Filtro por data
+      if (filters.dateFrom && income.income_date < filters.dateFrom) return false
+      if (filters.dateTo && income.income_date > filters.dateTo) return false
+      
+      // Filtro por busca
+      if (filters.search && !income.description.toLowerCase().includes(filters.search.toLowerCase())) return false
+      
+      return true
+    })
+  }, [incomes, filters])
+
+  // Obter categorias únicas
+  const categories = useMemo(() => {
+    const uniqueCategories = new Map()
+    incomes.forEach(income => {
+      if (income.category) {
+        uniqueCategories.set(income.category.id, income.category)
+      }
+    })
+    return Array.from(uniqueCategories.values())
+  }, [incomes])
+
+  const clearFilters = () => {
+    setFilters({
+      member: '',
+      category: '',
+      status: '',
+      dateFrom: '',
+      dateTo: '',
+      search: ''
+    })
+  }
 
 
 

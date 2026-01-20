@@ -16,7 +16,12 @@ export function useInvestments(userId: string | undefined) {
     setLoading(true)
     const { data, error } = await supabase
       .from('investments')
-      .select('*, investment_type:investment_types(*), transactions:investment_transactions(*)')
+      .select(`
+        *, 
+        investment_type:investment_types(*), 
+        transactions:investment_transactions(*),
+        member:family_members(*)
+      `)
       .eq('user_id', userId!)
       .order('investment_date', { ascending: false })
 
