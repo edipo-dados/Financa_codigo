@@ -81,7 +81,7 @@ export default function CreditCardManager({ userId }: Props) {
     <div className="glass-card p-4 sm:p-6 rounded-2xl sm:rounded-3xl">
       <div className="flex items-center justify-between mb-4 sm:mb-6">
         <div>
-          <h3 className="text-lg sm:text-xl font-semibold fintech-text-primary">Cartões de Crédito</h3>
+          <h2 className="text-2xl font-semibold text-apple-gray-700">Cartões de Crédito</h2>
         </div>
         <button
           onClick={() => {

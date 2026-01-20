@@ -14,10 +14,10 @@ export default function ThemeSettings() {
           </svg>
         </div>
         <div>
-          <h2 className="text-2xl font-bold fintech-text-primary">
+          <h2 className="text-2xl font-semibold text-apple-gray-700">
             🎨 Aparência
           </h2>
-          <p className="text-sm fintech-text-secondary mt-1">
+          <p className="text-sm text-apple-gray-500 mt-1">
             Personalize o tema da aplicação para sua preferência
           </p>
         </div>
@@ -25,7 +25,7 @@ export default function ThemeSettings() {
 
       <div className="space-y-6">
         <div>
-          <h3 className="text-lg font-semibold fintech-text-primary mb-4">
+          <h3 className="text-xl font-semibold text-apple-gray-700 mb-4">
             Escolha seu tema
           </h3>
           
@@ -52,13 +52,13 @@ export default function ThemeSettings() {
                 </div>
                 
                 <div className="text-center">
-                  <span className="text-lg font-semibold fintech-text-primary">
+                  <span className="text-lg font-semibold text-apple-gray-700">
                     ☀️ Tema Claro
                   </span>
-                  <p className="text-sm fintech-text-muted mt-1">
+                  <p className="text-sm text-apple-gray-500 mt-1">
                     Interface limpa e profissional
                   </p>
-                  <p className="text-xs fintech-text-muted mt-1">
+                  <p className="text-xs text-apple-gray-400 mt-1">
                     Ideal para uso diurno
                   </p>
                 </div>
@@ -98,13 +98,13 @@ export default function ThemeSettings() {
                 </div>
                 
                 <div className="text-center">
-                  <span className="text-lg font-semibold fintech-text-primary">
+                  <span className="text-lg font-semibold text-apple-gray-700">
                     🌙 Tema Escuro
                   </span>
-                  <p className="text-sm fintech-text-muted mt-1">
+                  <p className="text-sm text-apple-gray-500 mt-1">
                     Interface premium e moderna
                   </p>
-                  <p className="text-xs fintech-text-muted mt-1">
+                  <p className="text-xs text-apple-gray-400 mt-1">
                     Perfeito para uso noturno
                   </p>
                 </div>
@@ -132,10 +132,10 @@ export default function ThemeSettings() {
               </svg>
             </div>
             <div>
-              <h4 className="text-base font-semibold fintech-text-primary mb-2">
+              <h4 className="text-base font-semibold text-apple-gray-700 mb-2">
                 💡 Sobre os temas
               </h4>
-              <ul className="text-sm fintech-text-secondary space-y-2">
+              <ul className="text-sm text-apple-gray-500 space-y-2">
                 <li className="flex items-center gap-2">
                   <div className="w-1.5 h-1.5 bg-fintech-dark-success rounded-full"></div>
                   Sua preferência é salva automaticamente

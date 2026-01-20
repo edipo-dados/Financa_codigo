@@ -69,7 +69,7 @@ export default function IncomeCategoryManager({ userId }: Props) {
   return (
     <div className="glass-card p-6 rounded-3xl animate-slide-up">
       <div className="mb-6">
-        <h3 className="text-xl font-semibold text-apple-gray-700">Categorias de Receitas</h3>
+        <h2 className="text-2xl font-semibold text-apple-gray-700">Categorias de Receitas</h2>
       </div>
 
       <form onSubmit={handleAdd} className="mb-6 space-y-4">
