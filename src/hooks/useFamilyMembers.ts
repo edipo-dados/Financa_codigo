@@ -13,7 +13,7 @@ export function useFamilyMembers(userId?: string) {
 
     setLoading(true)
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('family_members')
         .select('*')
         .eq('user_id', userId)
@@ -31,7 +31,7 @@ export function useFamilyMembers(userId?: string) {
 
   const addMember = async (member: Omit<FamilyMember, 'id' | 'created_at' | 'updated_at'>) => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('family_members')
         .insert([member])
         .select()
@@ -39,7 +39,7 @@ export function useFamilyMembers(userId?: string) {
 
       if (error) throw error
       
-      setMembers(prev => [...prev, data])
+      setMembers(prev => [...prev, data as FamilyMember])
       return { data, error: null }
     } catch (error) {
       console.error('Erro ao adicionar membro:', error)
@@ -49,7 +49,7 @@ export function useFamilyMembers(userId?: string) {
 
   const updateMember = async (id: string, updates: Partial<FamilyMember>) => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('family_members')
         .update(updates)
         .eq('id', id)
@@ -70,7 +70,7 @@ export function useFamilyMembers(userId?: string) {
 
   const deleteMember = async (id: string) => {
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('family_members')
         .update({ is_active: false })
         .eq('id', id)
