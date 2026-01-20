@@ -52,6 +52,19 @@ export default function InvestmentForm({ userId, onSuccess, onRefresh }: Props) 
     e.preventDefault()
     setLoading(true)
 
+    // Validações básicas
+    if (!formData.name.trim()) {
+      alert('Nome do investimento é obrigatório')
+      setLoading(false)
+      return
+    }
+
+    if (!formData.initial_amount || parseFloat(formData.initial_amount) <= 0) {
+      alert('Valor investido deve ser maior que zero')
+      setLoading(false)
+      return
+    }
+
     // Validar recorrência se habilitada
     if (formData.is_recurring) {
       const config = {
@@ -72,10 +85,10 @@ export default function InvestmentForm({ userId, onSuccess, onRefresh }: Props) 
 
     const investment = {
       user_id: userId,
-      name: formData.name,
+      name: formData.name.trim(),
       investment_type_id: formData.investment_type_id || null,
       member_id: formData.member_id || null,
-      institution: formData.institution || null,
+      institution: formData.institution?.trim() || null,
       initial_amount: parseFloat(formData.initial_amount),
       current_amount: parseFloat(formData.initial_amount),
       investment_date: formData.investment_date,
@@ -89,9 +102,15 @@ export default function InvestmentForm({ userId, onSuccess, onRefresh }: Props) 
       parent_investment_id: null,
     }
 
-    const { error } = await addInvestment(investment)
+    console.log('InvestmentForm: Tentando adicionar investimento:', investment)
+
+    const { data, error } = await addInvestment(investment)
     
-    if (!error) {
+    if (error) {
+      console.error('InvestmentForm: Erro ao adicionar:', error)
+      alert(`Erro ao adicionar investimento: ${error.message}`)
+    } else {
+      console.log('InvestmentForm: Investimento adicionado com sucesso:', data)
       onSuccess()
       if (onRefresh) onRefresh()
     }

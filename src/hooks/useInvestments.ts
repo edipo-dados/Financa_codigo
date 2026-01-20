@@ -32,16 +32,21 @@ export function useInvestments(userId: string | undefined) {
   }
 
   const addInvestment = async (investment: Omit<Investment, 'id' | 'created_at' | 'updated_at' | 'transactions'>) => {
-    const { data, error } = await supabase
+    console.log('useInvestments: Tentando inserir investimento:', investment)
+    
+    const { data, error } = await (supabase as any)
       .from('investments')
-      // @ts-ignore
       .insert(investment)
       .select()
       .single()
 
-    if (!error) {
+    if (error) {
+      console.error('useInvestments: Erro ao inserir:', error)
+    } else {
+      console.log('useInvestments: Investimento inserido com sucesso:', data)
       await fetchInvestments()
     }
+    
     return { data, error }
   }
 
