@@ -193,121 +193,116 @@ export default function FamilyMemberManager({ userId }: Props) {
       {/* Modal de Formulário */}
       {showForm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl w-full max-w-md max-h-[90vh] overflow-hidden flex flex-col">
+          <div className="bg-white rounded-2xl w-full max-w-sm mx-auto shadow-2xl">
             {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-apple-gray-200">
-              <h3 className="text-xl font-semibold text-apple-gray-700">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-800">
                 {editingMember ? 'Editar Membro' : 'Adicionar Membro'}
               </h3>
               <button
                 onClick={resetForm}
-                className="w-8 h-8 rounded-full bg-apple-gray-100 flex items-center justify-center hover:bg-apple-gray-200 transition-colors"
+                className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 text-gray-600"
               >
                 ✕
               </button>
             </div>
 
-            {/* Content */}
-            <div className="flex-1 overflow-y-auto p-6">
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-apple-gray-600 mb-2">
-                    Nome *
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-4 py-3 border border-apple-gray-200 rounded-xl focus:ring-2 focus:ring-apple-blue focus:border-apple-blue outline-none transition-colors"
-                    placeholder="Ex: Maria Silva"
-                    required
-                  />
-                </div>
+            {/* Form */}
+            <form onSubmit={handleSubmit} className="p-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nome *
+                </label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Ex: Maria Silva"
+                  required
+                />
+              </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-apple-gray-600 mb-2">
-                    Parentesco
-                  </label>
-                  <select
-                    value={formData.relationship}
-                    onChange={(e) => setFormData({ ...formData, relationship: e.target.value })}
-                    className="w-full px-4 py-3 border border-apple-gray-200 rounded-xl focus:ring-2 focus:ring-apple-blue focus:border-apple-blue outline-none transition-colors"
-                  >
-                    <option value="">Selecione o parentesco</option>
-                    {relationships.map((rel) => (
-                      <option key={rel} value={rel}>{rel}</option>
-                    ))}
-                  </select>
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Parentesco
+                </label>
+                <select
+                  value={formData.relationship}
+                  onChange={(e) => setFormData({ ...formData, relationship: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">Selecione o parentesco</option>
+                  {relationships.map((rel) => (
+                    <option key={rel} value={rel}>{rel}</option>
+                  ))}
+                </select>
+              </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-apple-gray-600 mb-2">
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full px-4 py-3 border border-apple-gray-200 rounded-xl focus:ring-2 focus:ring-apple-blue focus:border-apple-blue outline-none transition-colors"
-                    placeholder="maria@email.com"
-                  />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="maria@email.com"
+                />
+              </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-apple-gray-600 mb-2">
-                    Telefone
-                  </label>
-                  <input
-                    type="tel"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full px-4 py-3 border border-apple-gray-200 rounded-xl focus:ring-2 focus:ring-apple-blue focus:border-apple-blue outline-none transition-colors"
-                    placeholder="(11) 99999-9999"
-                  />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Telefone
+                </label>
+                <input
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="(11) 99999-9999"
+                />
+              </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-apple-gray-600 mb-2">
-                    Cor de Identificação
-                  </label>
-                  <div className="grid grid-cols-6 gap-2">
-                    {colors.map((color) => (
-                      <button
-                        key={color}
-                        type="button"
-                        onClick={() => setFormData({ ...formData, color })}
-                        className={`w-8 h-8 rounded-full border-2 transition-all ${
-                          formData.color === color
-                            ? 'border-apple-gray-400 scale-110'
-                            : 'border-apple-gray-200 hover:border-apple-gray-300'
-                        }`}
-                        style={{ backgroundColor: color }}
-                      />
-                    ))}
-                  </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Cor de Identificação
+                </label>
+                <div className="grid grid-cols-6 gap-2">
+                  {colors.map((color) => (
+                    <button
+                      key={color}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, color })}
+                      className={`w-8 h-8 rounded-full border-2 ${
+                        formData.color === color
+                          ? 'border-gray-800 ring-2 ring-gray-300'
+                          : 'border-gray-300 hover:border-gray-400'
+                      }`}
+                      style={{ backgroundColor: color }}
+                    />
+                  ))}
                 </div>
-              </form>
-            </div>
+              </div>
 
-            {/* Footer com botões */}
-            <div className="p-6 border-t border-apple-gray-200 bg-apple-gray-50">
-              <div className="flex gap-3">
+              {/* Botões */}
+              <div className="flex gap-3 pt-4">
                 <button
                   type="button"
                   onClick={resetForm}
-                  className="flex-1 px-4 py-3 bg-white border border-apple-gray-200 text-apple-gray-700 rounded-xl font-medium hover:bg-apple-gray-50 transition-colors"
+                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  onClick={handleSubmit}
-                  className="flex-1 px-4 py-3 bg-apple-blue text-white rounded-xl font-medium hover:bg-apple-blue/90 transition-colors"
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
                 >
-                  {editingMember ? 'Salvar Alterações' : 'Adicionar Membro'}
+                  {editingMember ? 'Salvar' : 'Adicionar'}
                 </button>
               </div>
-            </div>
+            </form>
           </div>
         </div>
       )}
