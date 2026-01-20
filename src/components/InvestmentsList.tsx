@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useInvestments } from '@/hooks/useInvestments'
+import { useFamilyMembers } from '@/hooks/useFamilyMembers'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 import InvestmentForm from './InvestmentForm'
@@ -14,8 +15,59 @@ interface Props {
 
 export default function InvestmentsList({ userId }: Props) {
   const { investments, loading, deleteInvestment, refetch } = useInvestments(userId)
+  const { members } = useFamilyMembers(userId)
   const [showForm, setShowForm] = useState(false)
   const [editingRecurrence, setEditingRecurrence] = useState<Investment | null>(null)
+  
+  // Estados dos filtros
+  const [filters, setFilters] = useState({
+    member: '',
+    type: '',
+    dateFrom: '',
+    dateTo: '',
+    search: ''
+  })
+
+  // Aplicar filtros
+  const filteredInvestments = useMemo(() => {
+    return investments.filter(investment => {
+      // Filtro por membro
+      if (filters.member && investment.member_id !== filters.member) return false
+      
+      // Filtro por tipo
+      if (filters.type && investment.investment_type_id !== filters.type) return false
+      
+      // Filtro por data
+      if (filters.dateFrom && investment.investment_date < filters.dateFrom) return false
+      if (filters.dateTo && investment.investment_date > filters.dateTo) return false
+      
+      // Filtro por busca
+      if (filters.search && !investment.name.toLowerCase().includes(filters.search.toLowerCase())) return false
+      
+      return true
+    })
+  }, [investments, filters])
+
+  // Obter tipos únicos
+  const investmentTypes = useMemo(() => {
+    const uniqueTypes = new Map()
+    investments.forEach(investment => {
+      if (investment.investment_type) {
+        uniqueTypes.set(investment.investment_type.id, investment.investment_type)
+      }
+    })
+    return Array.from(uniqueTypes.values())
+  }, [investments])
+
+  const clearFilters = () => {
+    setFilters({
+      member: '',
+      type: '',
+      dateFrom: '',
+      dateTo: '',
+      search: ''
+    })
+  }
 
   const handleDeleteRecurrence = async (investment: Investment) => {
     const confirmMsg = `Deseja excluir TODA a recorrência "${investment.name}"?\n\nIsso excluirá este item e impedirá a criação de futuras ocorrências.`

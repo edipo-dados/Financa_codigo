@@ -140,6 +140,122 @@ export default function IncomesList({ userId }: Props) {
         </div>
       </div>
 
+      {/* Filtros */}
+      <div className="glass-card p-4 rounded-2xl">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold text-apple-gray-700">🔍 Filtros</h3>
+          <button
+            onClick={clearFilters}
+            className="text-xs text-apple-blue hover:text-apple-blue/80 font-medium"
+          >
+            Limpar Filtros
+          </button>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {/* Busca */}
+          <div>
+            <label className="block text-xs font-medium text-apple-gray-600 mb-1">
+              Buscar
+            </label>
+            <input
+              type="text"
+              value={filters.search}
+              onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+              className="w-full px-3 py-2 text-sm border border-apple-gray-200 rounded-lg focus:ring-1 focus:ring-apple-blue focus:border-apple-blue"
+              placeholder="Descrição da receita..."
+            />
+          </div>
+
+          {/* Membro da Família */}
+          <div>
+            <label className="block text-xs font-medium text-apple-gray-600 mb-1">
+              Membro da Família
+            </label>
+            <select
+              value={filters.member}
+              onChange={(e) => setFilters({ ...filters, member: e.target.value })}
+              className="w-full px-3 py-2 text-sm border border-apple-gray-200 rounded-lg focus:ring-1 focus:ring-apple-blue focus:border-apple-blue"
+            >
+              <option value="">Todos os membros</option>
+              {members.map((member) => (
+                <option key={member.id} value={member.id}>
+                  {member.name} {member.relationship && `(${member.relationship})`}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Categoria */}
+          <div>
+            <label className="block text-xs font-medium text-apple-gray-600 mb-1">
+              Categoria
+            </label>
+            <select
+              value={filters.category}
+              onChange={(e) => setFilters({ ...filters, category: e.target.value })}
+              className="w-full px-3 py-2 text-sm border border-apple-gray-200 rounded-lg focus:ring-1 focus:ring-apple-blue focus:border-apple-blue"
+            >
+              <option value="">Todas as categorias</option>
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Status */}
+          <div>
+            <label className="block text-xs font-medium text-apple-gray-600 mb-1">
+              Status
+            </label>
+            <select
+              value={filters.status}
+              onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+              className="w-full px-3 py-2 text-sm border border-apple-gray-200 rounded-lg focus:ring-1 focus:ring-apple-blue focus:border-apple-blue"
+            >
+              <option value="">Todos os status</option>
+              <option value="paid">Recebido</option>
+              <option value="unpaid">A Receber</option>
+            </select>
+          </div>
+
+          {/* Data De */}
+          <div>
+            <label className="block text-xs font-medium text-apple-gray-600 mb-1">
+              Data De
+            </label>
+            <input
+              type="date"
+              value={filters.dateFrom}
+              onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
+              className="w-full px-3 py-2 text-sm border border-apple-gray-200 rounded-lg focus:ring-1 focus:ring-apple-blue focus:border-apple-blue"
+            />
+          </div>
+
+          {/* Data Até */}
+          <div>
+            <label className="block text-xs font-medium text-apple-gray-600 mb-1">
+              Data Até
+            </label>
+            <input
+              type="date"
+              value={filters.dateTo}
+              onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
+              className="w-full px-3 py-2 text-sm border border-apple-gray-200 rounded-lg focus:ring-1 focus:ring-apple-blue focus:border-apple-blue"
+            />
+          </div>
+        </div>
+
+        {/* Resumo dos filtros */}
+        <div className="mt-3 pt-3 border-t border-apple-gray-200">
+          <p className="text-xs text-apple-gray-500">
+            Mostrando {filteredIncomes.length} de {incomes.length} receitas
+          </p>
+        </div>
+      </div>
+
       {showForm && (
         <div className="glass-card p-6 rounded-3xl animate-slide-up">
           <IncomeForm 
@@ -157,13 +273,20 @@ export default function IncomesList({ userId }: Props) {
             <p className="text-apple-gray-400 text-sm">Carregando receitas...</p>
           </div>
         </div>
-      ) : incomes.length === 0 ? (
+      ) : filteredIncomes.length === 0 ? (
         <div className="glass-card p-12 rounded-3xl text-center">
           <div className="w-20 h-20 bg-apple-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <span className="text-4xl">💰</span>
           </div>
-          <h3 className="text-lg font-semibold text-apple-gray-700 mb-2">Nenhuma receita cadastrada</h3>
-          <p className="text-apple-gray-400 text-sm">Comece adicionando sua primeira receita</p>
+          <h3 className="text-lg font-semibold text-apple-gray-700 mb-2">
+            {incomes.length === 0 ? 'Nenhuma receita cadastrada' : 'Nenhuma receita encontrada'}
+          </h3>
+          <p className="text-apple-gray-400 text-sm">
+            {incomes.length === 0 
+              ? 'Comece adicionando sua primeira receita'
+              : 'Tente ajustar os filtros para encontrar suas receitas'
+            }
+          </p>
         </div>
       ) : (
         <div className="glass-card rounded-3xl overflow-hidden">
@@ -173,6 +296,7 @@ export default function IncomesList({ userId }: Props) {
                 <tr className="border-b border-apple-gray-200">
                   <th className="px-6 py-4 text-left text-xs font-semibold text-apple-gray-500 uppercase tracking-wider">Data</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-apple-gray-500 uppercase tracking-wider">Descrição</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-apple-gray-500 uppercase tracking-wider">Membro</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-apple-gray-500 uppercase tracking-wider">Categoria</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-apple-gray-500 uppercase tracking-wider">Fonte</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-apple-gray-500 uppercase tracking-wider">Valor</th>
@@ -181,7 +305,7 @@ export default function IncomesList({ userId }: Props) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-apple-gray-100">
-                {incomes.map((income) => (
+                {filteredIncomes.map((income) => (
                   <tr key={income.id} className="hover:bg-apple-gray-50/50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-apple-gray-600">
                       {formatDate(income.income_date)}
@@ -192,6 +316,16 @@ export default function IncomesList({ userId }: Props) {
                         <span className="ml-2 px-2 py-0.5 bg-apple-green/10 text-apple-green text-xs rounded-md">
                           Recorrente
                         </span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      {income.member ? (
+                        <span className="inline-flex items-center gap-2 px-2 py-1 rounded-lg text-xs" style={{ backgroundColor: `${income.member.color}15` }}>
+                          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: income.member.color }} />
+                          <span style={{ color: income.member.color }}>{income.member.name}</span>
+                        </span>
+                      ) : (
+                        <span className="text-apple-gray-400 text-xs">-</span>
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
