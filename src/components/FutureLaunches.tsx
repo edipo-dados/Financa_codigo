@@ -402,7 +402,7 @@ export default function FutureLaunches({ userId, expenses, incomes, investments,
           <div className="flex items-center justify-between mb-4">
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center gap-2 text-lg font-semibold text-apple-gray-700 hover:text-apple-blue transition-colors"
+              className="flex items-center gap-2 text-sm font-semibold text-apple-gray-700 hover:text-apple-blue transition-colors"
             >
               <span>{showFilters ? '🔽' : '▶️'}</span>
               🔍 Filtros Avançados
@@ -415,25 +415,25 @@ export default function FutureLaunches({ userId, expenses, incomes, investments,
             {showFilters && (
               <button
                 onClick={clearFilters}
-                className="text-sm text-apple-blue hover:text-apple-blue/80 transition-colors"
+                className="text-xs text-apple-blue hover:text-apple-blue/80 font-medium"
               >
-                Limpar filtros
+                Limpar Filtros
               </button>
             )}
           </div>
           
           {showFilters && (
           <div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {/* Filtro por Membro */}
             <div>
-              <label className="block text-sm font-medium text-apple-gray-600 mb-2">
+              <label className="block text-xs font-medium text-apple-gray-600 mb-1">
                 Membro
               </label>
               <select
                 value={filters.member}
                 onChange={(e) => setFilters({ ...filters, member: e.target.value })}
-                className="input-field text-sm"
+                className="w-full px-3 py-2 text-sm border border-apple-gray-200 rounded-lg focus:ring-1 focus:ring-apple-blue focus:border-apple-blue"
               >
                 <option value="">Todos os membros</option>
                 {members.map((member) => (
@@ -446,13 +446,13 @@ export default function FutureLaunches({ userId, expenses, incomes, investments,
 
             {/* Filtro por Categoria */}
             <div>
-              <label className="block text-sm font-medium text-apple-gray-600 mb-2">
+              <label className="block text-xs font-medium text-apple-gray-600 mb-1">
                 Categoria
               </label>
               <select
                 value={filters.category}
                 onChange={(e) => setFilters({ ...filters, category: e.target.value })}
-                className="input-field text-sm"
+                className="w-full px-3 py-2 text-sm border border-apple-gray-200 rounded-lg focus:ring-1 focus:ring-apple-blue focus:border-apple-blue"
               >
                 <option value="">Todas as categorias</option>
                 {uniqueCategories.map((category) => (
@@ -465,33 +465,33 @@ export default function FutureLaunches({ userId, expenses, incomes, investments,
 
             {/* Filtro por Data - De */}
             <div>
-              <label className="block text-sm font-medium text-apple-gray-600 mb-2">
+              <label className="block text-xs font-medium text-apple-gray-600 mb-1">
                 Data de
               </label>
               <input
                 type="date"
                 value={filters.dateFrom}
                 onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
-                className="input-field text-sm"
+                className="w-full px-3 py-2 text-sm border border-apple-gray-200 rounded-lg focus:ring-1 focus:ring-apple-blue focus:border-apple-blue"
               />
             </div>
 
             {/* Filtro por Data - Até */}
             <div>
-              <label className="block text-sm font-medium text-apple-gray-600 mb-2">
+              <label className="block text-xs font-medium text-apple-gray-600 mb-1">
                 Data até
               </label>
               <input
                 type="date"
                 value={filters.dateTo}
                 onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
-                className="input-field text-sm"
+                className="w-full px-3 py-2 text-sm border border-apple-gray-200 rounded-lg focus:ring-1 focus:ring-apple-blue focus:border-apple-blue"
               />
             </div>
 
             {/* Busca */}
             <div>
-              <label className="block text-sm font-medium text-apple-gray-600 mb-2">
+              <label className="block text-xs font-medium text-apple-gray-600 mb-1">
                 Buscar
               </label>
               <input
@@ -499,19 +499,16 @@ export default function FutureLaunches({ userId, expenses, incomes, investments,
                 value={filters.search}
                 onChange={(e) => setFilters({ ...filters, search: e.target.value })}
                 placeholder="Descrição, categoria..."
-                className="input-field text-sm"
+                className="w-full px-3 py-2 text-sm border border-apple-gray-200 rounded-lg focus:ring-1 focus:ring-apple-blue focus:border-apple-blue"
               />
             </div>
           </div>
 
             {/* Resumo dos filtros */}
-            <div className="mt-4 flex items-center gap-4 text-sm text-apple-gray-500">
-              <span>
+            <div className="mt-3 pt-3 border-t border-apple-gray-200">
+              <p className="text-xs text-apple-gray-500">
                 Mostrando {filteredLaunches.length} de {futureLaunches.length} lançamentos
-              </span>
-              {(filters.member || filters.category || filters.dateFrom || filters.dateTo || filters.search) && (
-                <span className="text-apple-blue">• Filtros ativos</span>
-              )}
+              </p>
             </div>
           </div>
           )}

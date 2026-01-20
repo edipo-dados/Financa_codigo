@@ -135,11 +135,11 @@ export default function InvestmentsList({ userId }: Props) {
       )}
 
       {/* Filtros */}
-      <div className="glass-card p-6 rounded-3xl">
+      <div className="glass-card p-4 rounded-2xl">
         <div className="flex items-center justify-between mb-4">
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center gap-2 text-lg font-semibold text-apple-gray-700 hover:text-apple-blue transition-colors"
+            className="flex items-center gap-2 text-sm font-semibold text-apple-gray-700 hover:text-apple-blue transition-colors"
           >
             <span>{showFilters ? '🔽' : '▶️'}</span>
             🔍 Filtros
@@ -152,25 +152,25 @@ export default function InvestmentsList({ userId }: Props) {
           {showFilters && (
             <button
               onClick={clearFilters}
-              className="text-sm text-apple-blue hover:text-apple-blue/80 transition-colors"
+              className="text-xs text-apple-blue hover:text-apple-blue/80 font-medium"
             >
-              Limpar filtros
+              Limpar Filtros
             </button>
           )}
         </div>
         
         {showFilters && (
         <div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {/* Filtro por Membro */}
           <div>
-            <label className="block text-sm font-medium text-apple-gray-600 mb-2">
+            <label className="block text-xs font-medium text-apple-gray-600 mb-1">
               Membro
             </label>
             <select
               value={filters.member}
               onChange={(e) => setFilters({ ...filters, member: e.target.value })}
-              className="input-field text-sm"
+              className="w-full px-3 py-2 text-sm border border-apple-gray-200 rounded-lg focus:ring-1 focus:ring-apple-blue focus:border-apple-blue"
             >
               <option value="">Todos os membros</option>
               {members.map((member) => (
@@ -183,13 +183,13 @@ export default function InvestmentsList({ userId }: Props) {
 
           {/* Filtro por Tipo */}
           <div>
-            <label className="block text-sm font-medium text-apple-gray-600 mb-2">
+            <label className="block text-xs font-medium text-apple-gray-600 mb-1">
               Tipo
             </label>
             <select
               value={filters.type}
               onChange={(e) => setFilters({ ...filters, type: e.target.value })}
-              className="input-field text-sm"
+              className="w-full px-3 py-2 text-sm border border-apple-gray-200 rounded-lg focus:ring-1 focus:ring-apple-blue focus:border-apple-blue"
             >
               <option value="">Todos os tipos</option>
               {investmentTypes.map((type) => (
@@ -202,33 +202,33 @@ export default function InvestmentsList({ userId }: Props) {
 
           {/* Filtro por Data - De */}
           <div>
-            <label className="block text-sm font-medium text-apple-gray-600 mb-2">
+            <label className="block text-xs font-medium text-apple-gray-600 mb-1">
               Data de
             </label>
             <input
               type="date"
               value={filters.dateFrom}
               onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
-              className="input-field text-sm"
+              className="w-full px-3 py-2 text-sm border border-apple-gray-200 rounded-lg focus:ring-1 focus:ring-apple-blue focus:border-apple-blue"
             />
           </div>
 
           {/* Filtro por Data - Até */}
           <div>
-            <label className="block text-sm font-medium text-apple-gray-600 mb-2">
+            <label className="block text-xs font-medium text-apple-gray-600 mb-1">
               Data até
             </label>
             <input
               type="date"
               value={filters.dateTo}
               onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
-              className="input-field text-sm"
+              className="w-full px-3 py-2 text-sm border border-apple-gray-200 rounded-lg focus:ring-1 focus:ring-apple-blue focus:border-apple-blue"
             />
           </div>
 
           {/* Busca */}
           <div>
-            <label className="block text-sm font-medium text-apple-gray-600 mb-2">
+            <label className="block text-xs font-medium text-apple-gray-600 mb-1">
               Buscar
             </label>
             <input
@@ -236,19 +236,16 @@ export default function InvestmentsList({ userId }: Props) {
               value={filters.search}
               onChange={(e) => setFilters({ ...filters, search: e.target.value })}
               placeholder="Nome do investimento..."
-              className="input-field text-sm"
+              className="w-full px-3 py-2 text-sm border border-apple-gray-200 rounded-lg focus:ring-1 focus:ring-apple-blue focus:border-apple-blue"
             />
           </div>
           </div>
           
           {/* Resumo dos filtros */}
-          <div className="mt-4 flex items-center gap-4 text-sm text-apple-gray-500">
-            <span>
+          <div className="mt-3 pt-3 border-t border-apple-gray-200">
+            <p className="text-xs text-apple-gray-500">
               Mostrando {filteredInvestments.length} de {investments.length} investimentos
-            </span>
-            {(filters.member || filters.type || filters.dateFrom || filters.dateTo || filters.search) && (
-              <span className="text-apple-blue">• Filtros ativos</span>
-            )}
+            </p>
           </div>
         </div>
         )}
