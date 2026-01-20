@@ -77,7 +77,7 @@ export default function Dashboard() {
   }
 
   const tabs = [
-    { id: 'overview', label: '', icon: '📊' },
+    { id: 'overview', label: 'Dashboard', icon: '📊' },
     { id: 'incomes', label: 'Receitas', icon: '💰' },
     { id: 'expenses', label: 'Despesas', icon: '💸' },
     { id: 'investments', label: 'Investimentos', icon: '📈' },
