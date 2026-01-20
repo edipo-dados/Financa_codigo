@@ -6,9 +6,11 @@ import { calculateFutureOccurrences } from '@/lib/recurrence'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { format } from 'date-fns'
 import { supabase } from '@/lib/supabase'
+import { useFamilyMembers } from '@/hooks/useFamilyMembers'
 import EditRecurrenceModal from './EditRecurrenceModal'
 
 interface Props {
+  userId: string
   expenses: Expense[]
   incomes: Income[]
   investments: Investment[]
@@ -27,15 +29,30 @@ interface FutureLaunch {
   color?: string
   originalId: string // ID do item original (expense ou income)
   originalItem?: Expense | Income | Investment // Item original completo
+  member?: {
+    id: string
+    name: string
+    color: string
+  }
 }
 
-export default function FutureLaunches({ expenses, incomes, investments, onRefresh }: Props) {
+export default function FutureLaunches({ userId, expenses, incomes, investments, onRefresh }: Props) {
+  const { members } = useFamilyMembers(userId)
   const [monthsAhead, setMonthsAhead] = useState(3)
   const [filterType, setFilterType] = useState<LaunchType | 'all'>('all')
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
   const [isDeleting, setIsDeleting] = useState(false)
   const [isSelectionMode, setIsSelectionMode] = useState(false)
   const [editingRecurrence, setEditingRecurrence] = useState<{ item: Expense | Income | Investment, type: LaunchType } | null>(null)
+  
+  // Estados dos filtros
+  const [filters, setFilters] = useState({
+    member: '',
+    category: '',
+    dateFrom: '',
+    dateTo: '',
+    search: ''
+  })
 
   const futureLaunches = useMemo(() => {
     const launches: FutureLaunch[] = []
@@ -60,6 +77,11 @@ export default function FutureLaunches({ expenses, incomes, investments, onRefre
             type: 'income',
             category: income.category?.name,
             color: income.category?.color || '#34c759',
+            member: income.member ? {
+              id: income.member.id,
+              name: income.member.name,
+              color: income.member.color
+            } : undefined,
           })
         }
       })
@@ -80,6 +102,11 @@ export default function FutureLaunches({ expenses, incomes, investments, onRefre
             type: 'expense',
             category: expense.category?.name,
             color: expense.category?.color || '#ff3b30',
+            member: expense.member ? {
+              id: expense.member.id,
+              name: expense.member.name,
+              color: expense.member.color
+            } : undefined,
           })
         }
       })
@@ -105,6 +132,11 @@ export default function FutureLaunches({ expenses, incomes, investments, onRefre
             type: 'investment',
             category: investment.investment_type?.name,
             color: '#007aff',
+            member: investment.member ? {
+              id: investment.member.id,
+              name: investment.member.name,
+              color: investment.member.color
+            } : undefined,
           })
         }
       })
@@ -127,6 +159,11 @@ export default function FutureLaunches({ expenses, incomes, investments, onRefre
         type: 'expense',
         category: expense.category?.name,
         color: expense.credit_card?.color || '#ff3b30',
+        member: expense.member ? {
+          id: expense.member.id,
+          name: expense.member.name,
+          color: expense.member.color
+        } : undefined,
       })
     })
 
@@ -135,9 +172,47 @@ export default function FutureLaunches({ expenses, incomes, investments, onRefre
   }, [expenses, incomes, investments, monthsAhead])
 
   const filteredLaunches = useMemo(() => {
-    if (filterType === 'all') return futureLaunches
-    return futureLaunches.filter(l => l.type === filterType)
-  }, [futureLaunches, filterType])
+    let filtered = futureLaunches
+    
+    // Filtro por tipo
+    if (filterType !== 'all') {
+      filtered = filtered.filter(l => l.type === filterType)
+    }
+    
+    // Filtro por membro
+    if (filters.member) {
+      filtered = filtered.filter(l => l.member?.id === filters.member)
+    }
+    
+    // Filtro por categoria
+    if (filters.category) {
+      filtered = filtered.filter(l => l.category?.toLowerCase().includes(filters.category.toLowerCase()))
+    }
+    
+    // Filtro por data
+    if (filters.dateFrom) {
+      const fromDate = new Date(filters.dateFrom)
+      filtered = filtered.filter(l => l.date >= fromDate)
+    }
+    
+    if (filters.dateTo) {
+      const toDate = new Date(filters.dateTo)
+      toDate.setHours(23, 59, 59, 999) // Final do dia
+      filtered = filtered.filter(l => l.date <= toDate)
+    }
+    
+    // Filtro por busca
+    if (filters.search) {
+      const searchTerm = filters.search.toLowerCase()
+      filtered = filtered.filter(l => 
+        l.description.toLowerCase().includes(searchTerm) ||
+        l.category?.toLowerCase().includes(searchTerm) ||
+        l.member?.name.toLowerCase().includes(searchTerm)
+      )
+    }
+    
+    return filtered
+  }, [futureLaunches, filterType, filters])
 
   const summary = useMemo(() => {
     const totalIncomes = futureLaunches
@@ -159,6 +234,28 @@ export default function FutureLaunches({ expenses, incomes, investments, onRefre
       balance: totalIncomes - totalExpenses - totalInvestments,
     }
   }, [futureLaunches])
+
+  // Obter categorias únicas para o filtro
+  const uniqueCategories = useMemo(() => {
+    const categories = new Set<string>()
+    futureLaunches.forEach(launch => {
+      if (launch.category) {
+        categories.add(launch.category)
+      }
+    })
+    return Array.from(categories).sort()
+  }, [futureLaunches])
+
+  // Função para limpar filtros
+  const clearFilters = () => {
+    setFilters({
+      member: '',
+      category: '',
+      dateFrom: '',
+      dateTo: '',
+      search: ''
+    })
+  }
 
   const typeLabels = {
     all: 'Todos',
@@ -299,6 +396,109 @@ export default function FutureLaunches({ expenses, incomes, investments, onRefre
           </div>
         </div>
 
+        {/* Filtros Avançados */}
+        <div className="border-t border-apple-gray-200 pt-4">
+          <div className="flex items-center justify-between mb-4">
+            <h4 className="text-lg font-semibold text-apple-gray-700">Filtros Avançados</h4>
+            <button
+              onClick={clearFilters}
+              className="text-sm text-apple-blue hover:text-apple-blue/80 transition-colors"
+            >
+              Limpar filtros
+            </button>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            {/* Filtro por Membro */}
+            <div>
+              <label className="block text-sm font-medium text-apple-gray-600 mb-2">
+                Membro
+              </label>
+              <select
+                value={filters.member}
+                onChange={(e) => setFilters({ ...filters, member: e.target.value })}
+                className="input-field text-sm"
+              >
+                <option value="">Todos os membros</option>
+                {members.map((member) => (
+                  <option key={member.id} value={member.id}>
+                    {member.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Filtro por Categoria */}
+            <div>
+              <label className="block text-sm font-medium text-apple-gray-600 mb-2">
+                Categoria
+              </label>
+              <select
+                value={filters.category}
+                onChange={(e) => setFilters({ ...filters, category: e.target.value })}
+                className="input-field text-sm"
+              >
+                <option value="">Todas as categorias</option>
+                {uniqueCategories.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Filtro por Data - De */}
+            <div>
+              <label className="block text-sm font-medium text-apple-gray-600 mb-2">
+                Data de
+              </label>
+              <input
+                type="date"
+                value={filters.dateFrom}
+                onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
+                className="input-field text-sm"
+              />
+            </div>
+
+            {/* Filtro por Data - Até */}
+            <div>
+              <label className="block text-sm font-medium text-apple-gray-600 mb-2">
+                Data até
+              </label>
+              <input
+                type="date"
+                value={filters.dateTo}
+                onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
+                className="input-field text-sm"
+              />
+            </div>
+
+            {/* Busca */}
+            <div>
+              <label className="block text-sm font-medium text-apple-gray-600 mb-2">
+                Buscar
+              </label>
+              <input
+                type="text"
+                value={filters.search}
+                onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+                placeholder="Descrição, categoria..."
+                className="input-field text-sm"
+              />
+            </div>
+          </div>
+
+          {/* Resumo dos filtros */}
+          <div className="mt-4 flex items-center gap-4 text-sm text-apple-gray-500">
+            <span>
+              Mostrando {filteredLaunches.length} de {futureLaunches.length} lançamentos
+            </span>
+            {(filters.member || filters.category || filters.dateFrom || filters.dateTo || filters.search) && (
+              <span className="text-apple-blue">• Filtros ativos</span>
+            )}
+          </div>
+        </div>
+
         {/* Controles de Seleção */}
         {filteredLaunches.length > 0 && (
           <div className="flex items-center justify-between pt-4 border-t border-apple-gray-200">
@@ -424,6 +624,7 @@ export default function FutureLaunches({ expenses, incomes, investments, onRefre
                   )}
                   <th className="px-6 py-4 text-left text-xs font-semibold text-apple-gray-500 uppercase">Data</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-apple-gray-500 uppercase">Tipo</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-apple-gray-500 uppercase">Membro</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-apple-gray-500 uppercase">Descrição</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-apple-gray-500 uppercase">Categoria</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-apple-gray-500 uppercase">Valor</th>
@@ -453,6 +654,22 @@ export default function FutureLaunches({ expenses, incomes, investments, onRefre
                         <span>{typeIcons[launch.type]}</span>
                         {typeLabels[launch.type]}
                       </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      {launch.member ? (
+                        <span 
+                          className="inline-flex items-center gap-2 px-3 py-1 rounded-lg font-medium"
+                          style={{ 
+                            backgroundColor: `${launch.member.color}20`, 
+                            color: launch.member.color 
+                          }}
+                        >
+                          <span style={{ color: launch.member.color }}>●</span>
+                          {launch.member.name}
+                        </span>
+                      ) : (
+                        <span className="text-apple-gray-400">-</span>
+                      )}
                     </td>
                     <td className="px-6 py-4 text-sm text-apple-gray-700 font-medium">
                       {launch.description}

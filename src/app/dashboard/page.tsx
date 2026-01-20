@@ -150,6 +150,7 @@ export default function Dashboard() {
 
           {activeTab === 'future' && (
             <FutureLaunches
+              userId={user.id}
               expenses={expenses}
               incomes={incomes}
               investments={investments}
