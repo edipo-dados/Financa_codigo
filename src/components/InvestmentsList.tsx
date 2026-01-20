@@ -133,6 +133,109 @@ export default function InvestmentsList({ userId }: Props) {
         </div>
       )}
 
+      {/* Filtros */}
+      <div className="glass-card p-6 rounded-3xl">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-apple-gray-700">Filtros</h3>
+          <button
+            onClick={clearFilters}
+            className="text-sm text-apple-blue hover:text-apple-blue/80 transition-colors"
+          >
+            Limpar filtros
+          </button>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          {/* Filtro por Membro */}
+          <div>
+            <label className="block text-sm font-medium text-apple-gray-600 mb-2">
+              Membro
+            </label>
+            <select
+              value={filters.member}
+              onChange={(e) => setFilters({ ...filters, member: e.target.value })}
+              className="input-field text-sm"
+            >
+              <option value="">Todos os membros</option>
+              {members.map((member) => (
+                <option key={member.id} value={member.id}>
+                  {member.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Filtro por Tipo */}
+          <div>
+            <label className="block text-sm font-medium text-apple-gray-600 mb-2">
+              Tipo
+            </label>
+            <select
+              value={filters.type}
+              onChange={(e) => setFilters({ ...filters, type: e.target.value })}
+              className="input-field text-sm"
+            >
+              <option value="">Todos os tipos</option>
+              {investmentTypes.map((type) => (
+                <option key={type.id} value={type.id}>
+                  {type.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Filtro por Data - De */}
+          <div>
+            <label className="block text-sm font-medium text-apple-gray-600 mb-2">
+              Data de
+            </label>
+            <input
+              type="date"
+              value={filters.dateFrom}
+              onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
+              className="input-field text-sm"
+            />
+          </div>
+
+          {/* Filtro por Data - Até */}
+          <div>
+            <label className="block text-sm font-medium text-apple-gray-600 mb-2">
+              Data até
+            </label>
+            <input
+              type="date"
+              value={filters.dateTo}
+              onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
+              className="input-field text-sm"
+            />
+          </div>
+
+          {/* Busca */}
+          <div>
+            <label className="block text-sm font-medium text-apple-gray-600 mb-2">
+              Buscar
+            </label>
+            <input
+              type="text"
+              value={filters.search}
+              onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+              placeholder="Nome do investimento..."
+              className="input-field text-sm"
+            />
+          </div>
+        </div>
+
+        {/* Resumo dos filtros */}
+        <div className="mt-4 flex items-center gap-4 text-sm text-apple-gray-500">
+          <span>
+            Mostrando {filteredInvestments.length} de {investments.length} investimentos
+          </span>
+          {(filters.member || filters.type || filters.dateFrom || filters.dateTo || filters.search) && (
+            <span className="text-apple-blue">• Filtros ativos</span>
+          )}
+        </div>
+      </div>
+
       {loading ? (
         <div className="flex items-center justify-center py-20">
           <div className="flex flex-col items-center gap-4">
@@ -140,17 +243,21 @@ export default function InvestmentsList({ userId }: Props) {
             <p className="text-apple-gray-400 text-sm">Carregando investimentos...</p>
           </div>
         </div>
-      ) : investments.length === 0 ? (
+      ) : filteredInvestments.length === 0 ? (
         <div className="glass-card p-12 rounded-3xl text-center">
           <div className="w-20 h-20 bg-apple-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <span className="text-4xl">📈</span>
           </div>
-          <h3 className="text-lg font-semibold text-apple-gray-700 mb-2">Nenhum investimento cadastrado</h3>
-          <p className="text-apple-gray-400 text-sm">Comece a construir seu patrimônio</p>
+          <h3 className="text-lg font-semibold text-apple-gray-700 mb-2">
+            {investments.length === 0 ? 'Nenhum investimento cadastrado' : 'Nenhum investimento encontrado'}
+          </h3>
+          <p className="text-apple-gray-400 text-sm">
+            {investments.length === 0 ? 'Comece a construir seu patrimônio' : 'Tente ajustar os filtros para encontrar seus investimentos'}
+          </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {investments.map((investment) => {
+          {filteredInvestments.map((investment) => {
             const returns = calculateReturn(
               Number(investment.initial_amount),
               Number(investment.current_amount)
@@ -162,6 +269,18 @@ export default function InvestmentsList({ userId }: Props) {
                   <div className="flex-1">
                     <h3 className="font-semibold text-lg text-apple-gray-700 mb-1">{investment.name}</h3>
                     <div className="flex items-center gap-2 flex-wrap">
+                      {investment.member && (
+                        <span 
+                          className="text-xs px-2 py-1 rounded-lg font-medium flex items-center gap-1"
+                          style={{ 
+                            backgroundColor: `${investment.member.color}20`, 
+                            color: investment.member.color 
+                          }}
+                        >
+                          <span style={{ color: investment.member.color }}>●</span>
+                          {investment.member.name}
+                        </span>
+                      )}
                       {investment.investment_type && (
                         <span className="text-xs px-2 py-1 bg-apple-blue/10 text-apple-blue rounded-lg font-medium">
                           {investment.investment_type.name}
