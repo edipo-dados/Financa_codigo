@@ -193,20 +193,22 @@ export default function FamilyMemberManager({ userId }: Props) {
       {/* Modal de Formulário */}
       {showForm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-semibold text-apple-gray-700">
-                  {editingMember ? 'Editar Membro' : 'Adicionar Membro'}
-                </h3>
-                <button
-                  onClick={resetForm}
-                  className="w-8 h-8 rounded-full bg-apple-gray-100 flex items-center justify-center hover:bg-apple-gray-200 transition-colors"
-                >
-                  ✕
-                </button>
-              </div>
+          <div className="bg-white rounded-3xl w-full max-w-md max-h-[90vh] overflow-hidden flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-apple-gray-200">
+              <h3 className="text-xl font-semibold text-apple-gray-700">
+                {editingMember ? 'Editar Membro' : 'Adicionar Membro'}
+              </h3>
+              <button
+                onClick={resetForm}
+                className="w-8 h-8 rounded-full bg-apple-gray-100 flex items-center justify-center hover:bg-apple-gray-200 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
 
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-6">
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-apple-gray-600 mb-2">
@@ -216,7 +218,7 @@ export default function FamilyMemberManager({ userId }: Props) {
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="input-field"
+                    className="w-full px-4 py-3 border border-apple-gray-200 rounded-xl focus:ring-2 focus:ring-apple-blue focus:border-apple-blue outline-none transition-colors"
                     placeholder="Ex: Maria Silva"
                     required
                   />
@@ -229,7 +231,7 @@ export default function FamilyMemberManager({ userId }: Props) {
                   <select
                     value={formData.relationship}
                     onChange={(e) => setFormData({ ...formData, relationship: e.target.value })}
-                    className="input-field"
+                    className="w-full px-4 py-3 border border-apple-gray-200 rounded-xl focus:ring-2 focus:ring-apple-blue focus:border-apple-blue outline-none transition-colors"
                   >
                     <option value="">Selecione o parentesco</option>
                     {relationships.map((rel) => (
@@ -246,7 +248,7 @@ export default function FamilyMemberManager({ userId }: Props) {
                     type="email"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="input-field"
+                    className="w-full px-4 py-3 border border-apple-gray-200 rounded-xl focus:ring-2 focus:ring-apple-blue focus:border-apple-blue outline-none transition-colors"
                     placeholder="maria@email.com"
                   />
                 </div>
@@ -259,7 +261,7 @@ export default function FamilyMemberManager({ userId }: Props) {
                     type="tel"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="input-field"
+                    className="w-full px-4 py-3 border border-apple-gray-200 rounded-xl focus:ring-2 focus:ring-apple-blue focus:border-apple-blue outline-none transition-colors"
                     placeholder="(11) 99999-9999"
                   />
                 </div>
@@ -284,23 +286,27 @@ export default function FamilyMemberManager({ userId }: Props) {
                     ))}
                   </div>
                 </div>
-
-                <div className="flex gap-3 pt-4">
-                  <button
-                    type="button"
-                    onClick={resetForm}
-                    className="flex-1 px-4 py-3 bg-apple-gray-200 text-apple-gray-700 rounded-xl font-medium hover:bg-apple-gray-300 transition-colors"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    className="flex-1 px-4 py-3 bg-apple-blue text-white rounded-xl font-medium hover:bg-apple-blue/90 transition-colors"
-                  >
-                    {editingMember ? 'Salvar Alterações' : 'Adicionar Membro'}
-                  </button>
-                </div>
               </form>
+            </div>
+
+            {/* Footer com botões */}
+            <div className="p-6 border-t border-apple-gray-200 bg-apple-gray-50">
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="flex-1 px-4 py-3 bg-white border border-apple-gray-200 text-apple-gray-700 rounded-xl font-medium hover:bg-apple-gray-50 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  onClick={handleSubmit}
+                  className="flex-1 px-4 py-3 bg-apple-blue text-white rounded-xl font-medium hover:bg-apple-blue/90 transition-colors"
+                >
+                  {editingMember ? 'Salvar Alterações' : 'Adicionar Membro'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
