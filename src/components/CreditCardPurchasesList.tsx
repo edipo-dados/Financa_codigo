@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useExpenses } from '@/hooks/useExpenses'
 import { supabase } from '@/lib/supabase'
 import { formatCurrency, formatDate } from '@/lib/utils'
+import EditCreditCardPurchaseModal from './EditCreditCardPurchaseModal'
 
 interface Props {
   userId: string
@@ -11,6 +12,7 @@ interface Props {
 
 export default function CreditCardPurchasesList({ userId }: Props) {
   const { expenses, loading, refetch } = useExpenses(userId)
+  const [editingPurchase, setEditingPurchase] = useState<any>(null)
 
 
 
@@ -147,13 +149,22 @@ export default function CreditCardPurchasesList({ userId }: Props) {
                     }
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <button
-                      onClick={() => handleDelete(purchase)}
-                      className="text-apple-red hover:text-apple-red/80 transition-colors font-medium"
-                      title="Excluir compra e todas as parcelas"
-                    >
-                      Excluir
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setEditingPurchase(purchase)}
+                        className="text-apple-blue hover:text-apple-blue/80 transition-colors font-medium text-sm"
+                        title="Editar compra"
+                      >
+                        ✏️ Editar
+                      </button>
+                      <button
+                        onClick={() => handleDelete(purchase)}
+                        className="text-apple-red hover:text-apple-red/80 transition-colors font-medium text-sm"
+                        title="Excluir compra e todas as parcelas"
+                      >
+                        🗑️ Excluir
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -174,6 +185,19 @@ export default function CreditCardPurchasesList({ userId }: Props) {
           </div>
         </div>
       </div>
+
+      {/* Modal de Edição de Compra */}
+      {editingPurchase && (
+        <EditCreditCardPurchaseModal
+          isOpen={!!editingPurchase}
+          onClose={() => setEditingPurchase(null)}
+          purchase={editingPurchase}
+          onSuccess={() => {
+            refetch()
+            setEditingPurchase(null)
+          }}
+        />
+      )}
     </div>
   )
 }
