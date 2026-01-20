@@ -36,7 +36,14 @@ export default function InvestmentsList({ userId }: Props) {
 
   // Aplicar filtros
   const filteredInvestments = useMemo(() => {
-    return investments.filter(investment => {
+    // Filtrar investimentos para mostrar apenas os do mês atual ou anteriores
+    const currentDate = new Date()
+    const currentMonthInvestments = investments.filter(investment => {
+      const investmentDate = new Date(investment.investment_date)
+      return investmentDate <= currentDate
+    })
+
+    return currentMonthInvestments.filter(investment => {
       // Filtro por membro
       if (filters.member && investment.member_id !== filters.member) return false
       
@@ -118,6 +125,9 @@ export default function InvestmentsList({ userId }: Props) {
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-semibold text-apple-gray-700">Investimentos</h2>
+          <p className="text-sm text-apple-gray-500 mt-1">
+            Mostrando apenas investimentos realizados ou do mês atual
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -254,7 +264,7 @@ export default function InvestmentsList({ userId }: Props) {
           {/* Resumo dos filtros */}
           <div className="mt-3 pt-3 border-t border-apple-gray-200">
             <p className="text-xs text-apple-gray-500">
-              Mostrando {filteredInvestments.length} de {investments.length} investimentos
+              Mostrando {filteredInvestments.length} investimentos (apenas realizados ou do mês atual)
             </p>
           </div>
         </div>

@@ -40,9 +40,16 @@ export default function ExpensesList({ userId }: Props) {
     !e.is_credit_card || e.is_installment
   )
 
+  // Filtrar despesas para mostrar apenas as do mês atual ou anteriores
+  const currentDate = new Date()
+  const currentMonthExpenses = displayExpenses.filter(expense => {
+    const expenseDate = new Date(expense.expense_date)
+    return expenseDate <= currentDate
+  })
+
   // Aplicar filtros
   const filteredExpenses = useMemo(() => {
-    return displayExpenses.filter(expense => {
+    return currentMonthExpenses.filter(expense => {
       // Filtro por membro
       if (filters.member && expense.member_id !== filters.member) return false
       
@@ -62,7 +69,7 @@ export default function ExpensesList({ userId }: Props) {
       
       return true
     })
-  }, [displayExpenses, filters])
+  }, [currentMonthExpenses, filters])
 
   // Obter categorias únicas
   const categories = useMemo(() => {
@@ -196,6 +203,9 @@ export default function ExpensesList({ userId }: Props) {
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-semibold text-apple-gray-700">Despesas</h2>
+          <p className="text-sm text-apple-gray-500 mt-1">
+            Mostrando apenas despesas vencidas ou do mês atual
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -355,7 +365,7 @@ export default function ExpensesList({ userId }: Props) {
           {/* Resumo dos filtros */}
           <div className="mt-3 pt-3 border-t border-apple-gray-200">
             <p className="text-xs text-apple-gray-500">
-              Mostrando {filteredExpenses.length} de {displayExpenses.length} despesas
+              Mostrando {filteredExpenses.length} de {currentMonthExpenses.length} despesas (apenas vencidas ou do mês atual)
             </p>
           </div>
         </div>
@@ -385,10 +395,10 @@ export default function ExpensesList({ userId }: Props) {
             <span className="text-4xl">💸</span>
           </div>
           <h3 className="text-lg font-semibold text-apple-gray-700 mb-2">
-            {displayExpenses.length === 0 ? 'Nenhuma despesa cadastrada' : 'Nenhuma despesa encontrada'}
+            {currentMonthExpenses.length === 0 ? 'Nenhuma despesa cadastrada' : 'Nenhuma despesa encontrada'}
           </h3>
           <p className="text-apple-gray-400 text-sm">
-            {displayExpenses.length === 0 
+            {currentMonthExpenses.length === 0 
               ? 'Comece adicionando sua primeira despesa'
               : 'Tente ajustar os filtros para encontrar suas despesas'
             }

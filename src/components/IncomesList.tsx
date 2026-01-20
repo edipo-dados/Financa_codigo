@@ -37,7 +37,14 @@ export default function IncomesList({ userId }: Props) {
 
   // Aplicar filtros
   const filteredIncomes = useMemo(() => {
-    return incomes.filter(income => {
+    // Filtrar receitas para mostrar apenas as do mês atual ou anteriores
+    const currentDate = new Date()
+    const currentMonthIncomes = incomes.filter(income => {
+      const incomeDate = new Date(income.income_date)
+      return incomeDate <= currentDate
+    })
+
+    return currentMonthIncomes.filter(income => {
       // Filtro por membro
       if (filters.member && income.member_id !== filters.member) return false
       
@@ -135,6 +142,9 @@ export default function IncomesList({ userId }: Props) {
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-semibold text-apple-gray-700">Receitas</h2>
+          <p className="text-sm text-apple-gray-500 mt-1">
+            Mostrando apenas receitas vencidas ou do mês atual
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -277,7 +287,7 @@ export default function IncomesList({ userId }: Props) {
         {/* Resumo dos filtros */}
         <div className="mt-3 pt-3 border-t border-apple-gray-200">
           <p className="text-xs text-apple-gray-500">
-            Mostrando {filteredIncomes.length} de {incomes.length} receitas
+            Mostrando {filteredIncomes.length} receitas (apenas vencidas ou do mês atual)
           </p>
         </div>
         </div>
