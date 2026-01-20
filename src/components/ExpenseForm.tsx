@@ -436,8 +436,7 @@ export default function ExpenseForm({ userId, onSuccess, onRefresh }: Props) {
           </>
         )}
 
-        {!formData.is_credit_card && (
-          <div className="md:col-span-2 flex items-center gap-3 p-4 bg-apple-gray-50 rounded-xl">
+        <div className="md:col-span-2 flex items-center gap-3 p-4 bg-apple-gray-50 rounded-xl">
           <input
             type="checkbox"
             id="recurring"
