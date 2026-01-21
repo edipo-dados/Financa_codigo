@@ -77,10 +77,10 @@ export default function CurrentBalanceWidget({ expenses, investments, incomes, l
     const totalExpenses = allExpenses.reduce((sum, expense) => sum + Number(expense.amount), 0)
     const totalInvestments = allInvestments.reduce((sum, investment) => sum + Number(investment.current_amount), 0)
     
-    // Saldo atual = Receitas - Despesas + Investimentos
-    const currentBalance = totalIncomes - totalExpenses + totalInvestments
+    // Saldo atual = Receitas - Despesas (investimentos já saíram das receitas/entraram como despesas)
+    const currentBalance = totalIncomes - totalExpenses
     
-    // Saldo líquido (sem investimentos)
+    // Saldo líquido (mesmo que o atual, pois investimentos não são somados)
     const netBalance = totalIncomes - totalExpenses
 
     return {
@@ -109,15 +109,15 @@ export default function CurrentBalanceWidget({ expenses, investments, incomes, l
 
   return (
     <div className="fintech-card p-4 sm:p-6 rounded-2xl">
-      <h3 className="text-lg font-semibold fintech-text-primary mb-4">💰 Saldo Atual</h3>
+      <h3 className="text-lg font-semibold fintech-text-primary mb-4">💰 Saldo Líquido</h3>
       
       {/* Saldo Principal */}
       <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-4 rounded-xl mb-4 border border-blue-200 dark:border-blue-800">
         <div className="flex items-center justify-between mb-2">
-          <h4 className="text-base font-semibold text-blue-800 dark:text-blue-300">Saldo Total</h4>
-          <span className="text-xl">🏦</span>
+          <h4 className="text-base font-semibold text-blue-800 dark:text-blue-300">Saldo Líquido</h4>
+          <span className="text-xl">💵</span>
         </div>
-        <p className="text-xs text-blue-600 dark:text-blue-400 mb-2">Receitas recebidas - Despesas pagas + Investimentos</p>
+        <p className="text-xs text-blue-600 dark:text-blue-400 mb-2">Receitas recebidas - Despesas pagas</p>
         <p className={`text-3xl font-bold ${
           balanceData.currentBalance >= 0 
             ? 'text-green-600 dark:text-green-400' 
@@ -128,30 +128,18 @@ export default function CurrentBalanceWidget({ expenses, investments, incomes, l
       </div>
 
       {/* Detalhamento */}
-      <div className="grid grid-cols-2 gap-3 mb-4">
+      <div className="grid grid-cols-1 gap-3 mb-4">
         <div className="bg-white/50 dark:bg-fintech-dark-surface/50 p-3 rounded-xl hover:bg-white dark:hover:bg-fintech-dark-surface transition-colors">
           <div className="flex items-center justify-between mb-1">
-            <h5 className="text-sm font-medium fintech-text-muted">Saldo Líquido</h5>
-            <span className="text-sm">💵</span>
-          </div>
-          <p className="text-xs fintech-text-muted mb-1">Receitas recebidas - Despesas pagas</p>
-          <p className={`text-lg font-bold ${
-            balanceData.netBalance >= 0 
-              ? 'text-green-600 dark:text-green-400' 
-              : 'text-red-600 dark:text-red-400'
-          }`}>
-            {balanceData.netBalance >= 0 ? '+' : ''}{formatCurrency(balanceData.netBalance)}
-          </p>
-        </div>
-
-        <div className="bg-white/50 dark:bg-fintech-dark-surface/50 p-3 rounded-xl hover:bg-white dark:hover:bg-fintech-dark-surface transition-colors">
-          <div className="flex items-center justify-between mb-1">
-            <h5 className="text-sm font-medium fintech-text-muted">Investimentos</h5>
+            <h5 className="text-sm font-medium fintech-text-muted">Patrimônio Investido</h5>
             <span className="text-sm">📈</span>
           </div>
-          <p className="text-xs fintech-text-muted mb-1">Valor atual</p>
+          <p className="text-xs fintech-text-muted mb-1">Valor atual dos investimentos</p>
           <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
             {formatCurrency(balanceData.totalInvestments)}
+          </p>
+          <p className="text-xs fintech-text-muted mt-1">
+            (Já descontado do saldo líquido)
           </p>
         </div>
       </div>

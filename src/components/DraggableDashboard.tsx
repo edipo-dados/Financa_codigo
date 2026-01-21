@@ -53,7 +53,7 @@ export default function DraggableDashboard({
     {
       id: 'current-balance',
       type: 'current-balance',
-      title: 'Saldo Atual',
+      title: 'Saldo Líquido',
       size: 'medium',
       enabled: true
     },
