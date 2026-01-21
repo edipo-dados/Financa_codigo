@@ -53,7 +53,7 @@ export default function PaymentStatusWidget({ expenses, incomes, loading, startD
         ])
 
         // Filtrar despesas para não mostrar despesas parent de cartão (apenas parcelas)
-        const filteredExpenses = (expensesRes.data || []).filter(e => 
+        const filteredExpenses = (expensesRes.data || []).filter((e: any) => 
           !e.is_credit_card || e.is_installment
         )
 
