@@ -30,6 +30,7 @@ interface Props {
   onRefresh?: () => void
   startDate?: string
   endDate?: string
+  userId?: string
 }
 
 const STORAGE_KEY = 'dashboard-layout'
@@ -41,7 +42,8 @@ export default function DraggableDashboard({
   loading, 
   onRefresh, 
   startDate, 
-  endDate 
+  endDate,
+  userId
 }: Props) {
   const [isEditMode, setIsEditMode] = useState(false)
   const [widgets, setWidgets] = useState<DashboardWidget[]>([])
@@ -166,6 +168,7 @@ export default function DraggableDashboard({
             investments={investments}
             incomes={incomes}
             loading={loading}
+            userId={userId}
           />
         )
       case 'stats':

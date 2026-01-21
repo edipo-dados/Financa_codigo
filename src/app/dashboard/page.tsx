@@ -132,6 +132,7 @@ export default function Dashboard() {
                 onRefresh={handleRefresh}
                 startDate={currentPeriod.startDate}
                 endDate={currentPeriod.endDate}
+                userId={user.id}
               />
             </div>
           )}

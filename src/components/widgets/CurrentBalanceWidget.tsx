@@ -1,22 +1,81 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useEffect, useState } from 'react'
 import { Expense, Investment, Income } from '@/types'
 import { formatCurrency } from '@/lib/utils'
+import { supabase } from '@/lib/supabase'
 
 interface Props {
   expenses: Expense[]
   investments: Investment[]
   incomes: Income[]
   loading: boolean
+  userId?: string
 }
 
-export default function CurrentBalanceWidget({ expenses, investments, incomes, loading }: Props) {
+export default function CurrentBalanceWidget({ expenses, investments, incomes, loading, userId }: Props) {
+  const [allData, setAllData] = useState<{
+    allExpenses: Expense[]
+    allInvestments: Investment[]
+    allIncomes: Income[]
+  }>({
+    allExpenses: [],
+    allInvestments: [],
+    allIncomes: []
+  })
+  const [dataLoading, setDataLoading] = useState(true)
+
+  // Buscar TODOS os dados para cálculo real do saldo
+  useEffect(() => {
+    if (!userId) {
+      setDataLoading(false)
+      return
+    }
+
+    const fetchAllData = async () => {
+      try {
+        const [expensesRes, investmentsRes, incomesRes] = await Promise.all([
+          supabase
+            .from('expenses')
+            .select('*, category:expense_categories(*), credit_card:credit_cards(*), member:family_members(*)')
+            .eq('user_id', userId)
+            .eq('is_paid', true), // Apenas despesas pagas para saldo real
+          
+          supabase
+            .from('investments')
+            .select('*, investment_type:investment_types(*), member:family_members(*)')
+            .eq('user_id', userId),
+          
+          supabase
+            .from('incomes')
+            .select('*, category:income_categories(*), member:family_members(*)')
+            .eq('user_id', userId)
+            .eq('is_paid', true) // Apenas receitas recebidas para saldo real
+        ])
+
+        setAllData({
+          allExpenses: expensesRes.data || [],
+          allInvestments: investmentsRes.data || [],
+          allIncomes: incomesRes.data || []
+        })
+      } catch (error) {
+        console.error('Erro ao buscar dados completos:', error)
+      } finally {
+        setDataLoading(false)
+      }
+    }
+
+    fetchAllData()
+  }, [userId])
+
   const balanceData = useMemo(() => {
-    // Calcular totais gerais (independente do mês)
-    const totalIncomes = incomes.reduce((sum, income) => sum + Number(income.amount), 0)
-    const totalExpenses = expenses.reduce((sum, expense) => sum + Number(expense.amount), 0)
-    const totalInvestments = investments.reduce((sum, investment) => sum + Number(investment.current_amount), 0)
+    // Usar dados completos para cálculo real do saldo
+    const { allExpenses, allInvestments, allIncomes } = allData
+    
+    // Calcular totais gerais (todos os dados históricos, apenas pagos/recebidos)
+    const totalIncomes = allIncomes.reduce((sum, income) => sum + Number(income.amount), 0)
+    const totalExpenses = allExpenses.reduce((sum, expense) => sum + Number(expense.amount), 0)
+    const totalInvestments = allInvestments.reduce((sum, investment) => sum + Number(investment.current_amount), 0)
     
     // Saldo atual = Receitas - Despesas + Investimentos
     const currentBalance = totalIncomes - totalExpenses + totalInvestments
@@ -31,9 +90,9 @@ export default function CurrentBalanceWidget({ expenses, investments, incomes, l
       currentBalance,
       netBalance,
     }
-  }, [expenses, investments, incomes])
+  }, [allData])
 
-  if (loading) {
+  if (loading || dataLoading) {
     return (
       <div className="fintech-card p-4 sm:p-6 rounded-2xl">
         <div className="animate-pulse">
@@ -58,7 +117,7 @@ export default function CurrentBalanceWidget({ expenses, investments, incomes, l
           <h4 className="text-base font-semibold text-blue-800 dark:text-blue-300">Saldo Total</h4>
           <span className="text-xl">🏦</span>
         </div>
-        <p className="text-xs text-blue-600 dark:text-blue-400 mb-2">Receitas - Despesas + Investimentos</p>
+        <p className="text-xs text-blue-600 dark:text-blue-400 mb-2">Receitas recebidas - Despesas pagas + Investimentos</p>
         <p className={`text-3xl font-bold ${
           balanceData.currentBalance >= 0 
             ? 'text-green-600 dark:text-green-400' 
@@ -75,7 +134,7 @@ export default function CurrentBalanceWidget({ expenses, investments, incomes, l
             <h5 className="text-sm font-medium fintech-text-muted">Saldo Líquido</h5>
             <span className="text-sm">💵</span>
           </div>
-          <p className="text-xs fintech-text-muted mb-1">Receitas - Despesas</p>
+          <p className="text-xs fintech-text-muted mb-1">Receitas recebidas - Despesas pagas</p>
           <p className={`text-lg font-bold ${
             balanceData.netBalance >= 0 
               ? 'text-green-600 dark:text-green-400' 
@@ -100,13 +159,13 @@ export default function CurrentBalanceWidget({ expenses, investments, incomes, l
       {/* Resumo dos Componentes */}
       <div className="space-y-2 pt-3 border-t fintech-border">
         <div className="flex items-center justify-between text-sm">
-          <span className="fintech-text-muted">💰 Total de Receitas:</span>
+          <span className="fintech-text-muted">💰 Receitas Recebidas:</span>
           <span className="font-medium text-green-600 dark:text-green-400">
             +{formatCurrency(balanceData.totalIncomes)}
           </span>
         </div>
         <div className="flex items-center justify-between text-sm">
-          <span className="fintech-text-muted">💸 Total de Despesas:</span>
+          <span className="fintech-text-muted">💸 Despesas Pagas:</span>
           <span className="font-medium text-red-600 dark:text-red-400">
             -{formatCurrency(balanceData.totalExpenses)}
           </span>
