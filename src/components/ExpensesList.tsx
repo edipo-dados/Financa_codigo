@@ -24,6 +24,10 @@ export default function ExpensesList({ userId }: Props) {
   const [editingValue, setEditingValue] = useState<Expense | null>(null)
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null)
   
+  // Estados para seleção múltipla
+  const [selectedExpenses, setSelectedExpenses] = useState<Set<string>>(new Set())
+  const [isSelectionMode, setIsSelectionMode] = useState(false)
+  
   // Estados dos filtros
   const [showFilters, setShowFilters] = useState(false)
   const [filters, setFilters] = useState({
@@ -91,6 +95,59 @@ export default function ExpensesList({ userId }: Props) {
       dateTo: '',
       search: ''
     })
+  }
+
+  // Funções de seleção múltipla
+  const toggleSelectionMode = () => {
+    setIsSelectionMode(!isSelectionMode)
+    setSelectedExpenses(new Set())
+  }
+
+  const toggleExpenseSelection = (expenseId: string) => {
+    const newSelected = new Set(selectedExpenses)
+    if (newSelected.has(expenseId)) {
+      newSelected.delete(expenseId)
+    } else {
+      newSelected.add(expenseId)
+    }
+    setSelectedExpenses(newSelected)
+  }
+
+  const selectAllExpenses = () => {
+    const allIds = new Set(filteredExpenses.map(e => e.id))
+    setSelectedExpenses(allIds)
+  }
+
+  const deselectAllExpenses = () => {
+    setSelectedExpenses(new Set())
+  }
+
+  const markSelectedAsPaid = async () => {
+    if (selectedExpenses.size === 0) {
+      alert('Selecione pelo menos uma despesa')
+      return
+    }
+
+    const confirmMsg = `Deseja marcar ${selectedExpenses.size} despesa(s) como paga(s)?`
+    if (!confirm(confirmMsg)) return
+
+    try {
+      // Atualizar todas as despesas selecionadas
+      for (const expenseId of selectedExpenses) {
+        await (supabase as any)
+          .from('expenses')
+          .update({ is_paid: true })
+          .eq('id', expenseId)
+      }
+
+      // Limpar seleção e atualizar lista
+      setSelectedExpenses(new Set())
+      setIsSelectionMode(false)
+      refetch()
+    } catch (error) {
+      console.error('Erro ao marcar despesas como pagas:', error)
+      alert('Erro ao atualizar despesas')
+    }
   }
 
   const handleDeleteRecurrence = async (expense: Expense) => {
@@ -208,16 +265,57 @@ export default function ExpensesList({ userId }: Props) {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowForm(!showForm)}
-            className={`px-6 py-3 rounded-xl font-medium text-sm transition-all duration-200 ${
-              showForm 
-                ? 'bg-gray-100 text-gray-700 hover:bg-gray-200' 
-                : 'bg-apple-blue text-white hover:bg-opacity-90'
-            }`}
-          >
-            {showForm ? '✕ Cancelar' : '+ Nova Despesa'}
-          </button>
+          {!isSelectionMode ? (
+            <>
+              <button
+                onClick={toggleSelectionMode}
+                className="px-4 py-2 bg-apple-purple text-white rounded-lg font-medium text-sm transition-all duration-200 hover:bg-apple-purple/90"
+              >
+                ✓ Selecionar
+              </button>
+              <button
+                onClick={() => setShowForm(!showForm)}
+                className={`px-6 py-3 rounded-xl font-medium text-sm transition-all duration-200 ${
+                  showForm 
+                    ? 'bg-gray-100 text-gray-700 hover:bg-gray-200' 
+                    : 'bg-apple-blue text-white hover:bg-opacity-90'
+                }`}
+              >
+                {showForm ? '✕ Cancelar' : '+ Nova Despesa'}
+              </button>
+            </>
+          ) : (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-apple-gray-600">
+                {selectedExpenses.size} selecionada(s)
+              </span>
+              <button
+                onClick={selectAllExpenses}
+                className="px-3 py-2 bg-apple-gray-100 text-apple-gray-700 rounded-lg font-medium text-sm hover:bg-apple-gray-200 transition-colors"
+              >
+                Selecionar Todas
+              </button>
+              <button
+                onClick={deselectAllExpenses}
+                className="px-3 py-2 bg-apple-gray-100 text-apple-gray-700 rounded-lg font-medium text-sm hover:bg-apple-gray-200 transition-colors"
+              >
+                Limpar Seleção
+              </button>
+              <button
+                onClick={markSelectedAsPaid}
+                disabled={selectedExpenses.size === 0}
+                className="px-4 py-2 bg-apple-green text-white rounded-lg font-medium text-sm hover:bg-apple-green/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                💰 Pagar Selecionadas
+              </button>
+              <button
+                onClick={toggleSelectionMode}
+                className="px-3 py-2 bg-apple-gray-100 text-apple-gray-700 rounded-lg font-medium text-sm hover:bg-apple-gray-200 transition-colors"
+              >
+                ✕ Cancelar
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -410,18 +508,46 @@ export default function ExpensesList({ userId }: Props) {
             <table className="min-w-full">
               <thead>
                 <tr className="border-b border-apple-gray-200">
+                  {isSelectionMode && (
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-apple-gray-500 uppercase tracking-wider">
+                      <input
+                        type="checkbox"
+                        checked={selectedExpenses.size === filteredExpenses.length && filteredExpenses.length > 0}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            selectAllExpenses()
+                          } else {
+                            deselectAllExpenses()
+                          }
+                        }}
+                        className="w-4 h-4 text-apple-blue rounded focus:ring-2 focus:ring-apple-blue/30"
+                      />
+                    </th>
+                  )}
                   <th className="px-6 py-4 text-left text-xs font-semibold text-apple-gray-500 uppercase tracking-wider">Data</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-apple-gray-500 uppercase tracking-wider">Descrição</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-apple-gray-500 uppercase tracking-wider">Membro</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-apple-gray-500 uppercase tracking-wider">Categoria</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-apple-gray-500 uppercase tracking-wider">Valor</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-apple-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-apple-gray-500 uppercase tracking-wider">Ações</th>
+                  {!isSelectionMode && (
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-apple-gray-500 uppercase tracking-wider">Ações</th>
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-apple-gray-100">
                 {filteredExpenses.map((expense) => (
                   <tr key={expense.id} className="hover:bg-apple-gray-50/50 transition-colors">
+                    {isSelectionMode && (
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <input
+                          type="checkbox"
+                          checked={selectedExpenses.has(expense.id)}
+                          onChange={() => toggleExpenseSelection(expense.id)}
+                          className="w-4 h-4 text-apple-blue rounded focus:ring-2 focus:ring-apple-blue/30"
+                        />
+                      </td>
+                    )}
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-apple-gray-600">
                       {formatDate(expense.expense_date)}
                     </td>
@@ -490,58 +616,60 @@ export default function ExpensesList({ userId }: Props) {
                         {expense.is_paid ? '✓ Pago' : '⏳ A Pagar'}
                       </button>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <ActionsDropdown
-                        actions={[
-                          {
-                            id: 'edit',
-                            label: 'Editar',
-                            icon: '✏️',
-                            color: 'text-apple-blue hover:text-apple-blue/80',
-                            onClick: () => setEditingExpense(expense),
-                            title: 'Editar informações da despesa'
-                          },
-                          {
-                            id: 'edit-value',
-                            label: 'Editar Valor',
-                            icon: '💰',
-                            color: 'text-apple-green hover:text-apple-green/80',
-                            onClick: () => setEditingValue(expense),
-                            title: 'Editar valor desta ocorrência'
-                          },
-                          ...(expense.is_recurring ? [
+                    {!isSelectionMode && (
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <ActionsDropdown
+                          actions={[
                             {
-                              id: 'edit-recurrence',
-                              label: 'Editar Recorrência',
-                              icon: '⚙️',
+                              id: 'edit',
+                              label: 'Editar',
+                              icon: '✏️',
                               color: 'text-apple-blue hover:text-apple-blue/80',
-                              onClick: () => setEditingRecurrence(expense),
-                              title: 'Editar recorrência'
+                              onClick: () => setEditingExpense(expense),
+                              title: 'Editar informações da despesa'
                             },
                             {
-                              id: 'delete-series',
-                              label: 'Excluir Série',
-                              icon: '🗑️',
-                              color: 'text-apple-orange hover:text-apple-orange/80',
-                              onClick: () => handleDeleteRecurrence(expense),
-                              title: 'Excluir toda a recorrência'
+                              id: 'edit-value',
+                              label: 'Editar Valor',
+                              icon: '💰',
+                              color: 'text-apple-green hover:text-apple-green/80',
+                              onClick: () => setEditingValue(expense),
+                              title: 'Editar valor desta ocorrência'
+                            },
+                            ...(expense.is_recurring ? [
+                              {
+                                id: 'edit-recurrence',
+                                label: 'Editar Recorrência',
+                                icon: '⚙️',
+                                color: 'text-apple-blue hover:text-apple-blue/80',
+                                onClick: () => setEditingRecurrence(expense),
+                                title: 'Editar recorrência'
+                              },
+                              {
+                                id: 'delete-series',
+                                label: 'Excluir Série',
+                                icon: '🗑️',
+                                color: 'text-apple-orange hover:text-apple-orange/80',
+                                onClick: () => handleDeleteRecurrence(expense),
+                                title: 'Excluir toda a recorrência'
+                              }
+                            ] : []),
+                            {
+                              id: 'delete',
+                              label: expense.is_installment ? 'Excluir Compra' : expense.is_recurring ? 'Excluir Item' : 'Excluir',
+                              icon: expense.is_installment ? '🗑️' : '✕',
+                              color: 'text-apple-red hover:text-apple-red/80',
+                              onClick: () => handleDelete(expense),
+                              title: expense.is_installment 
+                                ? `Excluir toda a compra (${expense.installments} parcelas)`
+                                : expense.is_recurring 
+                                  ? 'Excluir apenas este item'
+                                  : 'Excluir despesa'
                             }
-                          ] : []),
-                          {
-                            id: 'delete',
-                            label: expense.is_installment ? 'Excluir Compra' : expense.is_recurring ? 'Excluir Item' : 'Excluir',
-                            icon: expense.is_installment ? '🗑️' : '✕',
-                            color: 'text-apple-red hover:text-apple-red/80',
-                            onClick: () => handleDelete(expense),
-                            title: expense.is_installment 
-                              ? `Excluir toda a compra (${expense.installments} parcelas)`
-                              : expense.is_recurring 
-                                ? 'Excluir apenas este item'
-                                : 'Excluir despesa'
-                          }
-                        ]}
-                      />
-                    </td>
+                          ]}
+                        />
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
