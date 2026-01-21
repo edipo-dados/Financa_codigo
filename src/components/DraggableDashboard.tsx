@@ -242,6 +242,7 @@ export default function DraggableDashboard({
             loading={loading}
             startDate={startDate}
             endDate={endDate}
+            userId={userId}
           />
         )
       case 'credit-card':

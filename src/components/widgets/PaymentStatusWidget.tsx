@@ -1,8 +1,9 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useEffect, useState } from 'react'
 import { Expense, Investment, Income } from '@/types'
 import { formatCurrency, getCurrentMonthRange } from '@/lib/utils'
+import { supabase } from '@/lib/supabase'
 
 interface Props {
   expenses: Expense[]
@@ -10,28 +11,80 @@ interface Props {
   loading: boolean
   startDate?: string
   endDate?: string
+  userId?: string
 }
 
-export default function PaymentStatusWidget({ expenses, incomes, loading, startDate, endDate }: Props) {
+export default function PaymentStatusWidget({ expenses, incomes, loading, startDate, endDate, userId }: Props) {
+  const [periodData, setPeriodData] = useState<{
+    periodExpenses: Expense[]
+    periodIncomes: Income[]
+  }>({
+    periodExpenses: [],
+    periodIncomes: []
+  })
+  const [dataLoading, setDataLoading] = useState(true)
+
+  // Buscar dados do período específico para cálculo preciso
+  useEffect(() => {
+    if (!userId) {
+      setDataLoading(false)
+      return
+    }
+
+    const fetchPeriodData = async () => {
+      try {
+        const start = startDate || getCurrentMonthRange().start
+        const end = endDate || getCurrentMonthRange().end
+
+        const [expensesRes, incomesRes] = await Promise.all([
+          supabase
+            .from('expenses')
+            .select('*, category:expense_categories(*), credit_card:credit_cards(*), member:family_members(*)')
+            .eq('user_id', userId)
+            .gte('expense_date', start)
+            .lte('expense_date', end),
+          
+          supabase
+            .from('incomes')
+            .select('*, category:income_categories(*), member:family_members(*)')
+            .eq('user_id', userId)
+            .gte('income_date', start)
+            .lte('income_date', end)
+        ])
+
+        setPeriodData({
+          periodExpenses: expensesRes.data || [],
+          periodIncomes: incomesRes.data || []
+        })
+      } catch (error) {
+        console.error('Erro ao buscar dados do período:', error)
+      } finally {
+        setDataLoading(false)
+      }
+    }
+
+    fetchPeriodData()
+  }, [userId, startDate, endDate])
+
   const stats = useMemo(() => {
-    const start = startDate || getCurrentMonthRange().start
-    const end = endDate || getCurrentMonthRange().end
+    // Usar dados específicos do período
+    const { periodExpenses, periodIncomes } = periodData
     
     // Calcular despesas e receitas pagas vs a pagar
-    const expensesPaid = expenses
-      .filter(e => e.expense_date >= start && e.expense_date <= end && e.is_paid)
+    const expensesPaid = periodExpenses
+      .filter(e => e.is_paid)
       .reduce((sum, e) => sum + Number(e.amount), 0)
     
-    const expensesToPay = expenses
-      .filter(e => e.expense_date >= start && e.expense_date <= end && !e.is_paid)
+    const expensesToPay = periodExpenses
+      .filter(e => !e.is_paid)
       .reduce((sum, e) => sum + Number(e.amount), 0)
 
-    const incomesPaid = incomes
-      .filter(i => i.income_date >= start && i.income_date <= end && i.is_paid)
+    const incomesPaid = periodIncomes
+      .filter(i => i.is_paid)
       .reduce((sum, i) => sum + Number(i.amount), 0)
     
-    const incomesToReceive = incomes
-      .filter(i => i.income_date >= start && i.income_date <= end && !i.is_paid)
+    const incomesToReceive = periodIncomes
+      .filter(i => !i.is_paid)
       .reduce((sum, i) => sum + Number(i.amount), 0)
 
     return {
@@ -39,10 +92,12 @@ export default function PaymentStatusWidget({ expenses, incomes, loading, startD
       expensesToPay,
       incomesPaid,
       incomesToReceive,
+      totalExpenses: periodExpenses.length,
+      totalIncomes: periodIncomes.length,
     }
-  }, [expenses, incomes, startDate, endDate])
+  }, [periodData])
 
-  if (loading) {
+  if (loading || dataLoading) {
     return (
       <div className="fintech-card p-4 sm:p-6 rounded-2xl">
         <div className="animate-pulse">
@@ -59,7 +114,12 @@ export default function PaymentStatusWidget({ expenses, incomes, loading, startD
 
   return (
     <div className="fintech-card p-4 sm:p-6 rounded-2xl">
-      <h3 className="text-lg font-semibold fintech-text-primary mb-4">💳 Status de Pagamentos</h3>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-semibold fintech-text-primary">💳 Status de Pagamentos</h3>
+        <span className="text-xs fintech-text-muted">
+          {stats.totalExpenses} despesas • {stats.totalIncomes} receitas
+        </span>
+      </div>
       
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="bg-white/50 dark:bg-fintech-dark-surface/50 p-3 sm:p-4 rounded-xl hover:bg-white dark:hover:bg-fintech-dark-surface transition-colors">
