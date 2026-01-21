@@ -107,11 +107,12 @@ export default function EditCreditCardPurchaseModal({ isOpen, onClose, purchase,
         return
       }
 
-      // Buscar e atualizar todas as parcelas filhas
+      // Buscar e atualizar todas as parcelas filhas (ordenadas por número da parcela)
       const { data: installments, error: fetchError } = await supabase
         .from('expenses')
         .select('*')
         .eq('parent_expense_id', purchase.id)
+        .order('installment_number', { ascending: true })
 
       if (fetchError) {
         console.error('Erro ao buscar parcelas:', fetchError)
@@ -121,6 +122,15 @@ export default function EditCreditCardPurchaseModal({ isOpen, onClose, purchase,
         const needsAmountRecalculation = formData.installments !== purchase.installments || totalAmount !== (purchase.total_amount || purchase.amount)
 
         if (needsDateRecalculation || needsAmountRecalculation) {
+          console.log('Recalculando parcelas:', {
+            needsDateRecalculation,
+            needsAmountRecalculation,
+            oldDate: purchase.purchase_date || purchase.expense_date,
+            newDate: formData.purchase_date,
+            oldInstallments: purchase.installments,
+            newInstallments: formData.installments
+          })
+
           // Buscar informações do cartão para recalcular datas
           const selectedCard = creditCards.find(c => c.id === formData.credit_card_id)
           if (!selectedCard) {
@@ -128,6 +138,8 @@ export default function EditCreditCardPurchaseModal({ isOpen, onClose, purchase,
             setLoading(false)
             return
           }
+
+          console.log('Cartão selecionado:', selectedCard)
 
           // Gerar novos dados das parcelas com datas recalculadas
           const newInstallmentsData = createInstallmentsData(
@@ -138,62 +150,74 @@ export default function EditCreditCardPurchaseModal({ isOpen, onClose, purchase,
             formData.description.trim()
           )
 
-          // Atualizar cada parcela com nova data e valor
-          for (let i = 0; i < Math.min(installments.length, newInstallmentsData.length); i++) {
-            const installment = installments[i]
-            const newData = newInstallmentsData[i]
+          console.log('Novos dados das parcelas:', newInstallmentsData)
 
-            await (supabase as any)
-              .from('expenses')
-              .update({
-                amount: newData.amount,
-                description: newData.description,
-                expense_date: newData.expense_date, // Nova data calculada
-                category_id: formData.category_id || null,
-                member_id: formData.member_id || null,
-                credit_card_id: formData.credit_card_id,
-                purchase_date: formData.purchase_date,
-                total_amount: totalAmount,
-                installments: formData.installments
-              })
-              .eq('id', (installment as any).id)
+          // Atualizar cada parcela com nova data e valor (correspondência por installment_number)
+          for (const installment of installments) {
+            const installmentNumber = (installment as any).installment_number
+            const newData = newInstallmentsData.find(data => data.installment_number === installmentNumber)
+            
+            if (newData) {
+              await (supabase as any)
+                .from('expenses')
+                .update({
+                  amount: newData.amount,
+                  description: newData.description,
+                  expense_date: newData.expense_date, // Nova data calculada
+                  category_id: formData.category_id || null,
+                  member_id: formData.member_id || null,
+                  credit_card_id: formData.credit_card_id,
+                  purchase_date: formData.purchase_date,
+                  total_amount: totalAmount,
+                  installments: formData.installments
+                })
+                .eq('id', (installment as any).id)
+            }
           }
 
           // Se o número de parcelas aumentou, criar novas parcelas
           if (formData.installments > installments.length) {
-            const newInstallments = newInstallmentsData.slice(installments.length).map(inst => ({
-              user_id: purchase.user_id,
-              amount: inst.amount,
-              description: inst.description,
-              expense_date: inst.expense_date,
-              category_id: formData.category_id || null,
-              member_id: formData.member_id || null,
-              payment_method: 'credit_card',
-              is_credit_card: true,
-              credit_card_id: formData.credit_card_id,
-              total_amount: totalAmount,
-              installments: formData.installments,
-              installment_number: inst.installment_number,
-              purchase_date: formData.purchase_date,
-              parent_expense_id: purchase.id,
-              is_installment: true,
-              is_recurring: false,
-              is_paid: false,
-            }))
+            const existingNumbers = installments.map((inst: any) => inst.installment_number)
+            const newInstallments = newInstallmentsData
+              .filter(data => !existingNumbers.includes(data.installment_number))
+              .map(inst => ({
+                user_id: purchase.user_id,
+                amount: inst.amount,
+                description: inst.description,
+                expense_date: inst.expense_date,
+                category_id: formData.category_id || null,
+                member_id: formData.member_id || null,
+                payment_method: 'credit_card',
+                is_credit_card: true,
+                credit_card_id: formData.credit_card_id,
+                total_amount: totalAmount,
+                installments: formData.installments,
+                installment_number: inst.installment_number,
+                purchase_date: formData.purchase_date,
+                parent_expense_id: purchase.id,
+                is_installment: true,
+                is_recurring: false,
+                is_paid: false,
+              }))
 
-            const { error: newInstallmentsError } = await (supabase as any)
-              .from('expenses')
-              .insert(newInstallments)
+            if (newInstallments.length > 0) {
+              const { error: newInstallmentsError } = await (supabase as any)
+                .from('expenses')
+                .insert(newInstallments)
 
-            if (newInstallmentsError) {
-              console.error('Erro ao criar novas parcelas:', newInstallmentsError)
-              alert('Aviso: Algumas parcelas podem não ter sido criadas: ' + newInstallmentsError.message)
+              if (newInstallmentsError) {
+                console.error('Erro ao criar novas parcelas:', newInstallmentsError)
+                alert('Aviso: Algumas parcelas podem não ter sido criadas: ' + newInstallmentsError.message)
+              }
             }
           }
 
           // Se o número de parcelas diminuiu, excluir parcelas extras
           if (formData.installments < installments.length) {
-            const installmentsToDelete = installments.slice(formData.installments)
+            const installmentsToDelete = installments.filter((inst: any) => 
+              inst.installment_number > formData.installments
+            )
+            
             for (const installment of installmentsToDelete) {
               await (supabase as any)
                 .from('expenses')
