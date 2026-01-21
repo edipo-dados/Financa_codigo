@@ -52,8 +52,13 @@ export default function PaymentStatusWidget({ expenses, incomes, loading, startD
             .lte('income_date', end)
         ])
 
+        // Filtrar despesas para não mostrar despesas parent de cartão (apenas parcelas)
+        const filteredExpenses = (expensesRes.data || []).filter(e => 
+          !e.is_credit_card || e.is_installment
+        )
+
         setPeriodData({
-          periodExpenses: expensesRes.data || [],
+          periodExpenses: filteredExpenses,
           periodIncomes: incomesRes.data || []
         })
       } catch (error) {
@@ -120,6 +125,15 @@ export default function PaymentStatusWidget({ expenses, incomes, loading, startD
           {stats.totalExpenses} despesas • {stats.totalIncomes} receitas
         </span>
       </div>
+
+      {/* Aviso sobre filtros */}
+      {stats.totalExpenses !== (expenses?.length || 0) && (
+        <div className="mb-3 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+          <p className="text-xs text-blue-600 dark:text-blue-400">
+            ℹ️ Mostra apenas parcelas de cartão (compras parent são ocultadas para evitar duplicação)
+          </p>
+        </div>
+      )}
       
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="bg-white/50 dark:bg-fintech-dark-surface/50 p-3 sm:p-4 rounded-xl hover:bg-white dark:hover:bg-fintech-dark-surface transition-colors">
