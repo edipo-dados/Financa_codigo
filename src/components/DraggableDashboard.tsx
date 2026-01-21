@@ -12,11 +12,13 @@ import DynamicProjectionChart from './widgets/DynamicProjectionChart'
 import PaymentStatusWidget from './widgets/PaymentStatusWidget'
 import CreditCardWidget from './widgets/CreditCardWidget'
 import CurrentBalanceWidget from './widgets/CurrentBalanceWidget'
+import ExpensesByMemberPieChart from './widgets/ExpensesByMemberPieChart'
+import IncomesByMemberPieChart from './widgets/IncomesByMemberPieChart'
 import { Expense, Investment, Income } from '@/types'
 
 interface DashboardWidget {
   id: string
-  type: 'stats' | 'income-chart' | 'expense-chart' | 'financial-insights' | 'kpi-widget' | 'future-projections' | 'projection-chart' | 'payment-status' | 'credit-card' | 'current-balance'
+  type: 'stats' | 'income-chart' | 'expense-chart' | 'financial-insights' | 'kpi-widget' | 'future-projections' | 'projection-chart' | 'payment-status' | 'credit-card' | 'current-balance' | 'expenses-by-member-pie' | 'incomes-by-member-pie'
   title: string
   size: 'small' | 'medium' | 'large' | 'full'
   enabled: boolean
@@ -118,6 +120,20 @@ export default function DraggableDashboard({
       type: 'financial-insights',
       title: 'Análise Inteligente com IA',
       size: 'full',
+      enabled: true
+    },
+    {
+      id: 'expenses-by-member-pie',
+      type: 'expenses-by-member-pie',
+      title: 'Despesas por Membro (Pizza)',
+      size: 'medium',
+      enabled: true
+    },
+    {
+      id: 'incomes-by-member-pie',
+      type: 'incomes-by-member-pie',
+      title: 'Receitas por Membro (Pizza)',
+      size: 'medium',
       enabled: true
     }
   ]
@@ -249,6 +265,24 @@ export default function DraggableDashboard({
         return (
           <CreditCardWidget
             expenses={expenses}
+            loading={loading}
+            startDate={startDate}
+            endDate={endDate}
+          />
+        )
+      case 'expenses-by-member-pie':
+        return (
+          <ExpensesByMemberPieChart
+            expenses={expenses}
+            loading={loading}
+            startDate={startDate}
+            endDate={endDate}
+          />
+        )
+      case 'incomes-by-member-pie':
+        return (
+          <IncomesByMemberPieChart
+            incomes={incomes}
             loading={loading}
             startDate={startDate}
             endDate={endDate}

@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useExpenses } from '@/hooks/useExpenses'
 import { useInvestments } from '@/hooks/useInvestments'
 import { useIncomes } from '@/hooks/useIncomes'
+import { useFamilyMembers } from '@/hooks/useFamilyMembers'
 import DraggableDashboard from '@/components/DraggableDashboard'
 import ExpensesList from '@/components/ExpensesList'
 import InvestmentsList from '@/components/InvestmentsList'
@@ -32,6 +33,7 @@ export default function Dashboard() {
   const { expenses, loading: expensesLoading, refetch: refetchExpenses } = useExpenses(user?.id)
   const { investments, loading: investmentsLoading, refetch: refetchInvestments } = useInvestments(user?.id)
   const { incomes, loading: incomesLoading, refetch: refetchIncomes } = useIncomes(user?.id)
+  const { members } = useFamilyMembers(user?.id)
   const [activeTab, setActiveTab] = useState<'overview' | 'incomes' | 'expenses' | 'investments' | 'future' | 'creditcard' | 'settings' | 'about'>('overview')
   
   // Estado para navegação de mês
@@ -43,6 +45,9 @@ export default function Dashboard() {
     endDate: format(endOfMonth(new Date()), 'yyyy-MM-dd'),
     label: 'Mês Atual',
   })
+
+  // Estado para filtro de membro da família
+  const [selectedMember, setSelectedMember] = useState<string>('')
 
   useEffect(() => {
     if (!user && !authLoading) {
@@ -64,6 +69,19 @@ export default function Dashboard() {
     refetchInvestments()
     refetchIncomes()
   }
+
+  // Filtrar dados por membro selecionado
+  const filteredExpenses = selectedMember 
+    ? expenses.filter(e => e.member_id === selectedMember)
+    : expenses
+
+  const filteredIncomes = selectedMember 
+    ? incomes.filter(i => i.member_id === selectedMember)
+    : incomes
+
+  const filteredInvestments = selectedMember 
+    ? investments.filter(i => i.member_id === selectedMember)
+    : investments
 
   if (authLoading || !user) {
     return (
@@ -123,11 +141,43 @@ export default function Dashboard() {
                 currentPeriod={currentPeriod}
                 onPeriodChange={setCurrentPeriod}
               />
+
+              {/* Filtro de Membro da Família */}
+              <div className="glass-card p-4 rounded-2xl">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">👥</span>
+                    <label className="text-sm font-medium text-apple-gray-700">
+                      Filtrar por Membro:
+                    </label>
+                  </div>
+                  <select
+                    value={selectedMember}
+                    onChange={(e) => setSelectedMember(e.target.value)}
+                    className="px-3 py-2 border border-apple-gray-200 rounded-lg focus:ring-2 focus:ring-apple-blue focus:border-apple-blue text-sm"
+                  >
+                    <option value="">Todos os membros</option>
+                    {members.map((member) => (
+                      <option key={member.id} value={member.id}>
+                        {member.name} {member.relationship && `(${member.relationship})`}
+                      </option>
+                    ))}
+                  </select>
+                  {selectedMember && (
+                    <button
+                      onClick={() => setSelectedMember('')}
+                      className="px-3 py-1 text-xs bg-apple-gray-100 text-apple-gray-600 rounded-lg hover:bg-apple-gray-200 transition-colors"
+                    >
+                      ✕ Limpar
+                    </button>
+                  )}
+                </div>
+              </div>
               
               <DraggableDashboard
-                expenses={expenses}
-                investments={investments}
-                incomes={incomes}
+                expenses={filteredExpenses}
+                investments={filteredInvestments}
+                incomes={filteredIncomes}
                 loading={expensesLoading || investmentsLoading || incomesLoading}
                 onRefresh={handleRefresh}
                 startDate={currentPeriod.startDate}
