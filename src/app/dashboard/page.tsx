@@ -11,6 +11,8 @@ import DraggableDashboard from '@/components/DraggableDashboard'
 import ExpensesList from '@/components/ExpensesList'
 import InvestmentsList from '@/components/InvestmentsList'
 import IncomesList from '@/components/IncomesList'
+import ExpenseForm from '@/components/ExpenseForm'
+import IncomeForm from '@/components/IncomeForm'
 import Navigation from '@/components/Navigation'
 import MobileBottomNav from '@/components/MobileBottomNav'
 import CategoryManager from '@/components/CategoryManager'
@@ -35,6 +37,10 @@ export default function Dashboard() {
   const { incomes, loading: incomesLoading, refetch: refetchIncomes } = useIncomes(user?.id)
   const { members } = useFamilyMembers(user?.id)
   const [activeTab, setActiveTab] = useState<'overview' | 'incomes' | 'expenses' | 'investments' | 'future' | 'creditcard' | 'settings' | 'about'>('overview')
+  
+  // Estados para modais de acesso rápido
+  const [showQuickExpenseModal, setShowQuickExpenseModal] = useState(false)
+  const [showQuickIncomeModal, setShowQuickIncomeModal] = useState(false)
   
   // Estado para navegação de mês
   const [currentMonth, setCurrentMonth] = useState(new Date())
@@ -183,7 +189,7 @@ export default function Dashboard() {
                   </h3>
                   <div className="grid grid-cols-2 gap-3">
                     <button
-                      onClick={() => setActiveTab('expenses')}
+                      onClick={() => setShowQuickExpenseModal(true)}
                       className="flex items-center gap-3 p-4 bg-gradient-to-r from-red-50 to-pink-50 hover:from-red-100 hover:to-pink-100 rounded-xl border border-red-200 transition-all duration-200 active:scale-95"
                     >
                       <div className="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center text-white text-lg">
@@ -196,7 +202,7 @@ export default function Dashboard() {
                     </button>
 
                     <button
-                      onClick={() => setActiveTab('incomes')}
+                      onClick={() => setShowQuickIncomeModal(true)}
                       className="flex items-center gap-3 p-4 bg-gradient-to-r from-green-50 to-emerald-50 hover:from-green-100 hover:to-emerald-100 rounded-xl border border-green-200 transition-all duration-200 active:scale-95"
                     >
                       <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-white text-lg">
@@ -283,6 +289,73 @@ export default function Dashboard() {
           )}
         </div>
       </main>
+
+      {/* Modais de Acesso Rápido */}
+      {/* Modal de Nova Despesa */}
+      {showQuickExpenseModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-fintech-dark-surface rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white dark:bg-fintech-dark-surface p-4 border-b border-gray-200 dark:border-gray-700 rounded-t-2xl">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                  💸 Nova Despesa
+                </h2>
+                <button
+                  onClick={() => setShowQuickExpenseModal(false)}
+                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div className="p-4">
+              <ExpenseForm
+                userId={user.id}
+                onSuccess={() => {
+                  setShowQuickExpenseModal(false)
+                  handleRefresh()
+                }}
+                onRefresh={handleRefresh}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Nova Receita */}
+      {showQuickIncomeModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-fintech-dark-surface rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white dark:bg-fintech-dark-surface p-4 border-b border-gray-200 dark:border-gray-700 rounded-t-2xl">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                  💰 Nova Receita
+                </h2>
+                <button
+                  onClick={() => setShowQuickIncomeModal(false)}
+                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div className="p-4">
+              <IncomeForm
+                userId={user.id}
+                onSuccess={() => {
+                  setShowQuickIncomeModal(false)
+                  handleRefresh()
+                }}
+                onRefresh={handleRefresh}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Mobile Bottom Navigation */}
       <MobileBottomNav 
