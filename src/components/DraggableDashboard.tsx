@@ -49,6 +49,7 @@ export default function DraggableDashboard({
 }: Props) {
   const [isEditMode, setIsEditMode] = useState(false)
   const [widgets, setWidgets] = useState<DashboardWidget[]>([])
+  const [mounted, setMounted] = useState(false)
 
   // Configuração padrão dos widgets
   const defaultWidgets: DashboardWidget[] = [
@@ -140,6 +141,12 @@ export default function DraggableDashboard({
 
   // Carregar layout salvo ou usar padrão
   useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  useEffect(() => {
+    if (!mounted) return
+    
     const savedLayout = localStorage.getItem(STORAGE_KEY)
     console.log('Layout salvo encontrado:', savedLayout)
     
@@ -172,7 +179,7 @@ export default function DraggableDashboard({
       setWidgets(defaultWidgets)
       localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultWidgets))
     }
-  }, [])
+  }, [mounted])
 
   // Criar componente baseado no tipo
   const createWidgetComponent = (widget: DashboardWidget) => {
@@ -300,7 +307,9 @@ export default function DraggableDashboard({
 
   // Salvar layout
   const saveLayout = (newWidgets: DashboardWidget[]) => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(newWidgets))
+    if (mounted) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newWidgets))
+    }
   }
 
   // Manipular drag and drop
@@ -336,7 +345,9 @@ export default function DraggableDashboard({
   // Resetar para layout padrão
   const resetLayout = () => {
     setWidgets(defaultWidgets)
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultWidgets))
+    if (mounted) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultWidgets))
+    }
     setIsEditMode(false)
   }
 
@@ -344,7 +355,9 @@ export default function DraggableDashboard({
   const forceShowAllWidgets = () => {
     const updatedWidgets = defaultWidgets.map(widget => ({ ...widget, enabled: true }))
     setWidgets(updatedWidgets)
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedWidgets))
+    if (mounted) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedWidgets))
+    }
   }
 
   // Classes de tamanho
@@ -359,6 +372,21 @@ export default function DraggableDashboard({
   }
 
   const enabledWidgets = widgets.filter(widget => widget.enabled)
+
+  if (!mounted) {
+    return (
+      <div className="space-y-4">
+        <div className="animate-pulse">
+          <div className="h-20 bg-gray-200 dark:bg-fintech-dark-elevated rounded-xl mb-4"></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[1, 2, 3, 4, 5, 6].map(i => (
+              <div key={i} className="h-64 bg-gray-200 dark:bg-fintech-dark-elevated rounded-2xl"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-4">

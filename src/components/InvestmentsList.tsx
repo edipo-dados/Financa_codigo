@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useInvestments } from '@/hooks/useInvestments'
 import { useFamilyMembers } from '@/hooks/useFamilyMembers'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
+import { calculateFutureOccurrences } from '@/lib/recurrence'
 import InvestmentForm from './InvestmentForm'
 import EditRecurrenceModal from './EditRecurrenceModal'
 import EditValueModal from './EditValueModal'
@@ -14,15 +15,18 @@ import { Investment } from '@/types'
 
 interface Props {
   userId: string
+  startDate?: string
+  endDate?: string
 }
 
-export default function InvestmentsList({ userId }: Props) {
+export default function InvestmentsList({ userId, startDate, endDate }: Props) {
   const { investments, loading, deleteInvestment, refetch } = useInvestments(userId)
   const { members } = useFamilyMembers(userId)
   const [showForm, setShowForm] = useState(false)
   const [editingRecurrence, setEditingRecurrence] = useState<Investment | null>(null)
   const [editingValue, setEditingValue] = useState<Investment | null>(null)
   const [editingInvestment, setEditingInvestment] = useState<Investment | null>(null)
+  const [futureInvestments, setFutureInvestments] = useState<any[]>([])
   
   // Estados dos filtros
   const [showFilters, setShowFilters] = useState(false)
@@ -34,16 +38,93 @@ export default function InvestmentsList({ userId }: Props) {
     search: ''
   })
 
+  // Verificar se o período selecionado é futuro
+  const isFuturePeriod = useMemo(() => {
+    if (!startDate) return false
+    const today = new Date()
+    const periodStart = new Date(startDate)
+    return periodStart > today
+  }, [startDate])
+
+  // Gerar investimentos futuros baseados em recorrências
+  useEffect(() => {
+    if (!isFuturePeriod || !startDate || !endDate) {
+      setFutureInvestments([])
+      return
+    }
+
+    const generateFutureInvestments = () => {
+      const recurringInvestments = investments.filter(inv => inv.is_recurring)
+      
+      if (recurringInvestments.length === 0) return
+      
+      const futureOccurrences = calculateFutureOccurrences(
+        recurringInvestments.map(inv => ({
+          amount: inv.initial_amount,
+          is_recurring: inv.is_recurring,
+          recurrence_frequency: inv.recurrence_frequency,
+          recurrence_start_date: inv.recurrence_start_date,
+          recurrence_end_type: inv.recurrence_end_type,
+          recurrence_end_date: inv.recurrence_end_date,
+          recurrence_count: inv.recurrence_count
+        })), 
+        24
+      )
+      
+      const periodFutureInvestments = futureOccurrences
+        .filter(occ => {
+          const occDate = occ.date.toISOString().split('T')[0]
+          return occDate >= startDate && occDate <= endDate
+        })
+        .map((occ, index) => {
+          const originalInvestment = recurringInvestments.find(inv => inv.initial_amount === occ.amount)
+          
+          return {
+            id: `future-${originalInvestment?.id}-${index}`,
+            user_id: userId,
+            investment_type_id: originalInvestment?.investment_type_id || null,
+            member_id: originalInvestment?.member_id || null,
+            name: `${originalInvestment?.name || 'Investimento recorrente'} (Projeção)`,
+            institution: originalInvestment?.institution || null,
+            initial_amount: occ.amount,
+            current_amount: occ.amount,
+            investment_date: occ.date.toISOString().split('T')[0],
+            expected_return: originalInvestment?.expected_return || null,
+            is_recurring: true,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            investment_type: originalInvestment?.investment_type || null,
+            member: originalInvestment?.member || null,
+            isFutureProjection: true
+          }
+        })
+
+      setFutureInvestments(periodFutureInvestments)
+    }
+
+    generateFutureInvestments()
+  }, [investments, isFuturePeriod, startDate, endDate, userId])
+
   // Aplicar filtros
   const filteredInvestments = useMemo(() => {
-    // Filtrar investimentos para mostrar apenas os do mês atual ou anteriores
-    const currentDate = new Date()
-    const currentMonthInvestments = investments.filter(investment => {
-      const investmentDate = new Date(investment.investment_date)
-      return investmentDate <= currentDate
-    })
+    let currentInvestments
+    
+    if (isFuturePeriod) {
+      currentInvestments = futureInvestments
+    } else if (startDate && endDate) {
+      currentInvestments = investments.filter(investment => {
+        return investment.investment_date >= startDate && investment.investment_date <= endDate
+      })
+    } else {
+      // Filtrar investimentos para mostrar apenas os do mês atual ou anteriores
+      const currentDate = new Date()
+      currentInvestments = investments.filter(investment => {
+        const investmentDate = new Date(investment.investment_date)
+        return investmentDate <= currentDate
+      })
+    }
 
-    return currentMonthInvestments.filter(investment => {
+    return currentInvestments.filter(investment => {
       // Filtro por membro
       if (filters.member && investment.member_id !== filters.member) return false
       
@@ -124,9 +205,21 @@ export default function InvestmentsList({ userId }: Props) {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-semibold text-apple-gray-700">Investimentos</h2>
+          <h2 className="text-2xl font-semibold text-apple-gray-700">
+            Investimentos
+            {isFuturePeriod && (
+              <span className="ml-2 px-3 py-1 bg-purple-100 text-purple-700 text-sm rounded-full">
+                📅 Projeções Futuras
+              </span>
+            )}
+          </h2>
           <p className="text-sm text-apple-gray-500 mt-1">
-            Mostrando apenas investimentos realizados ou do mês atual
+            {isFuturePeriod 
+              ? `Mostrando projeções baseadas em recorrências para o período selecionado`
+              : startDate && endDate
+                ? `Mostrando investimentos do período selecionado`
+                : `Mostrando apenas investimentos realizados ou do mês atual`
+            }
           </p>
         </div>
         <div className="flex items-center gap-2">

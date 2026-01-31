@@ -37,7 +37,7 @@ export default function DynamicProjectionChart({ expenses, investments, incomes,
       <div className="flex items-center justify-between mb-6">
         <div>
           <h3 className="text-lg font-semibold fintech-text-primary">📈 Projeção: Receitas x Despesas</h3>
-          <p className="text-sm fintech-text-muted mt-1">Próximos 6 meses baseado em recorrências</p>
+          <p className="text-sm fintech-text-muted mt-1">Saldo acumulado dos próximos 6 meses</p>
         </div>
       </div>
       <ProjectionChart expenses={expenses} investments={investments} incomes={incomes} />

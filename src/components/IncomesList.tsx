@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useIncomes } from '@/hooks/useIncomes'
 import { useFamilyMembers } from '@/hooks/useFamilyMembers'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
+import { calculateFutureOccurrences } from '@/lib/recurrence'
 import IncomeForm from './IncomeForm'
 import EditRecurrenceModal from './EditRecurrenceModal'
 import EditValueModal from './EditValueModal'
@@ -14,15 +15,18 @@ import { Income } from '@/types'
 
 interface Props {
   userId: string
+  startDate?: string
+  endDate?: string
 }
 
-export default function IncomesList({ userId }: Props) {
+export default function IncomesList({ userId, startDate, endDate }: Props) {
   const { incomes, loading, deleteIncome, refetch } = useIncomes(userId)
   const { members } = useFamilyMembers(userId)
   const [showForm, setShowForm] = useState(false)
   const [editingRecurrence, setEditingRecurrence] = useState<Income | null>(null)
   const [editingValue, setEditingValue] = useState<Income | null>(null)
   const [editingIncome, setEditingIncome] = useState<Income | null>(null)
+  const [futureIncomes, setFutureIncomes] = useState<any[]>([])
   
   // Estados dos filtros
   const [showFilters, setShowFilters] = useState(false)
@@ -35,16 +39,81 @@ export default function IncomesList({ userId }: Props) {
     search: ''
   })
 
+  // Verificar se o período selecionado é futuro
+  const isFuturePeriod = useMemo(() => {
+    if (!startDate) return false
+    const today = new Date()
+    const periodStart = new Date(startDate)
+    return periodStart > today
+  }, [startDate])
+
+  // Gerar receitas futuras baseadas em recorrências
+  useEffect(() => {
+    if (!isFuturePeriod || !startDate || !endDate) {
+      setFutureIncomes([])
+      return
+    }
+
+    const generateFutureIncomes = () => {
+      const recurringIncomes = incomes.filter(i => i.is_recurring)
+      
+      if (recurringIncomes.length === 0) return
+      
+      const futureOccurrences = calculateFutureOccurrences(recurringIncomes, 24)
+      
+      const periodFutureIncomes = futureOccurrences
+        .filter(occ => {
+          const occDate = occ.date.toISOString().split('T')[0]
+          return occDate >= startDate && occDate <= endDate
+        })
+        .map((occ, index) => {
+          const originalIncome = recurringIncomes.find(i => i.amount === occ.amount)
+          
+          return {
+            id: `future-${originalIncome?.id}-${index}`,
+            user_id: userId,
+            category_id: originalIncome?.category_id || null,
+            member_id: originalIncome?.member_id || null,
+            amount: occ.amount,
+            description: `${originalIncome?.description || 'Receita recorrente'} (Projeção)`,
+            income_date: occ.date.toISOString().split('T')[0],
+            source: originalIncome?.source || null,
+            is_recurring: true,
+            is_paid: false,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            category: originalIncome?.category || null,
+            member: originalIncome?.member || null,
+            isFutureProjection: true
+          }
+        })
+
+      setFutureIncomes(periodFutureIncomes)
+    }
+
+    generateFutureIncomes()
+  }, [incomes, isFuturePeriod, startDate, endDate, userId])
+
   // Aplicar filtros
   const filteredIncomes = useMemo(() => {
-    // Filtrar receitas para mostrar apenas as do mês atual ou anteriores
-    const currentDate = new Date()
-    const currentMonthIncomes = incomes.filter(income => {
-      const incomeDate = new Date(income.income_date)
-      return incomeDate <= currentDate
-    })
+    let currentIncomes
+    
+    if (isFuturePeriod) {
+      currentIncomes = futureIncomes
+    } else if (startDate && endDate) {
+      currentIncomes = incomes.filter(income => {
+        return income.income_date >= startDate && income.income_date <= endDate
+      })
+    } else {
+      // Filtrar receitas para mostrar apenas as do mês atual ou anteriores
+      const currentDate = new Date()
+      currentIncomes = incomes.filter(income => {
+        const incomeDate = new Date(income.income_date)
+        return incomeDate <= currentDate
+      })
+    }
 
-    return currentMonthIncomes.filter(income => {
+    return currentIncomes.filter(income => {
       // Filtro por membro
       if (filters.member && income.member_id !== filters.member) return false
       
@@ -141,9 +210,21 @@ export default function IncomesList({ userId }: Props) {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-semibold text-apple-gray-700">Receitas</h2>
+          <h2 className="text-2xl font-semibold text-apple-gray-700">
+            Receitas
+            {isFuturePeriod && (
+              <span className="ml-2 px-3 py-1 bg-green-100 text-green-700 text-sm rounded-full">
+                📅 Projeções Futuras
+              </span>
+            )}
+          </h2>
           <p className="text-sm text-apple-gray-500 mt-1">
-            Mostrando apenas receitas vencidas ou do mês atual
+            {isFuturePeriod 
+              ? `Mostrando projeções baseadas em recorrências para o período selecionado`
+              : startDate && endDate
+                ? `Mostrando receitas do período selecionado`
+                : `Mostrando apenas receitas vencidas ou do mês atual`
+            }
           </p>
         </div>
         <div className="flex items-center gap-2">

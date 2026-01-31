@@ -24,6 +24,12 @@ export default function CurrentBalanceWidget({ expenses, investments, incomes, l
     allIncomes: []
   })
   const [dataLoading, setDataLoading] = useState(true)
+  const [mounted, setMounted] = useState(false)
+
+  // Evitar hidration mismatch
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Buscar TODOS os dados para cálculo real do saldo
   useEffect(() => {
@@ -72,27 +78,36 @@ export default function CurrentBalanceWidget({ expenses, investments, incomes, l
     // Usar dados completos para cálculo real do saldo
     const { allExpenses, allInvestments, allIncomes } = allData
     
-    // Calcular totais gerais (todos os dados históricos, apenas pagos/recebidos)
+    // CORRIGIDO: Usar a mesma lógica do StatsCardsWidget - incluir TODAS as despesas
+    // Não filtrar despesas parent de cartão, pois elas representam o valor real gasto
     const totalIncomes = allIncomes.reduce((sum, income) => sum + Number(income.amount), 0)
     const totalExpenses = allExpenses.reduce((sum, expense) => sum + Number(expense.amount), 0)
-    const totalInvestments = allInvestments.reduce((sum, investment) => sum + Number(investment.current_amount), 0)
     
-    // Saldo atual = Receitas - Despesas (investimentos já saíram das receitas/entraram como despesas)
+    // Para investimentos, usar initial_amount (valor investido)
+    const totalInvestments = allInvestments.reduce((sum, investment) => sum + Number(investment.initial_amount), 0)
+    const totalInvestmentValue = allInvestments.reduce((sum, investment) => sum + Number(investment.current_amount), 0)
+    
+    // CORRIGIDO: Saldo líquido = Receitas - Despesas (SEM subtrair investimentos)
+    // Investimentos não devem ser subtraídos do saldo líquido, pois são patrimônio
     const currentBalance = totalIncomes - totalExpenses
     
-    // Saldo líquido (mesmo que o atual, pois investimentos não são somados)
-    const netBalance = totalIncomes - totalExpenses
+    // Patrimônio total = Saldo líquido + Valor atual dos investimentos
+    const totalWealth = currentBalance + totalInvestmentValue
 
     return {
       totalIncomes,
       totalExpenses,
-      totalInvestments,
-      currentBalance,
-      netBalance,
+      totalInvestments, // Valor investido (initial_amount)
+      totalInvestmentValue, // Valor atual dos investimentos
+      currentBalance, // Saldo líquido em conta (receitas - despesas)
+      totalWealth, // Patrimônio total
+      expenseCount: allExpenses.length,
+      incomeCount: allIncomes.length,
+      investmentCount: allInvestments.length
     }
   }, [allData])
 
-  if (loading || dataLoading) {
+  if (loading || dataLoading || !mounted) {
     return (
       <div className="fintech-card p-4 sm:p-6 rounded-2xl">
         <div className="animate-pulse">
@@ -117,7 +132,9 @@ export default function CurrentBalanceWidget({ expenses, investments, incomes, l
           <h4 className="text-base font-semibold text-blue-800 dark:text-blue-300">Saldo Líquido</h4>
           <span className="text-xl">💵</span>
         </div>
-        <p className="text-xs text-blue-600 dark:text-blue-400 mb-2">Receitas recebidas - Despesas pagas</p>
+        <p className="text-xs text-blue-600 dark:text-blue-400 mb-2">
+          Receitas - Despesas (Histórico total: {balanceData.incomeCount} receitas, {balanceData.expenseCount} despesas)
+        </p>
         <p className={`text-3xl font-bold ${
           balanceData.currentBalance >= 0 
             ? 'text-green-600 dark:text-green-400' 
@@ -127,20 +144,52 @@ export default function CurrentBalanceWidget({ expenses, investments, incomes, l
         </p>
       </div>
 
-      {/* Detalhamento */}
+      {/* Patrimônio Total */}
+      <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 p-4 rounded-xl mb-4 border border-green-200 dark:border-green-800">
+        <div className="flex items-center justify-between mb-2">
+          <h4 className="text-base font-semibold text-green-800 dark:text-green-300">Patrimônio Total</h4>
+          <span className="text-xl">🏦</span>
+        </div>
+        <p className="text-xs text-green-600 dark:text-green-400 mb-2">
+          Saldo em conta + Valor atual dos investimentos
+        </p>
+        <p className={`text-2xl font-bold ${
+          balanceData.totalWealth >= 0 
+            ? 'text-green-600 dark:text-green-400' 
+            : 'text-red-600 dark:text-red-400'
+        }`}>
+          {balanceData.totalWealth >= 0 ? '+' : ''}{formatCurrency(balanceData.totalWealth)}
+        </p>
+      </div>
+
+      {/* Detalhamento dos Investimentos */}
       <div className="grid grid-cols-1 gap-3 mb-4">
         <div className="bg-white/50 dark:bg-fintech-dark-surface/50 p-3 rounded-xl hover:bg-white dark:hover:bg-fintech-dark-surface transition-colors">
           <div className="flex items-center justify-between mb-1">
-            <h5 className="text-sm font-medium fintech-text-muted">Patrimônio Investido</h5>
+            <h5 className="text-sm font-medium fintech-text-muted">Investimentos ({balanceData.investmentCount})</h5>
             <span className="text-sm">📈</span>
           </div>
-          <p className="text-xs fintech-text-muted mb-1">Valor atual dos investimentos</p>
-          <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
-            {formatCurrency(balanceData.totalInvestments)}
-          </p>
-          <p className="text-xs fintech-text-muted mt-1">
-            (Já descontado do saldo líquido)
-          </p>
+          <div className="space-y-1">
+            <div className="flex justify-between text-xs">
+              <span className="fintech-text-muted">Valor Investido:</span>
+              <span className="font-medium text-blue-600">-{formatCurrency(balanceData.totalInvestments)}</span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="fintech-text-muted">Valor Atual:</span>
+              <span className="font-medium text-green-600">+{formatCurrency(balanceData.totalInvestmentValue)}</span>
+            </div>
+            <div className="flex justify-between text-xs font-semibold pt-1 border-t border-gray-200 dark:border-gray-600">
+              <span className="fintech-text-muted">Rendimento:</span>
+              <span className={`${
+                (balanceData.totalInvestmentValue - balanceData.totalInvestments) >= 0 
+                  ? 'text-green-600' 
+                  : 'text-red-600'
+              }`}>
+                {(balanceData.totalInvestmentValue - balanceData.totalInvestments) >= 0 ? '+' : ''}
+                {formatCurrency(balanceData.totalInvestmentValue - balanceData.totalInvestments)}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -159,9 +208,19 @@ export default function CurrentBalanceWidget({ expenses, investments, incomes, l
           </span>
         </div>
         <div className="flex items-center justify-between text-sm">
-          <span className="fintech-text-muted">📈 Total Investido:</span>
+          <span className="fintech-text-muted">📈 Valor Investido:</span>
           <span className="font-medium text-blue-600 dark:text-blue-400">
-            {formatCurrency(balanceData.totalInvestments)}
+            {formatCurrency(balanceData.totalInvestments)} (separado)
+          </span>
+        </div>
+        <div className="flex items-center justify-between text-sm font-semibold pt-2 border-t border-gray-200 dark:border-gray-600">
+          <span className="fintech-text-primary">💵 Saldo Líquido:</span>
+          <span className={`${
+            balanceData.currentBalance >= 0 
+              ? 'text-green-600 dark:text-green-400' 
+              : 'text-red-600 dark:text-red-400'
+          }`}>
+            {balanceData.currentBalance >= 0 ? '+' : ''}{formatCurrency(balanceData.currentBalance)}
           </span>
         </div>
       </div>

@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useExpenses } from '@/hooks/useExpenses'
 import { useFamilyMembers } from '@/hooks/useFamilyMembers'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
+import { calculateFutureOccurrences } from '@/lib/recurrence'
 import ExpenseForm from './ExpenseForm'
 import EditRecurrenceModal from './EditRecurrenceModal'
 import EditValueModal from './EditValueModal'
@@ -14,9 +15,11 @@ import { Expense } from '@/types'
 
 interface Props {
   userId: string
+  startDate?: string
+  endDate?: string
 }
 
-export default function ExpensesList({ userId }: Props) {
+export default function ExpensesList({ userId, startDate, endDate }: Props) {
   const { expenses, loading, deleteExpense, refetch } = useExpenses(userId)
   const { members } = useFamilyMembers(userId)
   const [showForm, setShowForm] = useState(false)
@@ -39,17 +42,93 @@ export default function ExpensesList({ userId }: Props) {
     search: ''
   })
 
+  // Verificar se o período selecionado é futuro
+  const isFuturePeriod = useMemo(() => {
+    if (!startDate) return false
+    const today = new Date()
+    const periodStart = new Date(startDate)
+    return periodStart > today
+  }, [startDate])
+
+  // Gerar despesas futuras baseadas em recorrências
+  useEffect(() => {
+    if (!isFuturePeriod || !startDate || !endDate) {
+      return
+    }
+
+    const generateFutureExpenses = () => {
+      // Buscar despesas recorrentes
+      const recurringExpenses = expenses.filter(e => e.is_recurring)
+      
+      if (recurringExpenses.length === 0) return
+      
+      // Gerar ocorrências futuras
+      const futureOccurrences = calculateFutureOccurrences(recurringExpenses, 24)
+      
+      // Filtrar apenas as ocorrências do período selecionado
+      const periodFutureExpenses = futureOccurrences
+        .filter(occ => {
+          const occDate = occ.date.toISOString().split('T')[0]
+          return occDate >= startDate && occDate <= endDate
+        })
+        .map((occ, index) => {
+          // Encontrar a despesa original
+          const originalExpense = recurringExpenses.find(e => e.amount === occ.amount)
+          
+          return {
+            id: `future-${originalExpense?.id}-${index}`,
+            user_id: userId,
+            category_id: originalExpense?.category_id || null,
+            member_id: originalExpense?.member_id || null,
+            amount: occ.amount,
+            description: `${originalExpense?.description || 'Despesa recorrente'} (Projeção)`,
+            expense_date: occ.date.toISOString().split('T')[0],
+            payment_method: originalExpense?.payment_method || null,
+            is_recurring: true,
+            is_paid: false, // Despesas futuras não estão pagas
+            is_credit_card: false,
+            is_installment: false,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            category: originalExpense?.category || null,
+            member: originalExpense?.member || null,
+            isFutureProjection: true // Flag para identificar projeções
+          }
+        })
+
+      // Adicionar as projeções às despesas existentes
+      setFutureExpenses(periodFutureExpenses)
+    }
+
+    generateFutureExpenses()
+  }, [expenses, isFuturePeriod, startDate, endDate, userId])
+
+  const [futureExpenses, setFutureExpenses] = useState<any[]>([])
+
   // Filtrar para não mostrar despesas parent de cartão (apenas parcelas)
   const displayExpenses = expenses.filter(e => 
     !e.is_credit_card || e.is_installment
   )
 
-  // Filtrar despesas para mostrar apenas as do mês atual ou anteriores
-  const currentDate = new Date()
-  const currentMonthExpenses = displayExpenses.filter(expense => {
-    const expenseDate = new Date(expense.expense_date)
-    return expenseDate <= currentDate
-  })
+  // Combinar despesas reais com futuras baseado no período
+  const currentMonthExpenses = useMemo(() => {
+    if (isFuturePeriod) {
+      // Se é período futuro, mostrar apenas projeções
+      return futureExpenses
+    } else if (startDate && endDate) {
+      // Se tem período definido, filtrar por data
+      return displayExpenses.filter(expense => {
+        return expense.expense_date >= startDate && expense.expense_date <= endDate
+      })
+    } else {
+      // Filtrar despesas para mostrar apenas as do mês atual ou anteriores
+      const currentDate = new Date()
+      return displayExpenses.filter(expense => {
+        const expenseDate = new Date(expense.expense_date)
+        return expenseDate <= currentDate
+      })
+    }
+  }, [displayExpenses, futureExpenses, isFuturePeriod, startDate, endDate])
 
   // Aplicar filtros
   const filteredExpenses = useMemo(() => {
@@ -259,9 +338,21 @@ export default function ExpensesList({ userId }: Props) {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-semibold text-apple-gray-700">Despesas</h2>
+          <h2 className="text-2xl font-semibold text-apple-gray-700">
+            Despesas
+            {isFuturePeriod && (
+              <span className="ml-2 px-3 py-1 bg-blue-100 text-blue-700 text-sm rounded-full">
+                📅 Projeções Futuras
+              </span>
+            )}
+          </h2>
           <p className="text-sm text-apple-gray-500 mt-1">
-            Mostrando apenas despesas vencidas ou do mês atual
+            {isFuturePeriod 
+              ? `Mostrando projeções baseadas em recorrências para o período selecionado`
+              : startDate && endDate
+                ? `Mostrando despesas do período selecionado`
+                : `Mostrando apenas despesas vencidas ou do mês atual`
+            }
           </p>
         </div>
         <div className="flex items-center gap-2">

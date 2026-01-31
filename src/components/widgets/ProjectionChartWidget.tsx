@@ -6,7 +6,7 @@ import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tool
 import { useTheme } from '@/contexts/ThemeContext'
 import { formatCurrency } from '@/lib/utils'
 import { calculateFutureOccurrences, groupByMonth } from '@/lib/recurrence'
-import { format, addMonths } from 'date-fns'
+import { format, addMonths, startOfMonth, endOfMonth } from 'date-fns'
 
 interface Props {
   expenses: Expense[]
@@ -18,6 +18,7 @@ interface Props {
 export default function ProjectionChartWidget({ expenses, investments, incomes, loading }: Props) {
   const { theme } = useTheme()
   const [mounted, setMounted] = useState(false)
+  const [projectionMonths] = useState(6) // Fixo em 6 meses para o gráfico
 
   useEffect(() => {
     setMounted(true)
@@ -31,42 +32,166 @@ export default function ProjectionChartWidget({ expenses, investments, incomes, 
     legendText: theme === 'dark' ? '#e5e7eb' : '#374151',
   }
 
+  // USAR EXATAMENTE A MESMA LÓGICA DO FutureProjectionsWidget
   const projectionData = useMemo(() => {
-    // Calcular projeções futuras (próximos 6 meses)
-    const futureIncomes = calculateFutureOccurrences(
-      incomes.filter(i => i.is_recurring),
-      6
-    )
-    const futureExpenses = calculateFutureOccurrences(
-      expenses.filter(e => e.is_recurring),
-      6
-    )
-
-    // Agrupar por mês
-    const incomesByMonth = groupByMonth(futureIncomes)
-    const expensesByMonth = groupByMonth(futureExpenses)
-
-    // Criar dados para o gráfico de projeção
-    const chartData = []
+    if (!mounted) return []
+    
+    const projectedMonths: any[] = []
     const today = new Date()
     
-    for (let i = 0; i < 6; i++) {
-      const month = format(addMonths(today, i), 'yyyy-MM')
-      const monthLabel = format(addMonths(today, i), 'MMM/yy')
+    for (let i = 0; i < projectionMonths; i++) {
+      const monthStart = addMonths(today, i)
+      const monthEnd = endOfMonth(monthStart)
+      const monthKey = format(monthStart, 'yyyy-MM')
+      const monthLabel = format(monthStart, 'MMM/yy')
       
-      const incomeMonth = incomesByMonth.find(m => m.month === month)
-      const expenseMonth = expensesByMonth.find(m => m.month === month)
+      // Buscar dados reais do mês (MESMA LÓGICA)
+      const monthStartStr = format(startOfMonth(monthStart), 'yyyy-MM-dd')
+      const monthEndStr = format(monthEnd, 'yyyy-MM-dd')
       
-      chartData.push({
+      // Receitas do mês (separar pagas e não pagas)
+      const monthIncomesPaid = incomes.filter(i => 
+        i.income_date >= monthStartStr && i.income_date <= monthEndStr && i.is_paid
+      ).reduce((sum, i) => sum + Number(i.amount), 0)
+      
+      const monthIncomesUnpaid = incomes.filter(i => 
+        i.income_date >= monthStartStr && i.income_date <= monthEndStr && !i.is_paid
+      ).reduce((sum, i) => sum + Number(i.amount), 0)
+      
+      const monthIncomes = monthIncomesPaid + monthIncomesUnpaid
+      
+      // Despesas do mês (separar pagas e não pagas, filtrar apenas parcelas de cartão)
+      const monthExpensesPaid = expenses.filter(e => 
+        e.expense_date >= monthStartStr && e.expense_date <= monthEndStr &&
+        (!e.is_credit_card || e.is_installment) && e.is_paid
+      ).reduce((sum, e) => sum + Number(e.amount), 0)
+      
+      const monthExpensesUnpaid = expenses.filter(e => 
+        e.expense_date >= monthStartStr && e.expense_date <= monthEndStr &&
+        (!e.is_credit_card || e.is_installment) && !e.is_paid
+      ).reduce((sum, e) => sum + Number(e.amount), 0)
+      
+      const monthExpenses = monthExpensesPaid + monthExpensesUnpaid
+      
+      // Investimentos do mês
+      const monthInvestments = investments.filter(inv => 
+        inv.investment_date >= monthStartStr && inv.investment_date <= monthEndStr
+      ).reduce((sum, inv) => sum + Number(inv.initial_amount), 0)
+      
+      // Calcular recorrências para este mês específico
+      const futureIncomes = calculateFutureOccurrences(
+        incomes.filter(i => i.is_recurring),
+        projectionMonths + 6
+      ).filter(occ => {
+        const occMonth = format(occ.date, 'yyyy-MM')
+        return occMonth === monthKey
+      }).reduce((sum, occ) => sum + occ.amount, 0)
+      
+      const futureExpenses = calculateFutureOccurrences(
+        expenses.filter(e => e.is_recurring),
+        projectionMonths + 6
+      ).filter(occ => {
+        const occMonth = format(occ.date, 'yyyy-MM')
+        return occMonth === monthKey
+      }).reduce((sum, occ) => sum + occ.amount, 0)
+
+      // Lógica de projeção (MESMA DO FutureProjectionsWidget)
+      let projectedIncomes = monthIncomes
+      let projectedExpenses = monthExpenses
+      let projectedInvestments = monthInvestments
+
+      // Se é mês futuro, adicionar recorrências
+      if (monthStart > today) {
+        if (futureIncomes > 0) {
+          projectedIncomes += futureIncomes
+        }
+        
+        if (futureExpenses > 0) {
+          projectedExpenses += futureExpenses
+        }
+
+        // Se não há dados reais, adicionar também média histórica
+        if (monthIncomes === 0 && monthExpenses === 0) {
+          const sixMonthsAgo = addMonths(today, -6)
+          
+          const historicalIncomesPaid = incomes.filter(i => 
+            new Date(i.income_date) >= sixMonthsAgo && 
+            new Date(i.income_date) <= today &&
+            !i.is_recurring && i.is_paid
+          )
+          const avgHistoricalIncomesPaid = historicalIncomesPaid.length > 0 
+            ? historicalIncomesPaid.reduce((sum, i) => sum + Number(i.amount), 0) / 6 
+            : 0
+          
+          const historicalIncomesUnpaid = incomes.filter(i => 
+            new Date(i.income_date) >= sixMonthsAgo && 
+            new Date(i.income_date) <= today &&
+            !i.is_recurring && !i.is_paid
+          )
+          const avgHistoricalIncomesUnpaid = historicalIncomesUnpaid.length > 0 
+            ? historicalIncomesUnpaid.reduce((sum, i) => sum + Number(i.amount), 0) / 6 
+            : 0
+          
+          const historicalExpensesPaid = expenses.filter(e => 
+            new Date(e.expense_date) >= sixMonthsAgo && 
+            new Date(e.expense_date) <= today &&
+            !e.is_recurring && e.is_paid &&
+            (!e.is_credit_card || e.is_installment)
+          )
+          const avgHistoricalExpensesPaid = historicalExpensesPaid.length > 0 
+            ? historicalExpensesPaid.reduce((sum, e) => sum + Number(e.amount), 0) / 6 
+            : 0
+          
+          const historicalExpensesUnpaid = expenses.filter(e => 
+            new Date(e.expense_date) >= sixMonthsAgo && 
+            new Date(e.expense_date) <= today &&
+            !e.is_recurring && !e.is_paid &&
+            (!e.is_credit_card || e.is_installment)
+          )
+          const avgHistoricalExpensesUnpaid = historicalExpensesUnpaid.length > 0 
+            ? historicalExpensesUnpaid.reduce((sum, e) => sum + Number(e.amount), 0) / 6 
+            : 0
+
+          const historicalInvestments = investments.filter(inv => 
+            new Date(inv.investment_date) >= sixMonthsAgo && 
+            new Date(inv.investment_date) <= today &&
+            !inv.is_recurring
+          )
+          const avgHistoricalInvestments = historicalInvestments.length > 0
+            ? historicalInvestments.reduce((sum, inv) => sum + Number(inv.initial_amount), 0) / 6
+            : 0
+          
+          // Adicionar média histórica apenas se não há dados reais
+          projectedIncomes += avgHistoricalIncomesPaid + avgHistoricalIncomesUnpaid
+          projectedExpenses += avgHistoricalExpensesPaid + avgHistoricalExpensesUnpaid
+          projectedInvestments += avgHistoricalInvestments
+        }
+      }
+      
+      // CORRIGIDO: Saldo = Receitas - Despesas (SEM subtrair investimentos)
+      const monthBalance = projectedIncomes - projectedExpenses
+      
+      projectedMonths.push({
         month: monthLabel,
-        receitas: incomeMonth?.total || 0,
-        despesas: expenseMonth?.total || 0,
-        saldo: (incomeMonth?.total || 0) - (expenseMonth?.total || 0),
+        incomes: projectedIncomes,
+        expenses: projectedExpenses,
+        investments: projectedInvestments,
+        balance: monthBalance,
       })
     }
 
-    return chartData
-  }, [expenses, investments, incomes])
+    // Calcular saldo acumulado (cada mês soma apenas com o mês anterior)
+    projectedMonths.forEach((month, index) => {
+      if (index === 0) {
+        month.accumulatedBalance = month.balance
+      } else {
+        const previousAccumulated = projectedMonths[index - 1].accumulatedBalance
+        month.accumulatedBalance = month.balance + previousAccumulated
+      }
+    })
+
+    return projectedMonths
+  }, [expenses, investments, incomes, projectionMonths, mounted])
 
   if (loading || !mounted) {
     return (
@@ -79,7 +204,7 @@ export default function ProjectionChartWidget({ expenses, investments, incomes, 
     )
   }
 
-  if (projectionData.every(item => item.receitas === 0 && item.despesas === 0)) {
+  if (projectionData.every(item => item.incomes === 0 && item.expenses === 0)) {
     return (
       <div className="fintech-card p-4 sm:p-6 rounded-2xl">
         <h3 className="text-lg font-semibold fintech-text-primary mb-4">📈 Projeção: Receitas x Despesas</h3>
@@ -97,7 +222,7 @@ export default function ProjectionChartWidget({ expenses, investments, incomes, 
       <div className="flex items-center justify-between mb-6">
         <div>
           <h3 className="text-lg font-semibold fintech-text-primary">📈 Projeção: Receitas x Despesas</h3>
-          <p className="text-sm fintech-text-muted mt-1">Próximos 6 meses baseado em recorrências</p>
+          <p className="text-sm fintech-text-muted mt-1">Próximos 6 meses - mesmos dados do widget "Projeções Futuras"</p>
         </div>
       </div>
       
@@ -131,7 +256,7 @@ export default function ProjectionChartWidget({ expenses, investments, incomes, 
           />
           <Line 
             type="monotone" 
-            dataKey="receitas" 
+            dataKey="incomes" 
             stroke="#10b981" 
             strokeWidth={3}
             name="Receitas"
@@ -140,7 +265,7 @@ export default function ProjectionChartWidget({ expenses, investments, incomes, 
           />
           <Line 
             type="monotone" 
-            dataKey="despesas" 
+            dataKey="expenses" 
             stroke="#ef4444" 
             strokeWidth={3}
             name="Despesas"
@@ -149,12 +274,12 @@ export default function ProjectionChartWidget({ expenses, investments, incomes, 
           />
           <Line 
             type="monotone" 
-            dataKey="saldo" 
+            dataKey="accumulatedBalance" 
             stroke="#3b82f6" 
-            strokeWidth={2}
-            strokeDasharray="5 5"
-            name="Saldo"
-            dot={{ fill: '#3b82f6', r: 3 }}
+            strokeWidth={3}
+            name="Saldo Acumulado"
+            dot={{ fill: '#3b82f6', r: 4 }}
+            activeDot={{ r: 6 }}
           />
         </LineChart>
       </ResponsiveContainer>

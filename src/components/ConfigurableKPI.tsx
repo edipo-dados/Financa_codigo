@@ -15,20 +15,29 @@ export default function ConfigurableKPI({ title, currentValue, storageKey, icon,
   const [limit, setLimit] = useState<number>(0)
   const [isEditing, setIsEditing] = useState(false)
   const [tempLimit, setTempLimit] = useState('')
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
-    // Carregar limite do localStorage
-    const saved = localStorage.getItem(storageKey)
-    if (saved) {
-      setLimit(parseFloat(saved))
+    setMounted(true)
+  }, [])
+
+  useEffect(() => {
+    if (mounted) {
+      // Carregar limite do localStorage
+      const saved = localStorage.getItem(storageKey)
+      if (saved) {
+        setLimit(parseFloat(saved))
+      }
     }
-  }, [storageKey])
+  }, [storageKey, mounted])
 
   const handleSave = () => {
     const newLimit = parseFloat(tempLimit)
     if (!isNaN(newLimit) && newLimit > 0) {
       setLimit(newLimit)
-      localStorage.setItem(storageKey, newLimit.toString())
+      if (mounted) {
+        localStorage.setItem(storageKey, newLimit.toString())
+      }
       setIsEditing(false)
       setTempLimit('')
     }
@@ -55,6 +64,18 @@ export default function ConfigurableKPI({ title, currentValue, storageKey, icon,
     blue: 'text-apple-blue',
     green: 'text-apple-green',
     orange: 'text-apple-orange',
+  }
+
+  if (!mounted) {
+    return (
+      <div className="glass-card p-6 rounded-3xl">
+        <div className="animate-pulse">
+          <div className="h-12 w-12 bg-gray-200 dark:bg-fintech-dark-elevated rounded-xl mb-4"></div>
+          <div className="h-4 bg-gray-200 dark:bg-fintech-dark-elevated rounded mb-2 w-1/2"></div>
+          <div className="h-8 bg-gray-200 dark:bg-fintech-dark-elevated rounded w-3/4"></div>
+        </div>
+      </div>
+    )
   }
 
   return (

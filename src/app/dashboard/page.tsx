@@ -188,15 +188,27 @@ export default function Dashboard() {
           )}
 
           {activeTab === 'incomes' && (
-            <IncomesList userId={user.id} />
+            <IncomesList 
+              userId={user.id} 
+              startDate={currentPeriod.startDate}
+              endDate={currentPeriod.endDate}
+            />
           )}
 
           {activeTab === 'expenses' && (
-            <ExpensesList userId={user.id} />
+            <ExpensesList 
+              userId={user.id}
+              startDate={currentPeriod.startDate}
+              endDate={currentPeriod.endDate}
+            />
           )}
 
           {activeTab === 'investments' && (
-            <InvestmentsList userId={user.id} />
+            <InvestmentsList 
+              userId={user.id}
+              startDate={currentPeriod.startDate}
+              endDate={currentPeriod.endDate}
+            />
           )}
 
           {activeTab === 'future' && (
