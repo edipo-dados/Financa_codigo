@@ -245,6 +245,37 @@ export default function ExpenseForm({ userId, onSuccess, onRefresh }: Props) {
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        {/* Forma de Pagamento - PRIMEIRO CAMPO */}
+        <div className="md:col-span-2">
+          <label className="block text-sm font-medium text-apple-gray-600 mb-2">
+            Forma de Pagamento *
+          </label>
+          <select
+            value={formData.payment_method}
+            onChange={(e) => {
+              const isCreditCard = e.target.value === 'credit_card'
+              setFormData({ 
+                ...formData, 
+                payment_method: e.target.value,
+                is_credit_card: isCreditCard,
+                is_recurring: isCreditCard ? false : formData.is_recurring
+              })
+            }}
+            className="input-field"
+            required
+          >
+            <option value="cash">Dinheiro</option>
+            <option value="debit">Débito</option>
+            <option value="credit_card">Cartão de Crédito</option>
+            <option value="pix">PIX</option>
+            <option value="transfer">Transferência</option>
+          </select>
+          <p className="text-xs text-apple-gray-500 mt-1">
+            ⚠️ Selecione primeiro a forma de pagamento - ela altera os campos do formulário
+          </p>
+        </div>
+
+        {/* Valor - condicionado pela forma de pagamento */}
         {!formData.is_credit_card && (
           <div>
             <label className="block text-sm font-medium text-apple-gray-600 mb-2">
@@ -273,35 +304,6 @@ export default function ExpenseForm({ userId, onSuccess, onRefresh }: Props) {
             className="input-field"
             required
           />
-        </div>
-
-        <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-apple-gray-600 mb-2">
-            Forma de Pagamento *
-          </label>
-          <select
-            value={formData.payment_method}
-            onChange={(e) => {
-              const isCreditCard = e.target.value === 'credit_card'
-              setFormData({ 
-                ...formData, 
-                payment_method: e.target.value,
-                is_credit_card: isCreditCard,
-                is_recurring: isCreditCard ? false : formData.is_recurring
-              })
-            }}
-            className="input-field"
-            required
-          >
-            <option value="cash">Dinheiro</option>
-            <option value="debit">Débito</option>
-            <option value="credit_card">Cartão de Crédito</option>
-            <option value="pix">PIX</option>
-            <option value="transfer">Transferência</option>
-          </select>
-          <p className="text-xs text-apple-gray-500 mt-1">
-            ⚠️ Selecione primeiro a forma de pagamento - ela altera os campos do formulário
-          </p>
         </div>
 
         <div className="md:col-span-2">
