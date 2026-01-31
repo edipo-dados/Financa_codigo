@@ -173,6 +173,43 @@ export default function Dashboard() {
                   )}
                 </div>
               </div>
+
+              {/* Botões de Acesso Rápido - Apenas Mobile */}
+              <div className="md:hidden">
+                <div className="glass-card p-4 rounded-2xl">
+                  <h3 className="text-sm font-medium text-apple-gray-700 mb-3 flex items-center gap-2">
+                    <span>⚡</span>
+                    Acesso Rápido
+                  </h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      onClick={() => setActiveTab('expenses')}
+                      className="flex items-center gap-3 p-4 bg-gradient-to-r from-red-50 to-pink-50 hover:from-red-100 hover:to-pink-100 rounded-xl border border-red-200 transition-all duration-200 active:scale-95"
+                    >
+                      <div className="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center text-white text-lg">
+                        💸
+                      </div>
+                      <div className="text-left">
+                        <p className="font-semibold text-red-700 text-sm">Nova Despesa</p>
+                        <p className="text-xs text-red-600">Adicionar gasto</p>
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => setActiveTab('incomes')}
+                      className="flex items-center gap-3 p-4 bg-gradient-to-r from-green-50 to-emerald-50 hover:from-green-100 hover:to-emerald-100 rounded-xl border border-green-200 transition-all duration-200 active:scale-95"
+                    >
+                      <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-white text-lg">
+                        💰
+                      </div>
+                      <div className="text-left">
+                        <p className="font-semibold text-green-700 text-sm">Nova Receita</p>
+                        <p className="text-xs text-green-600">Adicionar entrada</p>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              </div>
               
               <DraggableDashboard
                 expenses={filteredExpenses}
