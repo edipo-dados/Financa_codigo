@@ -38,3 +38,26 @@ export function calculatePercentageChange(current: number, previous: number): nu
   if (previous === 0) return current > 0 ? 100 : 0
   return ((current - previous) / previous) * 100
 }
+
+export function isItemDue(itemDate: string): boolean {
+  const today = new Date()
+  const item = parseISO(itemDate)
+  
+  // Remove a parte do tempo para comparar apenas as datas
+  today.setHours(0, 0, 0, 0)
+  item.setHours(0, 0, 0, 0)
+  
+  // Item está vencido se a data é hoje ou anterior
+  return item <= today
+}
+
+export function getPaymentStatus(item: { is_paid: boolean; expense_date?: string; income_date?: string }): 'paid' | 'pending' | 'future' {
+  const itemDate = item.expense_date || item.income_date
+  
+  if (!itemDate) return item.is_paid ? 'paid' : 'pending'
+  
+  if (item.is_paid) return 'paid'
+  
+  // Se não está pago, verificar se já venceu
+  return isItemDue(itemDate) ? 'pending' : 'future'
+}

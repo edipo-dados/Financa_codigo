@@ -2,7 +2,7 @@
 
 import { useMemo, useEffect, useState } from 'react'
 import { Expense, Investment, Income } from '@/types'
-import { formatCurrency, getCurrentMonthRange } from '@/lib/utils'
+import { formatCurrency, getCurrentMonthRange, getPaymentStatus } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 
 interface Props {
@@ -75,28 +75,39 @@ export default function PaymentStatusWidget({ expenses, incomes, loading, startD
     // Usar dados específicos do período
     const { periodExpenses, periodIncomes } = periodData
     
-    // Calcular despesas e receitas pagas vs a pagar
+    // Calcular despesas com status correto baseado na data
     const expensesPaid = periodExpenses
-      .filter(e => e.is_paid)
+      .filter(e => getPaymentStatus(e) === 'paid')
       .reduce((sum, e) => sum + Number(e.amount), 0)
     
     const expensesToPay = periodExpenses
-      .filter(e => !e.is_paid)
+      .filter(e => getPaymentStatus(e) === 'pending')
       .reduce((sum, e) => sum + Number(e.amount), 0)
 
+    const expensesFuture = periodExpenses
+      .filter(e => getPaymentStatus(e) === 'future')
+      .reduce((sum, e) => sum + Number(e.amount), 0)
+
+    // Calcular receitas com status correto baseado na data
     const incomesPaid = periodIncomes
-      .filter(i => i.is_paid)
+      .filter(i => getPaymentStatus(i) === 'paid')
       .reduce((sum, i) => sum + Number(i.amount), 0)
     
     const incomesToReceive = periodIncomes
-      .filter(i => !i.is_paid)
+      .filter(i => getPaymentStatus(i) === 'pending')
+      .reduce((sum, i) => sum + Number(i.amount), 0)
+
+    const incomesFuture = periodIncomes
+      .filter(i => getPaymentStatus(i) === 'future')
       .reduce((sum, i) => sum + Number(i.amount), 0)
 
     return {
       expensesPaid,
       expensesToPay,
+      expensesFuture,
       incomesPaid,
       incomesToReceive,
+      incomesFuture,
       totalExpenses: periodExpenses.length,
       totalIncomes: periodIncomes.length,
     }
@@ -135,7 +146,7 @@ export default function PaymentStatusWidget({ expenses, incomes, loading, startD
         </div>
       )}
       
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
         <div className="bg-white/50 dark:bg-fintech-dark-surface/50 p-3 sm:p-4 rounded-xl hover:bg-white dark:hover:bg-fintech-dark-surface transition-colors">
           <div className="flex items-center justify-between mb-2">
             <h4 className="text-xs sm:text-sm font-medium fintech-text-muted">Despesas Pagas</h4>
@@ -148,11 +159,21 @@ export default function PaymentStatusWidget({ expenses, incomes, loading, startD
 
         <div className="bg-white/50 dark:bg-fintech-dark-surface/50 p-3 sm:p-4 rounded-xl hover:bg-white dark:hover:bg-fintech-dark-surface transition-colors">
           <div className="flex items-center justify-between mb-2">
-            <h4 className="text-xs sm:text-sm font-medium fintech-text-muted">Despesas A Pagar</h4>
+            <h4 className="text-xs sm:text-sm font-medium fintech-text-muted">Despesas Vencidas</h4>
             <span className="text-lg sm:text-xl">⏳</span>
           </div>
-          <p className="text-lg sm:text-xl font-bold text-orange-600 dark:text-orange-400">
+          <p className="text-lg sm:text-xl font-bold text-red-600 dark:text-red-400">
             {formatCurrency(stats.expensesToPay)}
+          </p>
+        </div>
+
+        <div className="bg-white/50 dark:bg-fintech-dark-surface/50 p-3 sm:p-4 rounded-xl hover:bg-white dark:hover:bg-fintech-dark-surface transition-colors">
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="text-xs sm:text-sm font-medium fintech-text-muted">Despesas Futuras</h4>
+            <span className="text-lg sm:text-xl">📅</span>
+          </div>
+          <p className="text-lg sm:text-xl font-bold text-blue-600 dark:text-blue-400">
+            {formatCurrency(stats.expensesFuture)}
           </p>
         </div>
 
@@ -168,11 +189,21 @@ export default function PaymentStatusWidget({ expenses, incomes, loading, startD
 
         <div className="bg-white/50 dark:bg-fintech-dark-surface/50 p-3 sm:p-4 rounded-xl hover:bg-white dark:hover:bg-fintech-dark-surface transition-colors">
           <div className="flex items-center justify-between mb-2">
-            <h4 className="text-xs sm:text-sm font-medium fintech-text-muted">Receitas A Receber</h4>
+            <h4 className="text-xs sm:text-sm font-medium fintech-text-muted">Receitas Vencidas</h4>
             <span className="text-lg sm:text-xl">⏳</span>
           </div>
-          <p className="text-lg sm:text-xl font-bold text-orange-600 dark:text-orange-400">
+          <p className="text-lg sm:text-xl font-bold text-red-600 dark:text-red-400">
             {formatCurrency(stats.incomesToReceive)}
+          </p>
+        </div>
+
+        <div className="bg-white/50 dark:bg-fintech-dark-surface/50 p-3 sm:p-4 rounded-xl hover:bg-white dark:hover:bg-fintech-dark-surface transition-colors">
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="text-xs sm:text-sm font-medium fintech-text-muted">Receitas Futuras</h4>
+            <span className="text-lg sm:text-xl">📅</span>
+          </div>
+          <p className="text-lg sm:text-xl font-bold text-blue-600 dark:text-blue-400">
+            {formatCurrency(stats.incomesFuture)}
           </p>
         </div>
       </div>
