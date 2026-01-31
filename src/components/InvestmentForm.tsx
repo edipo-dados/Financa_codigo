@@ -182,7 +182,7 @@ export default function InvestmentForm({ userId, onSuccess, onRefresh }: Props) 
             <option value="">Selecione um membro (opcional)</option>
             {members.map((member) => (
               <option key={member.id} value={member.id}>
-                <span style={{ color: member.color }}>●</span> {member.name}
+                ● {member.name}
                 {member.relationship && ` (${member.relationship})`}
               </option>
             ))}

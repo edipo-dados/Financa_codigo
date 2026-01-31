@@ -90,9 +90,6 @@ export default function CurrentBalanceWidget({ expenses, investments, incomes, l
     // CORRIGIDO: Saldo líquido = Receitas - Despesas (SEM subtrair investimentos)
     // Investimentos não devem ser subtraídos do saldo líquido, pois são patrimônio
     const currentBalance = totalIncomes - totalExpenses
-    
-    // Patrimônio total = Saldo líquido + Valor atual dos investimentos
-    const totalWealth = currentBalance + totalInvestmentValue
 
     return {
       totalIncomes,
@@ -100,7 +97,6 @@ export default function CurrentBalanceWidget({ expenses, investments, incomes, l
       totalInvestments, // Valor investido (initial_amount)
       totalInvestmentValue, // Valor atual dos investimentos
       currentBalance, // Saldo líquido em conta (receitas - despesas)
-      totalWealth, // Patrimônio total
       expenseCount: allExpenses.length,
       incomeCount: allIncomes.length,
       investmentCount: allInvestments.length
@@ -141,24 +137,6 @@ export default function CurrentBalanceWidget({ expenses, investments, incomes, l
             : 'text-red-600 dark:text-red-400'
         }`}>
           {balanceData.currentBalance >= 0 ? '+' : ''}{formatCurrency(balanceData.currentBalance)}
-        </p>
-      </div>
-
-      {/* Patrimônio Total */}
-      <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 p-4 rounded-xl mb-4 border border-green-200 dark:border-green-800">
-        <div className="flex items-center justify-between mb-2">
-          <h4 className="text-base font-semibold text-green-800 dark:text-green-300">Patrimônio Total</h4>
-          <span className="text-xl">🏦</span>
-        </div>
-        <p className="text-xs text-green-600 dark:text-green-400 mb-2">
-          Saldo em conta + Valor atual dos investimentos
-        </p>
-        <p className={`text-2xl font-bold ${
-          balanceData.totalWealth >= 0 
-            ? 'text-green-600 dark:text-green-400' 
-            : 'text-red-600 dark:text-red-400'
-        }`}>
-          {balanceData.totalWealth >= 0 ? '+' : ''}{formatCurrency(balanceData.totalWealth)}
         </p>
       </div>
 
