@@ -2,6 +2,7 @@
 
 import { format, addMonths, subMonths, startOfMonth, endOfMonth } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import { useState, useEffect } from 'react'
 
 interface Props {
   currentMonth: Date
@@ -9,6 +10,12 @@ interface Props {
 }
 
 export default function MonthNavigator({ currentMonth, onMonthChange }: Props) {
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
   const handlePrevMonth = () => {
     onMonthChange(subMonths(currentMonth, 1))
   }
@@ -21,7 +28,22 @@ export default function MonthNavigator({ currentMonth, onMonthChange }: Props) {
     onMonthChange(new Date())
   }
 
-  const isCurrentMonth = format(currentMonth, 'yyyy-MM') === format(new Date(), 'yyyy-MM')
+  const isCurrentMonth = mounted ? format(currentMonth, 'yyyy-MM') === format(new Date(), 'yyyy-MM') : false
+
+  if (!mounted) {
+    return (
+      <div className="glass-card p-4 rounded-3xl">
+        <div className="animate-pulse flex items-center justify-between">
+          <div className="w-10 h-10 bg-gray-200 dark:bg-fintech-dark-elevated rounded-xl"></div>
+          <div className="text-center">
+            <div className="h-8 bg-gray-200 dark:bg-fintech-dark-elevated rounded mb-2 w-48"></div>
+            <div className="h-4 bg-gray-200 dark:bg-fintech-dark-elevated rounded w-32"></div>
+          </div>
+          <div className="w-10 h-10 bg-gray-200 dark:bg-fintech-dark-elevated rounded-xl"></div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="glass-card p-4 rounded-3xl flex items-center justify-between">

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Income, Investment } from '@/types'
 import { formatCurrency } from '@/lib/utils'
 import { format, startOfYear, endOfYear } from 'date-fns'
@@ -13,8 +13,15 @@ interface Props {
 }
 
 export default function IncomeReport({ incomes, investments, userId }: Props) {
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
+  const [selectedYear, setSelectedYear] = useState<number | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  // Inicializar após montagem para evitar hidratação
+  useEffect(() => {
+    setSelectedYear(new Date().getFullYear())
+    setMounted(true)
+  }, [])
 
   // Obter anos disponíveis dos dados
   const availableYears = Array.from(new Set([
@@ -22,6 +29,17 @@ export default function IncomeReport({ incomes, investments, userId }: Props) {
     ...investments.map(inv => new Date(inv.investment_date).getFullYear()),
     new Date().getFullYear()
   ])).sort((a, b) => b - a)
+
+  if (!mounted || selectedYear === null) {
+    return (
+      <div className="glass-card p-6 rounded-3xl">
+        <div className="animate-pulse">
+          <div className="h-6 bg-gray-200 rounded mb-4 w-1/3"></div>
+          <div className="h-10 bg-gray-200 rounded"></div>
+        </div>
+      </div>
+    )
+  }
 
   const generateReport = () => {
     setIsGenerating(true)

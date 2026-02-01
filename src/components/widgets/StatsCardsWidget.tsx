@@ -4,6 +4,7 @@ import { useMemo, useEffect, useState } from 'react'
 import { Expense, Investment, Income } from '@/types'
 import { formatCurrency, getCurrentMonthRange } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
+import { format } from 'date-fns'
 
 interface Props {
   expenses: Expense[]
@@ -19,10 +20,12 @@ export default function StatsCardsWidget({ expenses, investments, incomes, loadi
     periodExpenses: Expense[]
     periodInvestments: Investment[]
     periodIncomes: Income[]
+    previousMonthBalance: number
   }>({
     periodExpenses: [],
     periodInvestments: [],
-    periodIncomes: []
+    periodIncomes: [],
+    previousMonthBalance: 0
   })
   const [dataLoading, setDataLoading] = useState(true)
   const [mounted, setMounted] = useState(false)
@@ -39,13 +42,17 @@ export default function StatsCardsWidget({ expenses, investments, incomes, loadi
         const start = startDate || getCurrentMonthRange().start
         const end = endDate || getCurrentMonthRange().end
 
-        const [expensesRes, investmentsRes, incomesRes] = await Promise.all([
+        // Calcular saldo acumulado até o mês anterior (não apenas do mês anterior)
+        const currentDate = new Date(start)
+        const previousMonthEnd = format(new Date(currentDate.getFullYear(), currentDate.getMonth(), 0), 'yyyy-MM-dd')
+
+        const [expensesRes, investmentsRes, incomesRes, prevExpensesRes, prevIncomesRes] = await Promise.all([
           supabase
             .from('expenses')
             .select('*, category:expense_categories(*), credit_card:credit_cards(*), member:family_members(*)')
             .gte('expense_date', start)
-            .lte('expense_date', end)
-            .eq('is_paid', true), // Apenas despesas pagas (mesma lógica do saldo líquido)
+            .lte('expense_date', end),
+            // REMOVIDO: .eq('is_paid', true) - Para projeções, considerar todas as despesas
           
           supabase
             .from('investments')
@@ -57,14 +64,34 @@ export default function StatsCardsWidget({ expenses, investments, incomes, loadi
             .from('incomes')
             .select('*, category:income_categories(*), member:family_members(*)')
             .gte('income_date', start)
-            .lte('income_date', end)
-            .eq('is_paid', true) // Apenas receitas recebidas (mesma lógica do saldo líquido)
+            .lte('income_date', end),
+            // REMOVIDO: .eq('is_paid', true) - Para projeções, considerar todas as receitas
+
+          // Buscar TODAS as despesas até o final do mês anterior (saldo acumulado)
+          supabase
+            .from('expenses')
+            .select('amount')
+            .lte('expense_date', previousMonthEnd)
+            .eq('is_paid', true), // Para saldo acumulado anterior, manter apenas pagas
+
+          // Buscar TODAS as receitas até o final do mês anterior (saldo acumulado)
+          supabase
+            .from('incomes')
+            .select('amount')
+            .lte('income_date', previousMonthEnd)
+            .eq('is_paid', true) // Para saldo acumulado anterior, manter apenas recebidas
         ])
+
+        // Calcular saldo acumulado até o mês anterior
+        const accumulatedIncomes = (prevIncomesRes.data || []).reduce((sum, i: any) => sum + Number(i.amount), 0)
+        const accumulatedExpenses = (prevExpensesRes.data || []).reduce((sum, e: any) => sum + Number(e.amount), 0)
+        const accumulatedBalance = accumulatedIncomes - accumulatedExpenses
 
         setPeriodData({
           periodExpenses: expensesRes.data || [],
           periodInvestments: investmentsRes.data || [],
-          periodIncomes: incomesRes.data || []
+          periodIncomes: incomesRes.data || [],
+          previousMonthBalance: accumulatedBalance
         })
       } catch (error) {
         console.error('Erro ao buscar dados do período:', error)
@@ -77,11 +104,17 @@ export default function StatsCardsWidget({ expenses, investments, incomes, loadi
   }, [startDate, endDate])
 
   const stats = useMemo(() => {
-    const { periodExpenses, periodInvestments, periodIncomes } = periodData
+    const { periodExpenses, periodInvestments, periodIncomes, previousMonthBalance } = periodData
     
-    // MESMA LÓGICA DO SALDO LÍQUIDO: Incluir TODAS as despesas (não filtrar parent de cartão)
-    const monthlyExpenses = periodExpenses.reduce((sum, e) => sum + Number(e.amount), 0)
-    const monthlyIncomes = periodIncomes.reduce((sum, i) => sum + Number(i.amount), 0)
+    // Separar despesas pagas e não pagas para melhor visibilidade
+    const paidExpenses = periodExpenses.filter(e => e.is_paid).reduce((sum, e) => sum + Number(e.amount), 0)
+    const unpaidExpenses = periodExpenses.filter(e => !e.is_paid).reduce((sum, e) => sum + Number(e.amount), 0)
+    const monthlyExpenses = paidExpenses + unpaidExpenses
+    
+    // Separar receitas recebidas e a receber para melhor visibilidade
+    const receivedIncomes = periodIncomes.filter(i => i.is_paid).reduce((sum, i) => sum + Number(i.amount), 0)
+    const pendingIncomes = periodIncomes.filter(i => !i.is_paid).reduce((sum, i) => sum + Number(i.amount), 0)
+    const monthlyIncomes = receivedIncomes + pendingIncomes
     
     // Para investimentos do período, usar initial_amount (valor investido)
     const monthlyInvestments = periodInvestments.reduce((sum, inv) => sum + Number(inv.initial_amount), 0)
@@ -89,14 +122,23 @@ export default function StatsCardsWidget({ expenses, investments, incomes, loadi
     // Saldo do mês = Receitas - Despesas (SEM subtrair investimentos)
     const monthlyBalance = monthlyIncomes - monthlyExpenses
 
+    // NOVO: Saldo acumulado = Saldo do período + Saldo do mês anterior
+    const cumulativeBalance = monthlyBalance + previousMonthBalance
+
     return {
       monthlyExpenses,
       monthlyIncomes,
       monthlyBalance,
+      cumulativeBalance, // Novo campo para saldo acumulado
       monthlyInvestments, // Valor investido no período
       expenseCount: periodExpenses.length,
       incomeCount: periodIncomes.length,
-      investmentCount: periodInvestments.length
+      investmentCount: periodInvestments.length,
+      previousMonthBalance, // Para exibir informação adicional
+      paidExpenses,
+      unpaidExpenses,
+      receivedIncomes,
+      pendingIncomes
     }
   }, [periodData])
 
@@ -124,21 +166,21 @@ export default function StatsCardsWidget({ expenses, investments, incomes, loadi
           value={formatCurrency(stats.monthlyIncomes)}
           icon="💰"
           color="green"
-          subtitle={`${stats.incomeCount} receita(s) recebida(s)`}
+          subtitle={`✓${formatCurrency(stats.receivedIncomes)} | ⏳${formatCurrency(stats.pendingIncomes)}`}
         />
         <StatCard
           title="Despesas do Período"
           value={formatCurrency(stats.monthlyExpenses)}
           icon="💸"
           color="red"
-          subtitle={`${stats.expenseCount} despesa(s) paga(s)`}
+          subtitle={`✓${formatCurrency(stats.paidExpenses)} | ⏳${formatCurrency(stats.unpaidExpenses)}`}
         />
         <StatCard
-          title="Saldo do Período"
-          value={formatCurrency(stats.monthlyBalance)}
+          title="Saldo Líquido"
+          value={formatCurrency(stats.cumulativeBalance)}
           icon="📊"
-          color={stats.monthlyBalance >= 0 ? 'green' : 'red'}
-          subtitle="Receitas - Despesas"
+          color={stats.cumulativeBalance >= 0 ? 'green' : 'red'}
+          subtitle={`Período: ${formatCurrency(stats.monthlyBalance)} + Acumulado anterior: ${formatCurrency(stats.previousMonthBalance)}`}
         />
         <StatCard
           title="Investido no Período"

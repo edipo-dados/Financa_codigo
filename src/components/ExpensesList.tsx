@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { useExpenses } from '@/hooks/useExpenses'
 import { useFamilyMembers } from '@/hooks/useFamilyMembers'
 import { formatCurrency, formatDate } from '@/lib/utils'
+import { parseISO } from 'date-fns'
 import { supabase } from '@/lib/supabase'
-import { calculateFutureOccurrences } from '@/lib/recurrence'
+import { calculateFutureOccurrences, generateRecurrenceOccurrences, RecurrenceEndType } from '@/lib/recurrence'
 import ExpenseForm from './ExpenseForm'
 import EditRecurrenceModal from './EditRecurrenceModal'
 import EditValueModal from './EditValueModal'
@@ -31,6 +32,9 @@ export default function ExpensesList({ userId, startDate, endDate }: Props) {
   const [selectedExpenses, setSelectedExpenses] = useState<Set<string>>(new Set())
   const [isSelectionMode, setIsSelectionMode] = useState(false)
   
+  // Estado para controlar quais faturas estão expandidas
+  const [expandedInvoices, setExpandedInvoices] = useState<Set<string>>(new Set())
+  
   // Estados dos filtros
   const [showFilters, setShowFilters] = useState(false)
   const [filters, setFilters] = useState({
@@ -42,12 +46,15 @@ export default function ExpensesList({ userId, startDate, endDate }: Props) {
     search: ''
   })
 
-  // Verificar se o período selecionado é futuro
+  // Verificar se o período selecionado é futuro (mais de 30 dias no futuro)
   const isFuturePeriod = useMemo(() => {
     if (!startDate) return false
     const today = new Date()
     const periodStart = new Date(startDate)
-    return periodStart > today
+    
+    // Considerar como futuro apenas se for mais de 30 dias no futuro
+    const diffInDays = (periodStart.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+    return diffInDays > 30
   }, [startDate])
 
   // Gerar despesas futuras baseadas em recorrências
@@ -105,10 +112,14 @@ export default function ExpensesList({ userId, startDate, endDate }: Props) {
 
   const [futureExpenses, setFutureExpenses] = useState<any[]>([])
 
-  // Filtrar para não mostrar despesas parent de cartão (apenas parcelas)
-  const displayExpenses = expenses.filter(e => 
-    !e.is_credit_card || e.is_installment
-  )
+  // Filtrar para não mostrar despesas parent de cartão (apenas parcelas), mas manter despesas normais
+  const displayExpenses = expenses.filter(e => {
+    // Se não é cartão de crédito, sempre mostrar
+    if (!e.is_credit_card) return true
+    
+    // Se é cartão de crédito, mostrar apenas as parcelas (não a compra parent)
+    return e.is_installment
+  })
 
   // Combinar despesas reais com futuras baseado no período
   const currentMonthExpenses = useMemo(() => {
@@ -116,19 +127,77 @@ export default function ExpensesList({ userId, startDate, endDate }: Props) {
       // Se é período futuro, mostrar apenas projeções
       return futureExpenses
     } else if (startDate && endDate) {
-      // Se tem período definido, filtrar por data
-      return displayExpenses.filter(expense => {
+      // Filtrar despesas pelo período selecionado
+      const periodExpenses = displayExpenses.filter(expense => {
         return expense.expense_date >= startDate && expense.expense_date <= endDate
       })
-    } else {
-      // Filtrar despesas para mostrar apenas as do mês atual ou anteriores
-      const currentDate = new Date()
-      return displayExpenses.filter(expense => {
-        const expenseDate = new Date(expense.expense_date)
-        return expenseDate <= currentDate
+      
+      // Gerar despesas recorrentes para o período atual se necessário
+      const recurringExpenses = expenses.filter(e => e.is_recurring && !e.is_installment)
+      const generatedExpenses: any[] = []
+      
+      recurringExpenses.forEach(recurringExpense => {
+        if (!recurringExpense.recurrence_start_date || !recurringExpense.recurrence_frequency) return
+        
+        const config = {
+          startDate: parseISO(recurringExpense.recurrence_start_date),
+          frequency: recurringExpense.recurrence_frequency,
+          endType: recurringExpense.recurrence_end_type || 'never' as RecurrenceEndType,
+          endDate: recurringExpense.recurrence_end_date ? parseISO(recurringExpense.recurrence_end_date) : undefined,
+          occurrences: recurringExpense.recurrence_count || undefined,
+        }
+        
+        // Gerar ocorrências para um período amplo
+        const occurrences = generateRecurrenceOccurrences(config, 24)
+        
+        // Filtrar apenas as ocorrências do período selecionado
+        const periodOccurrences = occurrences.filter(occ => {
+          const occDate = occ.date.toISOString().split('T')[0]
+          return occDate >= startDate && occDate <= endDate
+        })
+        
+        // Verificar se já existe uma despesa real para essas datas
+        periodOccurrences.forEach(occ => {
+          const occDate = occ.date.toISOString().split('T')[0]
+          const existingExpense = periodExpenses.find(expense => 
+            expense.expense_date === occDate && 
+            expense.description === recurringExpense.description &&
+            expense.amount === recurringExpense.amount &&
+            !expense.is_installment
+          )
+          
+          // Se não existe, criar uma ocorrência virtual
+          if (!existingExpense) {
+            generatedExpenses.push({
+              id: `recurring-${recurringExpense.id}-${occDate}`,
+              user_id: userId,
+              category_id: recurringExpense.category_id,
+              member_id: recurringExpense.member_id,
+              amount: recurringExpense.amount,
+              description: `${recurringExpense.description} (Recorrente)`,
+              expense_date: occDate,
+              payment_method: recurringExpense.payment_method,
+              is_recurring: true,
+              is_paid: false,
+              is_credit_card: false,
+              is_installment: false,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+              category: recurringExpense.category,
+              member: recurringExpense.member,
+              isRecurringOccurrence: true,
+              parentRecurringId: recurringExpense.id
+            })
+          }
+        })
       })
+      
+      return [...periodExpenses, ...generatedExpenses]
+    } else {
+      // Quando não há período específico, mostrar todas as despesas
+      return displayExpenses
     }
-  }, [displayExpenses, futureExpenses, isFuturePeriod, startDate, endDate])
+  }, [displayExpenses, futureExpenses, isFuturePeriod, startDate, endDate, expenses, userId])
 
   // Aplicar filtros
   const filteredExpenses = useMemo(() => {
@@ -153,6 +222,59 @@ export default function ExpensesList({ userId, startDate, endDate }: Props) {
       return true
     })
   }, [currentMonthExpenses, filters])
+
+  // Agrupar despesas de cartão por fatura
+  const groupedExpenses = useMemo(() => {
+    const creditCardExpenses = filteredExpenses.filter(e => e.is_credit_card && e.is_installment)
+    const normalExpenses = filteredExpenses.filter(e => !e.is_credit_card || !e.is_installment)
+    
+    // Agrupar parcelas de cartão por cartão e mês de vencimento
+    const creditCardGroups = new Map<string, {
+      cardId: string
+      cardName: string
+      cardColor?: string
+      month: string
+      monthLabel: string
+      expenses: any[]
+      totalAmount: number
+      allPaid: boolean
+      anyPaid: boolean
+    }>()
+    
+    creditCardExpenses.forEach(expense => {
+      if (!expense.credit_card) return
+      
+      const expenseDate = new Date(expense.expense_date)
+      const monthKey = `${expense.credit_card.id}-${expenseDate.getFullYear()}-${expenseDate.getMonth()}`
+      const monthLabel = expenseDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+      
+      if (!creditCardGroups.has(monthKey)) {
+        creditCardGroups.set(monthKey, {
+          cardId: expense.credit_card.id,
+          cardName: expense.credit_card.name,
+          cardColor: expense.credit_card.color,
+          month: monthKey,
+          monthLabel,
+          expenses: [],
+          totalAmount: 0,
+          allPaid: true,
+          anyPaid: false
+        })
+      }
+      
+      const group = creditCardGroups.get(monthKey)!
+      group.expenses.push(expense)
+      group.totalAmount += Number(expense.amount)
+      
+      if (!expense.is_paid) group.allPaid = false
+      if (expense.is_paid) group.anyPaid = true
+    })
+    
+    return {
+      normalExpenses,
+      creditCardGroups: Array.from(creditCardGroups.values()).sort((a, b) => a.monthLabel.localeCompare(b.monthLabel))
+    }
+  }, [filteredExpenses])
 
   // Obter categorias únicas
   const categories = useMemo(() => {
@@ -320,17 +442,130 @@ export default function ExpensesList({ userId, startDate, endDate }: Props) {
   }
 
   const togglePaid = async (expense: any) => {
-    const { error } = await supabase
-      .from('expenses')
-      // @ts-ignore
-      .update({ is_paid: !expense.is_paid })
-      .eq('id', expense.id)
-    
-    if (error) {
-      console.error('Error updating paid status:', error)
-      alert('Erro ao atualizar status: ' + error.message)
+    // Se é uma despesa recorrente gerada, criar uma despesa real
+    if (expense.isRecurringOccurrence) {
+      const parentExpense = expenses.find(e => e.id === expense.parentRecurringId)
+      if (!parentExpense) {
+        alert('Erro: despesa recorrente original não encontrada')
+        return
+      }
+      
+      // Criar uma despesa real baseada na recorrente
+      const newExpense = {
+        user_id: userId,
+        category_id: parentExpense.category_id,
+        member_id: parentExpense.member_id,
+        amount: parentExpense.amount,
+        description: parentExpense.description,
+        expense_date: expense.expense_date,
+        payment_method: parentExpense.payment_method,
+        is_recurring: false, // A ocorrência específica não é recorrente
+        is_paid: true, // Marcar como paga imediatamente
+        is_credit_card: false,
+        is_installment: false,
+        parent_expense_id: parentExpense.id
+      }
+      
+      const { error } = await supabase
+        .from('expenses')
+        .insert(newExpense as any)
+      
+      if (error) {
+        console.error('Error creating expense occurrence:', error)
+        alert('Erro ao criar despesa: ' + error.message)
+      } else {
+        refetch()
+      }
     } else {
-      refetch()
+      // Despesa normal - apenas atualizar status
+      const { error } = await supabase
+        .from('expenses')
+        // @ts-ignore
+        .update({ is_paid: !expense.is_paid })
+        .eq('id', expense.id)
+      
+      if (error) {
+        console.error('Error updating paid status:', error)
+        alert('Erro ao atualizar status: ' + error.message)
+      } else {
+        refetch()
+      }
+    }
+  }
+
+  // Função para pagar toda a fatura de um cartão
+  const payEntireInvoice = async (group: any) => {
+    const unpaidExpenses = group.expenses.filter((e: any) => !e.is_paid)
+    
+    if (unpaidExpenses.length === 0) {
+      alert('Todas as despesas desta fatura já estão pagas')
+      return
+    }
+    
+    const confirmMsg = `Deseja pagar toda a fatura do ${group.cardName} de ${group.monthLabel}?\n\nTotal: ${formatCurrency(group.totalAmount)}\nItens não pagos: ${unpaidExpenses.length}`
+    
+    if (!confirm(confirmMsg)) return
+    
+    try {
+      // Atualizar todas as despesas não pagas da fatura
+      const expenseIds = unpaidExpenses.map((e: any) => e.id)
+      
+      const { error } = await (supabase as any)
+        .from('expenses')
+        .update({ is_paid: true })
+        .in('id', expenseIds)
+      
+      if (error) {
+        console.error('Error paying invoice:', error)
+        alert('Erro ao pagar fatura: ' + error.message)
+      } else {
+        alert(`Fatura paga com sucesso! ${unpaidExpenses.length} itens marcados como pagos.`)
+        refetch()
+      }
+    } catch (error) {
+      console.error('Error in payEntireInvoice:', error)
+      alert('Erro ao pagar fatura')
+    }
+  }
+
+  // Função para alternar expansão da fatura
+  const toggleInvoiceExpansion = (invoiceKey: string) => {
+    const newExpanded = new Set(expandedInvoices)
+    if (newExpanded.has(invoiceKey)) {
+      newExpanded.delete(invoiceKey)
+    } else {
+      newExpanded.add(invoiceKey)
+    }
+    setExpandedInvoices(newExpanded)
+  }
+
+  // Função para alternar pagamento de toda a fatura
+  const toggleInvoicePayment = async (group: any) => {
+    const newStatus = !group.allPaid
+    const expenseIds = group.expenses.map((e: any) => e.id)
+    
+    const actionText = newStatus ? 'pagar' : 'desmarcar como paga'
+    const confirmMsg = `Deseja ${actionText} toda a fatura do ${group.cardName} de ${group.monthLabel}?\n\nTotal: ${formatCurrency(group.totalAmount)}\nItens: ${group.expenses.length}`
+    
+    if (!confirm(confirmMsg)) return
+    
+    try {
+      const { error } = await (supabase as any)
+        .from('expenses')
+        .update({ is_paid: newStatus })
+        .in('id', expenseIds)
+      
+      if (error) {
+        console.error('Error toggling invoice payment:', error)
+        alert('Erro ao atualizar fatura: ' + error.message)
+      } else {
+        const statusText = newStatus ? 'paga' : 'desmarcada como paga'
+        alert(`Fatura ${statusText} com sucesso! ${group.expenses.length} itens atualizados.`)
+        refetch()
+      }
+    } catch (error) {
+      console.error('Error in toggleInvoicePayment:', error)
+      alert('Erro ao atualizar fatura')
     }
   }
 
@@ -351,7 +586,7 @@ export default function ExpensesList({ userId, startDate, endDate }: Props) {
               ? `Mostrando projeções baseadas em recorrências para o período selecionado`
               : startDate && endDate
                 ? `Mostrando despesas do período selecionado`
-                : `Mostrando apenas despesas vencidas ou do mês atual`
+                : `Mostrando todas as despesas cadastradas`
             }
           </p>
         </div>
@@ -554,7 +789,9 @@ export default function ExpensesList({ userId, startDate, endDate }: Props) {
           {/* Resumo dos filtros */}
           <div className="mt-3 pt-3 border-t border-apple-gray-200">
             <p className="text-xs text-apple-gray-500">
-              Mostrando {filteredExpenses.length} de {currentMonthExpenses.length} despesas (apenas vencidas ou do mês atual)
+              Mostrando {groupedExpenses.normalExpenses.length + groupedExpenses.creditCardGroups.reduce((sum, group) => sum + group.expenses.length, 0)} despesas
+              {groupedExpenses.creditCardGroups.length > 0 && ` (${groupedExpenses.creditCardGroups.length} faturas de cartão agrupadas)`}
+              {startDate && endDate && ` do período selecionado`}
             </p>
           </div>
         </div>
@@ -627,7 +864,8 @@ export default function ExpensesList({ userId, startDate, endDate }: Props) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-apple-gray-100">
-                {filteredExpenses.map((expense) => (
+                {/* Despesas Normais */}
+                {groupedExpenses.normalExpenses.map((expense) => (
                   <tr key={expense.id} className="hover:bg-apple-gray-50/50 transition-colors">
                     {isSelectionMode && (
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -649,25 +887,9 @@ export default function ExpensesList({ userId, startDate, endDate }: Props) {
                           Recorrente
                         </span>
                       )}
-                      {expense.is_installment && expense.installment_number && expense.installments && (
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="px-2 py-0.5 bg-apple-purple/10 text-apple-purple text-xs rounded-md">
-                            Parcela {expense.installment_number}/{expense.installments}
-                          </span>
-                          <span className="text-xs text-apple-gray-400">
-                            (Clique em "Excluir Compra" para remover todas)
-                          </span>
-                        </div>
-                      )}
-                      {expense.is_credit_card && expense.credit_card && (
-                        <span 
-                          className="ml-2 px-2 py-0.5 text-xs rounded-md inline-flex items-center gap-1" 
-                          style={{ 
-                            backgroundColor: `${expense.credit_card.color}15`, 
-                            color: expense.credit_card.color 
-                          }}
-                        >
-                          💳 {expense.credit_card.name}
+                      {expense.isRecurringOccurrence && (
+                        <span className="ml-2 px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-md">
+                          Gerada
                         </span>
                       )}
                     </td>
@@ -691,6 +913,14 @@ export default function ExpensesList({ userId, startDate, endDate }: Props) {
                         <span className="text-apple-gray-400">Sem categoria</span>
                       )}
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-apple-gray-600 capitalize">
+                      {expense.payment_method === 'cash' ? 'Dinheiro' :
+                       expense.payment_method === 'debit' ? 'Débito' :
+                       expense.payment_method === 'credit_card' ? 'Cartão de Crédito' :
+                       expense.payment_method === 'pix' ? 'PIX' :
+                       expense.payment_method === 'transfer' ? 'Transferência' :
+                       expense.payment_method || 'Dinheiro'}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-apple-red">
                       {formatCurrency(Number(expense.amount))}
                     </td>
@@ -707,64 +937,224 @@ export default function ExpensesList({ userId, startDate, endDate }: Props) {
                         {expense.is_paid ? '✓ Pago' : '⏳ A Pagar'}
                       </button>
                     </td>
-                    {!isSelectionMode && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <ActionsDropdown
-                          actions={[
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <ActionsDropdown
+                        actions={[
+                          {
+                            id: 'edit',
+                            label: 'Editar',
+                            icon: '✏️',
+                            color: 'text-apple-blue hover:text-apple-blue/80',
+                            onClick: () => setEditingExpense(expense),
+                            title: 'Editar informações da despesa'
+                          },
+                          {
+                            id: 'edit-value',
+                            label: 'Editar Valor',
+                            icon: '💰',
+                            color: 'text-apple-green hover:text-apple-green/80',
+                            onClick: () => setEditingValue(expense),
+                            title: 'Editar valor desta ocorrência'
+                          },
+                          ...(expense.is_recurring ? [
                             {
-                              id: 'edit',
-                              label: 'Editar',
-                              icon: '✏️',
+                              id: 'edit-recurrence',
+                              label: 'Editar Recorrência',
+                              icon: '⚙️',
                               color: 'text-apple-blue hover:text-apple-blue/80',
-                              onClick: () => setEditingExpense(expense),
-                              title: 'Editar informações da despesa'
+                              onClick: () => setEditingRecurrence(expense),
+                              title: 'Editar recorrência'
                             },
                             {
-                              id: 'edit-value',
-                              label: 'Editar Valor',
-                              icon: '💰',
-                              color: 'text-apple-green hover:text-apple-green/80',
-                              onClick: () => setEditingValue(expense),
-                              title: 'Editar valor desta ocorrência'
-                            },
-                            ...(expense.is_recurring ? [
+                              id: 'delete-series',
+                              label: 'Excluir Série',
+                              icon: '🗑️',
+                              color: 'text-apple-orange hover:text-apple-orange/80',
+                              onClick: () => handleDeleteRecurrence(expense),
+                              title: 'Excluir toda a recorrência'
+                            }
+                          ] : []),
+                          {
+                            id: 'delete',
+                            label: expense.is_recurring ? 'Excluir Item' : 'Excluir',
+                            icon: '✕',
+                            color: 'text-apple-red hover:text-apple-red/80',
+                            onClick: () => handleDelete(expense.id),
+                            title: expense.is_recurring ? 'Excluir apenas este item' : 'Excluir despesa'
+                          }
+                        ]}
+                      />
+                    </td>
+                  </tr>
+                ))}
+
+                {/* Faturas de Cartão Agrupadas */}
+                {groupedExpenses.creditCardGroups.map((group) => (
+                  <React.Fragment key={group.month}>
+                    {/* Cabeçalho da Fatura - Clicável para expandir/recolher */}
+                    <tr className="bg-gradient-to-r from-blue-50 to-indigo-50 border-t-2 border-blue-200 cursor-pointer hover:from-blue-100 hover:to-indigo-100 transition-colors">
+                      <td colSpan={isSelectionMode ? 9 : 8} className="px-6 py-4">
+                        <div 
+                          className="flex items-center justify-between"
+                          onClick={() => toggleInvoiceExpansion(group.month)}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2">
+                              <span className={`text-blue-600 transition-transform duration-200 ${
+                                expandedInvoices.has(group.month) ? 'rotate-90' : ''
+                              }`}>
+                                ▶️
+                              </span>
+                              <div 
+                                className="w-4 h-4 rounded-full" 
+                                style={{ backgroundColor: group.cardColor || '#3B82F6' }}
+                              />
+                            </div>
+                            <div>
+                              <h4 className="font-semibold text-blue-800">
+                                💳 Fatura {group.cardName} - {group.monthLabel}
+                              </h4>
+                              <p className="text-sm text-blue-600">
+                                {group.expenses.length} {group.expenses.length === 1 ? 'item' : 'itens'} • 
+                                Total: {formatCurrency(group.totalAmount)}
+                                {expandedInvoices.has(group.month) ? ' • Clique para recolher' : ' • Clique para expandir'}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              onClick={() => toggleInvoicePayment(group)}
+                              className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
+                                group.allPaid
+                                  ? 'bg-apple-green/10 text-apple-green hover:bg-apple-green/20'
+                                  : 'bg-apple-orange/10 text-apple-orange hover:bg-apple-orange/20'
+                              }`}
+                              title={group.allPaid ? 'Clique para desmarcar toda a fatura' : 'Clique para pagar toda a fatura'}
+                            >
+                              {group.allPaid ? '✓ Paga' : '⏳ A Pagar'}
+                            </button>
+                            <span className={`px-3 py-1 rounded-lg text-xs font-medium ${
+                              group.allPaid 
+                                ? 'bg-green-100 text-green-700' 
+                                : group.anyPaid 
+                                  ? 'bg-orange-100 text-orange-700'
+                                  : 'bg-red-100 text-red-700'
+                            }`}>
+                              {group.allPaid ? '✓ Completa' : group.anyPaid ? '🔄 Parcial' : '⏳ Pendente'}
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+
+                    {/* Itens da Fatura - Mostrar apenas se expandida */}
+                    {expandedInvoices.has(group.month) && group.expenses.map((expense) => (
+                      <tr key={expense.id} className="hover:bg-blue-50/30 transition-colors bg-blue-50/10">
+                        {isSelectionMode && (
+                          <td className="px-6 py-3 whitespace-nowrap">
+                            <input
+                              type="checkbox"
+                              checked={selectedExpenses.has(expense.id)}
+                              onChange={() => toggleExpenseSelection(expense.id)}
+                              className="w-4 h-4 text-apple-blue rounded focus:ring-2 focus:ring-apple-blue/30"
+                            />
+                          </td>
+                        )}
+                        <td className="px-6 py-3 whitespace-nowrap text-sm text-apple-gray-600 pl-12">
+                          {formatDate(expense.expense_date)}
+                        </td>
+                        <td className="px-6 py-3 text-sm text-apple-gray-700">
+                          {expense.description}
+                          {expense.installment_number && expense.installments && (
+                            <span className="ml-2 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-md">
+                              {expense.installment_number}/{expense.installments}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-6 py-3 whitespace-nowrap text-sm">
+                          {expense.member ? (
+                            <span className="inline-flex items-center gap-2 px-2 py-1 rounded-lg text-xs" style={{ backgroundColor: `${expense.member.color}15` }}>
+                              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: expense.member.color }} />
+                              <span style={{ color: expense.member.color }}>{expense.member.name}</span>
+                            </span>
+                          ) : (
+                            <span className="text-apple-gray-400 text-xs">-</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-3 whitespace-nowrap text-sm">
+                          {expense.category ? (
+                            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-lg" style={{ backgroundColor: `${expense.category.color}15` }}>
+                              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: expense.category.color }} />
+                              <span style={{ color: expense.category.color }}>{expense.category.name}</span>
+                            </span>
+                          ) : (
+                            <span className="text-apple-gray-400">Sem categoria</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-3 whitespace-nowrap text-sm text-blue-600">
+                          💳 {group.cardName}
+                        </td>
+                        <td className="px-6 py-3 whitespace-nowrap text-sm font-semibold text-apple-red">
+                          {formatCurrency(Number(expense.amount))}
+                        </td>
+                        <td className="px-6 py-3 whitespace-nowrap text-sm">
+                          <button
+                            onClick={() => togglePaid(expense)}
+                            className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
+                              expense.is_paid
+                                ? 'bg-apple-green/10 text-apple-green hover:bg-apple-green/20'
+                                : 'bg-apple-orange/10 text-apple-orange hover:bg-apple-orange/20'
+                            }`}
+                            title="Clique para alterar o status"
+                          >
+                            {expense.is_paid ? '✓ Pago' : '⏳ A Pagar'}
+                          </button>
+                        </td>
+                        <td className="px-6 py-3 whitespace-nowrap text-sm">
+                          <ActionsDropdown
+                            actions={[
                               {
-                                id: 'edit-recurrence',
-                                label: 'Editar Recorrência',
-                                icon: '⚙️',
+                                id: 'edit',
+                                label: 'Editar',
+                                icon: '✏️',
                                 color: 'text-apple-blue hover:text-apple-blue/80',
-                                onClick: () => setEditingRecurrence(expense),
-                                title: 'Editar recorrência'
+                                onClick: () => setEditingExpense(expense),
+                                title: 'Editar informações da despesa'
                               },
                               {
-                                id: 'delete-series',
-                                label: 'Excluir Série',
-                                icon: '🗑️',
-                                color: 'text-apple-orange hover:text-apple-orange/80',
-                                onClick: () => handleDeleteRecurrence(expense),
-                                title: 'Excluir toda a recorrência'
+                                id: 'delete',
+                                label: 'Excluir',
+                                icon: '✕',
+                                color: 'text-apple-red hover:text-apple-red/80',
+                                onClick: () => handleDelete(expense.id),
+                                title: 'Excluir despesa'
                               }
-                            ] : []),
-                            {
-                              id: 'delete',
-                              label: expense.is_installment ? 'Excluir Compra' : expense.is_recurring ? 'Excluir Item' : 'Excluir',
-                              icon: expense.is_installment ? '🗑️' : '✕',
-                              color: 'text-apple-red hover:text-apple-red/80',
-                              onClick: () => handleDelete(expense),
-                              title: expense.is_installment 
-                                ? `Excluir toda a compra (${expense.installments} parcelas)`
-                                : expense.is_recurring 
-                                  ? 'Excluir apenas este item'
-                                  : 'Excluir despesa'
-                            }
-                          ]}
-                        />
-                      </td>
-                    )}
-                  </tr>
+                            ]}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </React.Fragment>
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Aviso sobre compras de cartão */}
+      {groupedExpenses.creditCardGroups.length > 0 && (
+        <div className="glass-card p-4 rounded-2xl bg-apple-blue/5 border border-apple-blue/20 animate-slide-up">
+          <div className="flex items-start gap-3">
+            <span className="text-2xl">💳</span>
+            <div>
+              <h4 className="text-sm font-semibold text-apple-gray-700 mb-1">Faturas de Cartão Interativas</h4>
+              <p className="text-xs text-apple-gray-600">
+                <strong>Clique na fatura</strong> para expandir/recolher os detalhes. 
+                Use o botão <strong>"✓ Paga" / "⏳ A Pagar"</strong> para marcar/desmarcar toda a fatura de uma vez, 
+                igual às outras despesas.
+              </p>
+            </div>
           </div>
         </div>
       )}

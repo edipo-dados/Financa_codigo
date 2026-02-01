@@ -43,17 +43,24 @@ export default function Dashboard() {
   const [showQuickIncomeModal, setShowQuickIncomeModal] = useState(false)
   
   // Estado para navegação de mês
-  const [currentMonth, setCurrentMonth] = useState(new Date())
+  const [currentMonth, setCurrentMonth] = useState<Date | null>(null)
   
   // Estado para filtro de período
-  const [currentPeriod, setCurrentPeriod] = useState<DateRange>({
-    startDate: format(startOfMonth(new Date()), 'yyyy-MM-dd'),
-    endDate: format(endOfMonth(new Date()), 'yyyy-MM-dd'),
-    label: 'Mês Atual',
-  })
+  const [currentPeriod, setCurrentPeriod] = useState<DateRange | null>(null)
 
   // Estado para filtro de membro da família
   const [selectedMember, setSelectedMember] = useState<string>('')
+
+  // Inicializar datas após montagem para evitar hidratação
+  useEffect(() => {
+    const now = new Date()
+    setCurrentMonth(now)
+    setCurrentPeriod({
+      startDate: format(startOfMonth(now), 'yyyy-MM-dd'),
+      endDate: format(endOfMonth(now), 'yyyy-MM-dd'),
+      label: 'Mês Atual',
+    })
+  }, [])
 
   useEffect(() => {
     if (!user && !authLoading) {
@@ -63,11 +70,13 @@ export default function Dashboard() {
 
   // Atualizar período quando o mês mudar
   useEffect(() => {
-    setCurrentPeriod({
-      startDate: format(startOfMonth(currentMonth), 'yyyy-MM-dd'),
-      endDate: format(endOfMonth(currentMonth), 'yyyy-MM-dd'),
-      label: format(currentMonth, 'MMMM yyyy'),
-    })
+    if (currentMonth) {
+      setCurrentPeriod({
+        startDate: format(startOfMonth(currentMonth), 'yyyy-MM-dd'),
+        endDate: format(endOfMonth(currentMonth), 'yyyy-MM-dd'),
+        label: format(currentMonth, 'MMMM yyyy'),
+      })
+    }
   }, [currentMonth])
 
   const handleRefresh = () => {
@@ -89,7 +98,7 @@ export default function Dashboard() {
     ? investments.filter(i => i.member_id === selectedMember)
     : investments
 
-  if (authLoading || !user) {
+  if (authLoading || !user || !currentMonth || !currentPeriod) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">

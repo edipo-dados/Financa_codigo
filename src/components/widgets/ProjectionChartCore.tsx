@@ -38,11 +38,16 @@ export default function ProjectionChartCore({ expenses, investments, incomes }: 
     const projectedMonths: any[] = []
     const today = new Date()
     
-    for (let i = 0; i < projectionMonths; i++) {
+    for (let i = -1; i < projectionMonths; i++) {
       const monthStart = addMonths(today, i)
       const monthEnd = endOfMonth(monthStart)
       const monthKey = format(monthStart, 'yyyy-MM')
       const monthLabel = format(monthStart, 'MMM/yy')
+      
+      // Identificar se é mês passado, atual ou futuro
+      const isPastMonth = i === -1
+      const isCurrentMonth = i === 0
+      const isFutureMonth = i > 0
       
       // Buscar dados reais do mês (MESMA LÓGICA)
       const monthStartStr = format(startOfMonth(monthStart), 'yyyy-MM-dd')

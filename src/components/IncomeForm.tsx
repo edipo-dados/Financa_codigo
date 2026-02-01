@@ -24,7 +24,7 @@ export default function IncomeForm({ userId, onSuccess, onRefresh }: Props) {
   const [formData, setFormData] = useState({
     amount: '',
     description: '',
-    income_date: new Date().toISOString().split('T')[0],
+    income_date: '',
     category_id: '',
     member_id: '',
     source: '',
@@ -37,6 +37,11 @@ export default function IncomeForm({ userId, onSuccess, onRefresh }: Props) {
 
   useEffect(() => {
     fetchCategories()
+    // Inicializar data após montagem para evitar hidratação
+    setFormData(prev => ({
+      ...prev,
+      income_date: new Date().toISOString().split('T')[0]
+    }))
   }, [])
 
   const fetchCategories = async () => {

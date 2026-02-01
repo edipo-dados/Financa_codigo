@@ -25,7 +25,7 @@ export default function InvestmentForm({ userId, onSuccess, onRefresh }: Props) 
     investment_type_id: '',
     institution: '',
     initial_amount: '',
-    investment_date: new Date().toISOString().split('T')[0],
+    investment_date: '',
     expected_return: '',
     member_id: '',
     is_recurring: false,
@@ -37,6 +37,11 @@ export default function InvestmentForm({ userId, onSuccess, onRefresh }: Props) 
 
   useEffect(() => {
     fetchTypes()
+    // Inicializar data após montagem para evitar hidratação
+    setFormData(prev => ({
+      ...prev,
+      investment_date: new Date().toISOString().split('T')[0]
+    }))
   }, [])
 
   const fetchTypes = async () => {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { format, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear } from 'date-fns'
 
 export interface DateRange {
@@ -18,29 +18,39 @@ export default function PeriodFilter({ onPeriodChange, currentPeriod }: Props) {
   const [showCustom, setShowCustom] = useState(false)
   const [customStart, setCustomStart] = useState('')
   const [customEnd, setCustomEnd] = useState('')
+  const [mounted, setMounted] = useState(false)
 
-  const quickFilters: DateRange[] = [
-    {
-      startDate: format(startOfMonth(new Date()), 'yyyy-MM-dd'),
-      endDate: format(endOfMonth(new Date()), 'yyyy-MM-dd'),
-      label: 'Mês Atual',
-    },
-    {
-      startDate: format(startOfMonth(subMonths(new Date(), 2)), 'yyyy-MM-dd'),
-      endDate: format(endOfMonth(new Date()), 'yyyy-MM-dd'),
-      label: 'Últimos 3 Meses',
-    },
-    {
-      startDate: format(startOfMonth(subMonths(new Date(), 5)), 'yyyy-MM-dd'),
-      endDate: format(endOfMonth(new Date()), 'yyyy-MM-dd'),
-      label: 'Últimos 6 Meses',
-    },
-    {
-      startDate: format(startOfYear(new Date()), 'yyyy-MM-dd'),
-      endDate: format(endOfYear(new Date()), 'yyyy-MM-dd'),
-      label: 'Ano Atual',
-    },
-  ]
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const quickFilters: DateRange[] = useMemo(() => {
+    if (!mounted) return []
+    
+    const now = new Date()
+    return [
+      {
+        startDate: format(startOfMonth(now), 'yyyy-MM-dd'),
+        endDate: format(endOfMonth(now), 'yyyy-MM-dd'),
+        label: 'Mês Atual',
+      },
+      {
+        startDate: format(startOfMonth(subMonths(now, 2)), 'yyyy-MM-dd'),
+        endDate: format(endOfMonth(now), 'yyyy-MM-dd'),
+        label: 'Últimos 3 Meses',
+      },
+      {
+        startDate: format(startOfMonth(subMonths(now, 5)), 'yyyy-MM-dd'),
+        endDate: format(endOfMonth(now), 'yyyy-MM-dd'),
+        label: 'Últimos 6 Meses',
+      },
+      {
+        startDate: format(startOfYear(now), 'yyyy-MM-dd'),
+        endDate: format(endOfYear(now), 'yyyy-MM-dd'),
+        label: 'Ano Atual',
+      },
+    ]
+  }, [mounted])
 
   const handleQuickFilter = (filter: DateRange) => {
     setShowCustom(false)
@@ -56,6 +66,21 @@ export default function PeriodFilter({ onPeriodChange, currentPeriod }: Props) {
       })
       setShowCustom(false)
     }
+  }
+
+  if (!mounted) {
+    return (
+      <div className="glass-card p-6 rounded-3xl">
+        <div className="animate-pulse">
+          <div className="h-6 bg-gray-200 dark:bg-fintech-dark-elevated rounded mb-4 w-1/3"></div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="h-12 bg-gray-200 dark:bg-fintech-dark-elevated rounded-xl"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (

@@ -46,17 +46,20 @@ export default function InvestmentsList({ userId, startDate, endDate }: Props) {
     return periodStart > today
   }, [startDate])
 
-  // Gerar investimentos futuros baseados em recorrências
+  // Gerar investimentos recorrentes para o período selecionado
   useEffect(() => {
-    if (!isFuturePeriod || !startDate || !endDate) {
+    if (!startDate || !endDate) {
       setFutureInvestments([])
       return
     }
 
-    const generateFutureInvestments = () => {
+    const generateRecurringInvestments = () => {
       const recurringInvestments = investments.filter(inv => inv.is_recurring)
       
-      if (recurringInvestments.length === 0) return
+      if (recurringInvestments.length === 0) {
+        setFutureInvestments([])
+        return
+      }
       
       const futureOccurrences = calculateFutureOccurrences(
         recurringInvestments.map(inv => ({
@@ -68,10 +71,10 @@ export default function InvestmentsList({ userId, startDate, endDate }: Props) {
           recurrence_end_date: inv.recurrence_end_date,
           recurrence_count: inv.recurrence_count
         })), 
-        24
+        24 // Gerar para 24 meses
       )
       
-      const periodFutureInvestments = futureOccurrences
+      const periodRecurringInvestments = futureOccurrences
         .filter(occ => {
           const occDate = occ.date.toISOString().split('T')[0]
           return occDate >= startDate && occDate <= endDate
@@ -80,48 +83,59 @@ export default function InvestmentsList({ userId, startDate, endDate }: Props) {
           const originalInvestment = recurringInvestments.find(inv => inv.initial_amount === occ.amount)
           
           return {
-            id: `future-${originalInvestment?.id}-${index}`,
+            id: `recurring-${originalInvestment?.id}-${index}-${occ.date.getTime()}`,
             user_id: userId,
             investment_type_id: originalInvestment?.investment_type_id || null,
             member_id: originalInvestment?.member_id || null,
-            name: `${originalInvestment?.name || 'Investimento recorrente'} (Projeção)`,
+            name: originalInvestment?.name || 'Investimento recorrente',
             institution: originalInvestment?.institution || null,
             initial_amount: occ.amount,
-            current_amount: occ.amount,
+            current_amount: occ.amount, // Para recorrências, valor atual = inicial
             investment_date: occ.date.toISOString().split('T')[0],
             expected_return: originalInvestment?.expected_return || null,
             is_recurring: true,
+            recurrence_frequency: originalInvestment?.recurrence_frequency,
+            recurrence_start_date: originalInvestment?.recurrence_start_date,
+            recurrence_end_type: originalInvestment?.recurrence_end_type,
+            recurrence_end_date: originalInvestment?.recurrence_end_date,
+            recurrence_count: originalInvestment?.recurrence_count,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
             investment_type: originalInvestment?.investment_type || null,
             member: originalInvestment?.member || null,
-            isFutureProjection: true
+            isRecurringOccurrence: true
           }
         })
 
-      setFutureInvestments(periodFutureInvestments)
+      setFutureInvestments(periodRecurringInvestments)
     }
 
-    generateFutureInvestments()
-  }, [investments, isFuturePeriod, startDate, endDate, userId])
+    generateRecurringInvestments()
+  }, [investments, startDate, endDate, userId])
 
   // Aplicar filtros
   const filteredInvestments = useMemo(() => {
     let currentInvestments
     
-    if (isFuturePeriod) {
-      currentInvestments = futureInvestments
-    } else if (startDate && endDate) {
-      currentInvestments = investments.filter(investment => {
+    if (startDate && endDate) {
+      // Combinar investimentos reais do período com recorrências geradas
+      const realInvestments = investments.filter(investment => {
         return investment.investment_date >= startDate && investment.investment_date <= endDate
       })
-    } else {
-      // Filtrar investimentos para mostrar apenas os do mês atual ou anteriores
-      const currentDate = new Date()
-      currentInvestments = investments.filter(investment => {
-        const investmentDate = new Date(investment.investment_date)
-        return investmentDate <= currentDate
+      
+      // Filtrar recorrências para evitar duplicatas com investimentos reais
+      const recurringInvestments = futureInvestments.filter(recurring => {
+        return !realInvestments.some(real => 
+          real.investment_date === recurring.investment_date && 
+          real.name === recurring.name &&
+          real.initial_amount === recurring.initial_amount
+        )
       })
+      
+      currentInvestments = [...realInvestments, ...recurringInvestments]
+    } else {
+      // Quando não há período específico, mostrar todos os investimentos
+      currentInvestments = investments
     }
 
     return currentInvestments.filter(investment => {
@@ -140,7 +154,7 @@ export default function InvestmentsList({ userId, startDate, endDate }: Props) {
       
       return true
     })
-  }, [investments, filters])
+  }, [investments, futureInvestments, filters, startDate, endDate])
 
   // Obter tipos únicos
   const investmentTypes = useMemo(() => {
@@ -188,6 +202,53 @@ export default function InvestmentsList({ userId, startDate, endDate }: Props) {
     }
   }
 
+  const handleConfirmInvestment = async (recurringInvestment: any) => {
+    const confirmMsg = `Confirmar investimento "${recurringInvestment.name}"?\n\nValor: ${formatCurrency(recurringInvestment.initial_amount)}\nData: ${formatDate(recurringInvestment.investment_date)}\n\nIsso criará um investimento real no seu portfólio.`
+    
+    if (!confirm(confirmMsg)) return
+    
+    try {
+      // Criar investimento real no banco de dados
+      const { data, error } = await (supabase as any)
+        .from('investments')
+        .insert([{
+          user_id: userId,
+          investment_type_id: recurringInvestment.investment_type_id,
+          member_id: recurringInvestment.member_id,
+          name: recurringInvestment.name,
+          institution: recurringInvestment.institution,
+          initial_amount: recurringInvestment.initial_amount,
+          current_amount: recurringInvestment.current_amount,
+          investment_date: recurringInvestment.investment_date,
+          expected_return: recurringInvestment.expected_return,
+          is_recurring: false, // Não é mais recorrente, é um investimento confirmado
+          recurrence_frequency: null,
+          recurrence_start_date: null,
+          recurrence_end_type: null,
+          recurrence_end_date: null,
+          recurrence_count: null
+        }])
+        .select()
+
+      if (error) {
+        console.error('Erro ao confirmar investimento:', error)
+        alert('Erro ao confirmar investimento')
+        return
+      }
+
+      // Remover da lista de recorrências geradas
+      setFutureInvestments(prev => prev.filter(inv => inv.id !== recurringInvestment.id))
+      
+      // Atualizar lista de investimentos
+      refetch()
+      
+      alert('✅ Investimento confirmado com sucesso!')
+    } catch (error) {
+      console.error('Erro ao confirmar investimento:', error)
+      alert('Erro ao confirmar investimento')
+    }
+  }
+
   const handleDelete = async (id: string) => {
     if (confirm('Deseja realmente excluir este investimento?')) {
       await deleteInvestment(id)
@@ -207,18 +268,16 @@ export default function InvestmentsList({ userId, startDate, endDate }: Props) {
         <div>
           <h2 className="text-2xl font-semibold text-apple-gray-700">
             Investimentos
-            {isFuturePeriod && (
+            {futureInvestments.length > 0 && (
               <span className="ml-2 px-3 py-1 bg-purple-100 text-purple-700 text-sm rounded-full">
-                📅 Projeções Futuras
+                🔄 {futureInvestments.length} recorrência(s)
               </span>
             )}
           </h2>
           <p className="text-sm text-apple-gray-500 mt-1">
-            {isFuturePeriod 
-              ? `Mostrando projeções baseadas em recorrências para o período selecionado`
-              : startDate && endDate
-                ? `Mostrando investimentos do período selecionado`
-                : `Mostrando apenas investimentos realizados ou do mês atual`
+            {startDate && endDate
+              ? `Mostrando investimentos do período selecionado${futureInvestments.length > 0 ? ' (incluindo recorrências)' : ''}`
+              : `Mostrando todos os investimentos cadastrados`
             }
           </p>
         </div>
@@ -357,7 +416,8 @@ export default function InvestmentsList({ userId, startDate, endDate }: Props) {
           {/* Resumo dos filtros */}
           <div className="mt-3 pt-3 border-t border-apple-gray-200">
             <p className="text-xs text-apple-gray-500">
-              Mostrando {filteredInvestments.length} investimentos (apenas realizados ou do mês atual)
+              Mostrando {filteredInvestments.length} investimentos
+              {startDate && endDate && ` do período selecionado`}
             </p>
           </div>
         </div>
@@ -392,10 +452,19 @@ export default function InvestmentsList({ userId, startDate, endDate }: Props) {
             )
             
             return (
-              <div key={investment.id} className="glass-card-hover p-6 rounded-2xl">
+              <div key={investment.id} className={`glass-card-hover p-6 rounded-2xl ${
+                investment.isRecurringOccurrence ? 'border-2 border-dashed border-blue-300 bg-blue-50/50 dark:bg-blue-900/10' : ''
+              }`}>
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex-1">
-                    <h3 className="font-semibold text-lg text-apple-gray-700 mb-1">{investment.name}</h3>
+                    <h3 className="font-semibold text-lg text-apple-gray-700 mb-1 flex items-center gap-2">
+                      {investment.name}
+                      {investment.isRecurringOccurrence && (
+                        <span className="text-xs px-2 py-1 bg-blue-500 text-white rounded-full animate-pulse">
+                          Aguardando confirmação
+                        </span>
+                      )}
+                    </h3>
                     <div className="flex items-center gap-2 flex-wrap">
                       {investment.member && (
                         <span 
@@ -415,8 +484,13 @@ export default function InvestmentsList({ userId, startDate, endDate }: Props) {
                         </span>
                       )}
                       {investment.is_recurring && (
-                        <span className="text-xs px-2 py-1 bg-apple-green/10 text-apple-green rounded-lg font-medium">
-                          Recorrente
+                        <span className="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded-lg font-medium flex items-center gap-1">
+                          🔄 Recorrente
+                        </span>
+                      )}
+                      {investment.isRecurringOccurrence && (
+                        <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-lg font-medium flex items-center gap-1">
+                          📅 Gerado
                         </span>
                       )}
                     </div>
@@ -427,23 +501,36 @@ export default function InvestmentsList({ userId, startDate, endDate }: Props) {
                   <div className="flex items-center gap-2">
                     <ActionsDropdown
                       actions={[
-                        {
-                          id: 'edit',
-                          label: 'Editar',
-                          icon: '✏️',
-                          color: 'text-apple-blue hover:text-apple-blue/80',
-                          onClick: () => setEditingInvestment(investment),
-                          title: 'Editar informações do investimento'
-                        },
-                        {
-                          id: 'edit-value',
-                          label: 'Editar Valor',
-                          icon: '💰',
-                          color: 'text-apple-green hover:text-apple-green/80',
-                          onClick: () => setEditingValue(investment),
-                          title: 'Editar valor desta ocorrência'
-                        },
-                        ...(investment.is_recurring ? [
+                        // Ações para investimentos recorrentes gerados automaticamente
+                        ...(investment.isRecurringOccurrence ? [
+                          {
+                            id: 'convert-to-real',
+                            label: 'Confirmar Investimento',
+                            icon: '✅',
+                            color: 'text-apple-green hover:text-apple-green/80',
+                            onClick: () => handleConfirmInvestment(investment),
+                            title: 'Converter em investimento real'
+                          }
+                        ] : [
+                          // Ações para investimentos reais
+                          {
+                            id: 'edit',
+                            label: 'Editar',
+                            icon: '✏️',
+                            color: 'text-apple-blue hover:text-apple-blue/80',
+                            onClick: () => setEditingInvestment(investment),
+                            title: 'Editar informações do investimento'
+                          },
+                          {
+                            id: 'edit-value',
+                            label: 'Editar Valor',
+                            icon: '💰',
+                            color: 'text-apple-green hover:text-apple-green/80',
+                            onClick: () => setEditingValue(investment),
+                            title: 'Editar valor desta ocorrência'
+                          }
+                        ]),
+                        ...(investment.is_recurring && !investment.isRecurringOccurrence ? [
                           {
                             id: 'edit-recurrence',
                             label: 'Editar Recorrência',
@@ -463,11 +550,18 @@ export default function InvestmentsList({ userId, startDate, endDate }: Props) {
                         ] : []),
                         {
                           id: 'delete',
-                          label: investment.is_recurring ? 'Excluir Item' : 'Excluir',
+                          label: investment.isRecurringOccurrence ? 'Remover' : (investment.is_recurring ? 'Excluir Item' : 'Excluir'),
                           icon: '✕',
                           color: 'text-apple-red hover:text-apple-red/80',
-                          onClick: () => handleDelete(investment.id),
-                          title: investment.is_recurring ? 'Excluir apenas este item' : 'Excluir investimento'
+                          onClick: () => {
+                            if (investment.isRecurringOccurrence) {
+                              // Para ocorrências geradas, apenas remover da lista
+                              setFutureInvestments(prev => prev.filter(inv => inv.id !== investment.id))
+                            } else {
+                              handleDelete(investment.id)
+                            }
+                          },
+                          title: investment.isRecurringOccurrence ? 'Remover da lista' : (investment.is_recurring ? 'Excluir apenas este item' : 'Excluir investimento')
                         }
                       ]}
                     />

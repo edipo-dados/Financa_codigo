@@ -31,11 +31,16 @@ export default function FutureProjectionsWidget({ expenses, investments, incomes
     const today = new Date()
     const projectedMonths: any[] = []
     
-    for (let i = 0; i < projectionMonths; i++) {
+    for (let i = -1; i < projectionMonths; i++) {
       const monthStart = addMonths(today, i)
       const monthEnd = endOfMonth(monthStart)
       const monthKey = format(monthStart, 'yyyy-MM')
       const monthLabel = format(monthStart, 'MMM/yy')
+      
+      // Identificar se é mês passado, atual ou futuro
+      const isPastMonth = i === -1
+      const isCurrentMonth = i === 0
+      const isFutureMonth = i > 0
       
       // Buscar dados reais do mês (se já passou ou é atual)
       const monthStartStr = format(startOfMonth(monthStart), 'yyyy-MM-dd')
@@ -116,7 +121,7 @@ export default function FutureProjectionsWidget({ expenses, investments, incomes
       let hasRecurrences = false
 
       // Se é mês futuro, adicionar recorrências (sempre, mas evitar duplicação)
-      if (monthStart > today) {
+      if (isFutureMonth) {
         // Adicionar recorrências de receitas
         if (futureIncomes > 0) {
           projectedIncomes += futureIncomes
@@ -220,7 +225,10 @@ export default function FutureProjectionsWidget({ expenses, investments, incomes
         expensesPaid: projectedExpensesPaid,
         expensesUnpaid: projectedExpensesUnpaid,
         isProjected: monthStart > today && (monthIncomes === 0 && monthExpenses === 0),
-        hasRecurrences: hasRecurrences
+        hasRecurrences: hasRecurrences,
+        isPastMonth: isPastMonth,
+        isCurrentMonth: isCurrentMonth,
+        isFutureMonth: isFutureMonth
       })
     }
 
@@ -279,7 +287,7 @@ export default function FutureProjectionsWidget({ expenses, investments, incomes
   return (
     <div className="fintech-card p-4 sm:p-6 rounded-2xl">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold fintech-text-primary">📅 Projeções Futuras</h3>
+        <h3 className="text-lg font-semibold fintech-text-primary">📅 Projeções (Inclui Mês Anterior)</h3>
         <div className="flex items-center gap-3">
           <div className="text-xs fintech-text-muted">
             {projectionData.hasRecurringData && projectionData.hasHistoricalData && "Recorrências + Histórico"}
@@ -396,13 +404,23 @@ export default function FutureProjectionsWidget({ expenses, investments, incomes
 
               return (
                 <div key={index} className={`flex items-center justify-between p-3 rounded-lg ${
-                  monthData.isProjected 
-                    ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800' 
-                    : 'bg-gray-50 dark:bg-fintech-dark-elevated'
+                  monthData.isPastMonth
+                    ? 'bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800'
+                    : monthData.isCurrentMonth
+                      ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'
+                      : monthData.isProjected 
+                        ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800' 
+                        : 'bg-gray-50 dark:bg-fintech-dark-elevated'
                 }`}>
                   <div className="flex items-center gap-3">
                     <span className="text-sm font-medium fintech-text-primary w-12">
                       {monthData.month}
+                      {monthData.isPastMonth && (
+                        <span className="ml-1 text-xs text-amber-600">📅</span>
+                      )}
+                      {monthData.isCurrentMonth && (
+                        <span className="ml-1 text-xs text-green-600">🟢</span>
+                      )}
                       {monthData.isProjected && (
                         <span className="ml-1 text-xs text-blue-600">📊</span>
                       )}

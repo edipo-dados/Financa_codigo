@@ -27,7 +27,7 @@ export default function ExpenseForm({ userId, onSuccess, onRefresh }: Props) {
   const [formData, setFormData] = useState({
     amount: '',
     description: '',
-    expense_date: new Date().toISOString().split('T')[0],
+    expense_date: '',
     category_id: '',
     member_id: '',
     payment_method: 'cash',
@@ -41,11 +41,18 @@ export default function ExpenseForm({ userId, onSuccess, onRefresh }: Props) {
     credit_card_id: '',
     total_amount: '',
     installments: 1,
-    purchase_date: new Date().toISOString().split('T')[0],
+    purchase_date: '',
   })
 
   useEffect(() => {
     fetchCategories()
+    // Inicializar datas após montagem para evitar hidratação
+    const today = new Date().toISOString().split('T')[0]
+    setFormData(prev => ({
+      ...prev,
+      expense_date: today,
+      purchase_date: today
+    }))
   }, [])
 
   const fetchCategories = async () => {

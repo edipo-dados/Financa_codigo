@@ -4,8 +4,9 @@ import { useState, useMemo, useEffect } from 'react'
 import { useIncomes } from '@/hooks/useIncomes'
 import { useFamilyMembers } from '@/hooks/useFamilyMembers'
 import { formatCurrency, formatDate } from '@/lib/utils'
+import { parseISO } from 'date-fns'
 import { supabase } from '@/lib/supabase'
-import { calculateFutureOccurrences } from '@/lib/recurrence'
+import { calculateFutureOccurrences, generateRecurrenceOccurrences, RecurrenceEndType } from '@/lib/recurrence'
 import IncomeForm from './IncomeForm'
 import EditRecurrenceModal from './EditRecurrenceModal'
 import EditValueModal from './EditValueModal'
@@ -39,12 +40,15 @@ export default function IncomesList({ userId, startDate, endDate }: Props) {
     search: ''
   })
 
-  // Verificar se o período selecionado é futuro
+  // Verificar se o período selecionado é futuro (mais de 30 dias no futuro)
   const isFuturePeriod = useMemo(() => {
     if (!startDate) return false
     const today = new Date()
     const periodStart = new Date(startDate)
-    return periodStart > today
+    
+    // Considerar como futuro apenas se for mais de 30 dias no futuro
+    const diffInDays = (periodStart.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+    return diffInDays > 30
   }, [startDate])
 
   // Gerar receitas futuras baseadas em recorrências
@@ -101,16 +105,72 @@ export default function IncomesList({ userId, startDate, endDate }: Props) {
     if (isFuturePeriod) {
       currentIncomes = futureIncomes
     } else if (startDate && endDate) {
-      currentIncomes = incomes.filter(income => {
+      // Filtrar receitas pelo período selecionado
+      const periodIncomes = incomes.filter(income => {
         return income.income_date >= startDate && income.income_date <= endDate
       })
-    } else {
-      // Filtrar receitas para mostrar apenas as do mês atual ou anteriores
-      const currentDate = new Date()
-      currentIncomes = incomes.filter(income => {
-        const incomeDate = new Date(income.income_date)
-        return incomeDate <= currentDate
+      
+      // Gerar receitas recorrentes para o período atual se necessário
+      const recurringIncomes = incomes.filter(i => i.is_recurring)
+      const generatedIncomes: any[] = []
+      
+      recurringIncomes.forEach(recurringIncome => {
+        if (!recurringIncome.recurrence_start_date || !recurringIncome.recurrence_frequency) return
+        
+        const config = {
+          startDate: parseISO(recurringIncome.recurrence_start_date),
+          frequency: recurringIncome.recurrence_frequency,
+          endType: recurringIncome.recurrence_end_type || 'never' as RecurrenceEndType,
+          endDate: recurringIncome.recurrence_end_date ? parseISO(recurringIncome.recurrence_end_date) : undefined,
+          occurrences: recurringIncome.recurrence_count || undefined,
+        }
+        
+        // Gerar ocorrências para um período amplo
+        const occurrences = generateRecurrenceOccurrences(config, 24)
+        
+        // Filtrar apenas as ocorrências do período selecionado
+        const periodOccurrences = occurrences.filter(occ => {
+          const occDate = occ.date.toISOString().split('T')[0]
+          return occDate >= startDate && occDate <= endDate
+        })
+        
+        // Verificar se já existe uma receita real para essas datas
+        periodOccurrences.forEach(occ => {
+          const occDate = occ.date.toISOString().split('T')[0]
+          const existingIncome = periodIncomes.find(income => 
+            income.income_date === occDate && 
+            income.description === recurringIncome.description &&
+            income.amount === recurringIncome.amount
+          )
+          
+          // Se não existe, criar uma ocorrência virtual
+          if (!existingIncome) {
+            generatedIncomes.push({
+              id: `recurring-${recurringIncome.id}-${occDate}`,
+              user_id: userId,
+              category_id: recurringIncome.category_id,
+              member_id: recurringIncome.member_id,
+              amount: recurringIncome.amount,
+              description: `${recurringIncome.description} (Recorrente)`,
+              income_date: occDate,
+              source: recurringIncome.source,
+              is_recurring: true,
+              is_paid: false,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+              category: recurringIncome.category,
+              member: recurringIncome.member,
+              isRecurringOccurrence: true,
+              parentRecurringId: recurringIncome.id
+            })
+          }
+        })
       })
+      
+      currentIncomes = [...periodIncomes, ...generatedIncomes]
+    } else {
+      // Quando não há período específico, mostrar todas as receitas
+      currentIncomes = incomes
     }
 
     return currentIncomes.filter(income => {
@@ -192,17 +252,52 @@ export default function IncomesList({ userId, startDate, endDate }: Props) {
   }
 
   const togglePaid = async (income: any) => {
-    const { error } = await supabase
-      .from('incomes')
-      // @ts-ignore
-      .update({ is_paid: !income.is_paid })
-      .eq('id', income.id)
-    
-    if (error) {
-      console.error('Error updating paid status:', error)
-      alert('Erro ao atualizar status: ' + error.message)
+    // Se é uma receita recorrente gerada, criar uma receita real
+    if (income.isRecurringOccurrence) {
+      const parentIncome = incomes.find(i => i.id === income.parentRecurringId)
+      if (!parentIncome) {
+        alert('Erro: receita recorrente original não encontrada')
+        return
+      }
+      
+      // Criar uma receita real baseada na recorrente
+      const newIncome = {
+        user_id: userId,
+        category_id: parentIncome.category_id,
+        member_id: parentIncome.member_id,
+        amount: parentIncome.amount,
+        description: parentIncome.description,
+        income_date: income.income_date,
+        source: parentIncome.source,
+        is_recurring: false, // A ocorrência específica não é recorrente
+        is_paid: true, // Marcar como paga imediatamente
+        parent_income_id: parentIncome.id
+      }
+      
+      const { error } = await supabase
+        .from('incomes')
+        .insert(newIncome as any)
+      
+      if (error) {
+        console.error('Error creating income occurrence:', error)
+        alert('Erro ao criar receita: ' + error.message)
+      } else {
+        refetch()
+      }
     } else {
-      refetch()
+      // Receita normal - apenas atualizar status
+      const { error } = await supabase
+        .from('incomes')
+        // @ts-ignore
+        .update({ is_paid: !income.is_paid })
+        .eq('id', income.id)
+      
+      if (error) {
+        console.error('Error updating paid status:', error)
+        alert('Erro ao atualizar status: ' + error.message)
+      } else {
+        refetch()
+      }
     }
   }
 
@@ -223,7 +318,7 @@ export default function IncomesList({ userId, startDate, endDate }: Props) {
               ? `Mostrando projeções baseadas em recorrências para o período selecionado`
               : startDate && endDate
                 ? `Mostrando receitas do período selecionado`
-                : `Mostrando apenas receitas vencidas ou do mês atual`
+                : `Mostrando todas as receitas cadastradas`
             }
           </p>
         </div>
@@ -368,7 +463,8 @@ export default function IncomesList({ userId, startDate, endDate }: Props) {
         {/* Resumo dos filtros */}
         <div className="mt-3 pt-3 border-t border-apple-gray-200">
           <p className="text-xs text-apple-gray-500">
-            Mostrando {filteredIncomes.length} receitas (apenas vencidas ou do mês atual)
+            Mostrando {filteredIncomes.length} receitas
+            {startDate && endDate && ` do período selecionado`}
           </p>
         </div>
         </div>
