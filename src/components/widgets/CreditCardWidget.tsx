@@ -47,6 +47,8 @@ export default function CreditCardWidget({ expenses, loading, startDate, endDate
     
     // Filtrar compras que fecham na fatura do mês atual
     const invoicePurchases = creditCardPurchases.filter(purchase => {
+      if (!purchase.credit_card) return false
+      
       const cardClosingDay = purchase.credit_card.closing_day
       const purchaseInvoiceMonth = getInvoiceMonth(purchase, cardClosingDay)
       return purchaseInvoiceMonth === selectedInvoiceMonth
@@ -80,6 +82,8 @@ export default function CreditCardWidget({ expenses, loading, startDate, endDate
     }>()
     
     invoicePurchases.forEach(purchase => {
+      if (!purchase.credit_card) return
+      
       const cardId = purchase.credit_card.id
       
       if (!cardTotals.has(cardId)) {
