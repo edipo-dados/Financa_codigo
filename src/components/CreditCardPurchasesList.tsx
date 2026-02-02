@@ -87,7 +87,23 @@ export default function CreditCardPurchasesList({ userId }: Props) {
       return installmentMonth === selectedInvoiceMonth
     })
     
-    return monthInstallments.reduce((sum, installment) => sum + Number(installment.amount), 0)
+    const total = monthInstallments.reduce((sum, installment) => sum + Number(installment.amount), 0)
+    
+    console.log('💳 CreditCardPurchasesList invoiceTotal:', {
+      selectedCard,
+      selectedInvoiceMonth,
+      monthInstallments: monthInstallments.length,
+      total,
+      installmentsList: monthInstallments.map(e => ({
+        id: e.id,
+        description: e.description,
+        amount: e.amount,
+        expense_date: e.expense_date,
+        installment_number: e.installment_number
+      }))
+    })
+    
+    return total
   }, [selectedInvoiceMonth, selectedCard, expenses])
 
   // Aplicar filtros

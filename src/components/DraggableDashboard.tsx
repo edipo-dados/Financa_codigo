@@ -10,7 +10,6 @@ import KPIWidget from './widgets/KPIWidget'
 import FutureProjectionsWidget from './widgets/FutureProjectionsWidget'
 import DynamicProjectionChart from './widgets/DynamicProjectionChart'
 import PaymentStatusWidget from './widgets/PaymentStatusWidget'
-import CreditCardWidget from './widgets/CreditCardWidget'
 import CurrentBalanceWidget from './widgets/CurrentBalanceWidget'
 import ExpensesByMemberPieChart from './widgets/ExpensesByMemberPieChart'
 import IncomesByMemberPieChart from './widgets/IncomesByMemberPieChart'
@@ -18,7 +17,7 @@ import { Expense, Investment, Income } from '@/types'
 
 interface DashboardWidget {
   id: string
-  type: 'stats' | 'income-chart' | 'expense-chart' | 'financial-insights' | 'kpi-widget' | 'future-projections' | 'projection-chart' | 'payment-status' | 'credit-card' | 'current-balance' | 'expenses-by-member-pie' | 'incomes-by-member-pie'
+  type: 'stats' | 'income-chart' | 'expense-chart' | 'financial-insights' | 'kpi-widget' | 'future-projections' | 'projection-chart' | 'payment-status' | 'current-balance' | 'expenses-by-member-pie' | 'incomes-by-member-pie'
   title: string
   size: 'small' | 'medium' | 'large' | 'full'
   enabled: boolean
@@ -78,13 +77,6 @@ export default function DraggableDashboard({
       id: 'future-projections',
       type: 'future-projections',
       title: 'Projeções Futuras',
-      size: 'medium',
-      enabled: true
-    },
-    {
-      id: 'credit-card',
-      type: 'credit-card',
-      title: 'Fatura do Cartão',
       size: 'medium',
       enabled: true
     },
@@ -266,15 +258,6 @@ export default function DraggableDashboard({
             startDate={startDate}
             endDate={endDate}
             userId={userId}
-          />
-        )
-      case 'credit-card':
-        return (
-          <CreditCardWidget
-            expenses={expenses}
-            loading={loading}
-            startDate={startDate}
-            endDate={endDate}
           />
         )
       case 'expenses-by-member-pie':

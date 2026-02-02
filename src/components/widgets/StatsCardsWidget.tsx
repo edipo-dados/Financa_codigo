@@ -35,8 +35,20 @@ export default function StatsCardsWidget({ expenses, investments, incomes, loadi
     setMounted(true)
   }, [])
 
+  // Criar hash simples dos IDs para detectar mudanças
+  const expensesHash = useMemo(() => expenses.map(e => e.id).sort().join(','), [expenses])
+  const incomesHash = useMemo(() => incomes.map(i => i.id).sort().join(','), [incomes])
+  const investmentsHash = useMemo(() => investments.map(i => i.id).sort().join(','), [investments])
+
   // Buscar dados do período com a mesma lógica do CurrentBalanceWidget
   useEffect(() => {
+    console.log('🔄 StatsCardsWidget: Recalculando dados...', { 
+      startDate, 
+      endDate, 
+      expensesCount: expenses.length,
+      expensesHash: expensesHash.substring(0, 20) + '...'
+    })
+    
     const fetchPeriodData = async () => {
       try {
         const start = startDate || getCurrentMonthRange().start
@@ -68,9 +80,10 @@ export default function StatsCardsWidget({ expenses, investments, incomes, loadi
             // REMOVIDO: .eq('is_paid', true) - Para projeções, considerar todas as receitas
 
           // Buscar TODAS as despesas até o final do mês anterior (saldo acumulado)
+          // CORRIGIDO: Filtrar apenas parcelas de cartão, não compras parent
           supabase
             .from('expenses')
-            .select('amount')
+            .select('amount, is_credit_card, is_installment')
             .lte('expense_date', previousMonthEnd)
             .eq('is_paid', true), // Para saldo acumulado anterior, manter apenas pagas
 
@@ -84,8 +97,20 @@ export default function StatsCardsWidget({ expenses, investments, incomes, loadi
 
         // Calcular saldo acumulado até o mês anterior
         const accumulatedIncomes = (prevIncomesRes.data || []).reduce((sum, i: any) => sum + Number(i.amount), 0)
-        const accumulatedExpenses = (prevExpensesRes.data || []).reduce((sum, e: any) => sum + Number(e.amount), 0)
+        
+        // CORRIGIDO: Filtrar despesas para incluir apenas parcelas de cartão, não compras parent
+        const accumulatedExpenses = (prevExpensesRes.data || [])
+          .filter((e: any) => !e.is_credit_card || e.is_installment)
+          .reduce((sum, e: any) => sum + Number(e.amount), 0)
+        
         const accumulatedBalance = accumulatedIncomes - accumulatedExpenses
+
+        console.log('💰 StatsCardsWidget: Saldo acumulado calculado', {
+          accumulatedIncomes,
+          accumulatedExpenses,
+          accumulatedBalance,
+          previousMonthEnd
+        })
 
         setPeriodData({
           periodExpenses: expensesRes.data || [],
@@ -101,14 +126,17 @@ export default function StatsCardsWidget({ expenses, investments, incomes, loadi
     }
 
     fetchPeriodData()
-  }, [startDate, endDate])
+  }, [startDate, endDate, expensesHash, incomesHash, investmentsHash]) // Usar hashes para detectar mudanças nos dados
 
   const stats = useMemo(() => {
     const { periodExpenses, periodInvestments, periodIncomes, previousMonthBalance } = periodData
     
+    // CORRIGIDO: Filtrar despesas do período para incluir apenas parcelas de cartão, não compras parent
+    const filteredPeriodExpenses = periodExpenses.filter(e => !e.is_credit_card || e.is_installment)
+    
     // Separar despesas pagas e não pagas para melhor visibilidade
-    const paidExpenses = periodExpenses.filter(e => e.is_paid).reduce((sum, e) => sum + Number(e.amount), 0)
-    const unpaidExpenses = periodExpenses.filter(e => !e.is_paid).reduce((sum, e) => sum + Number(e.amount), 0)
+    const paidExpenses = filteredPeriodExpenses.filter(e => e.is_paid).reduce((sum, e) => sum + Number(e.amount), 0)
+    const unpaidExpenses = filteredPeriodExpenses.filter(e => !e.is_paid).reduce((sum, e) => sum + Number(e.amount), 0)
     const monthlyExpenses = paidExpenses + unpaidExpenses
     
     // Separar receitas recebidas e a receber para melhor visibilidade
@@ -119,19 +147,24 @@ export default function StatsCardsWidget({ expenses, investments, incomes, loadi
     // Para investimentos do período, usar initial_amount (valor investido)
     const monthlyInvestments = periodInvestments.reduce((sum, inv) => sum + Number(inv.initial_amount), 0)
     
-    // Saldo do mês = Receitas - Despesas (SEM subtrair investimentos)
-    const monthlyBalance = monthlyIncomes - monthlyExpenses
+    // Saldo do período = Receitas - Despesas - Investimentos
+    // Investimentos reduzem o saldo líquido pois saem da conta corrente
+    const monthlyBalance = monthlyIncomes - monthlyExpenses - monthlyInvestments
 
-    // NOVO: Saldo acumulado = Saldo do período + Saldo do mês anterior
+    // Saldo líquido acumulado = Saldo do período + Saldo acumulado anterior
     const cumulativeBalance = monthlyBalance + previousMonthBalance
+
+    // Saldo de Patrimônio = Saldo Líquido + Investimentos (recupera o valor investido como patrimônio)
+    const patrimonialBalance = cumulativeBalance + monthlyInvestments
 
     return {
       monthlyExpenses,
       monthlyIncomes,
       monthlyBalance,
-      cumulativeBalance, // Novo campo para saldo acumulado
+      cumulativeBalance, // Saldo líquido acumulado
+      patrimonialBalance, // Novo: Saldo de patrimônio
       monthlyInvestments, // Valor investido no período
-      expenseCount: periodExpenses.length,
+      expenseCount: filteredPeriodExpenses.length,
       incomeCount: periodIncomes.length,
       investmentCount: periodInvestments.length,
       previousMonthBalance, // Para exibir informação adicional
@@ -144,8 +177,8 @@ export default function StatsCardsWidget({ expenses, investments, incomes, loadi
 
   if (loading || dataLoading || !mounted) {
     return (
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        {[1, 2, 3, 4].map(i => (
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+        {[1, 2, 3, 4, 5].map(i => (
           <div key={i} className="fintech-card p-4 sm:p-6 rounded-2xl animate-pulse">
             <div className="w-10 h-10 bg-gray-200 dark:bg-fintech-dark-elevated rounded-xl mb-3"></div>
             <div className="h-4 bg-gray-200 dark:bg-fintech-dark-elevated rounded mb-2"></div>
@@ -160,7 +193,7 @@ export default function StatsCardsWidget({ expenses, investments, incomes, loadi
     <div className="fintech-card p-4 sm:p-6 rounded-2xl">
       <h3 className="text-lg font-semibold fintech-text-primary mb-4">📊 Resumo Financeiro</h3>
       
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
         <StatCard
           title="Receitas do Período"
           value={formatCurrency(stats.monthlyIncomes)}
@@ -180,7 +213,7 @@ export default function StatsCardsWidget({ expenses, investments, incomes, loadi
           value={formatCurrency(stats.cumulativeBalance)}
           icon="📊"
           color={stats.cumulativeBalance >= 0 ? 'green' : 'red'}
-          subtitle={`Período: ${formatCurrency(stats.monthlyBalance)} + Acumulado anterior: ${formatCurrency(stats.previousMonthBalance)}`}
+          subtitle={`(Receitas - Despesas - Investimentos) + Acumulado anterior`}
         />
         <StatCard
           title="Investido no Período"
@@ -188,6 +221,13 @@ export default function StatsCardsWidget({ expenses, investments, incomes, loadi
           icon="📈"
           color="blue"
           subtitle={`${stats.investmentCount} investimento(s)`}
+        />
+        <StatCard
+          title="Saldo de Patrimônio"
+          value={formatCurrency(stats.patrimonialBalance)}
+          icon="💎"
+          color={stats.patrimonialBalance >= 0 ? 'green' : 'red'}
+          subtitle={`Saldo Líquido + Investimentos`}
         />
       </div>
     </div>

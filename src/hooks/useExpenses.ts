@@ -71,10 +71,15 @@ export function useExpenses(userId: string | undefined) {
   }
 
   const deleteExpense = async (id: string) => {
+    console.log('🗑️ Excluindo despesa:', id)
     const { error } = await supabase.from('expenses').delete().eq('id', id)
 
     if (!error) {
+      console.log('✅ Despesa excluída, atualizando lista...')
       await fetchExpenses()
+      console.log('✅ Lista de despesas atualizada')
+    } else {
+      console.error('❌ Erro ao excluir despesa:', error)
     }
     return { error }
   }

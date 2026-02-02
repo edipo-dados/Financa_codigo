@@ -140,6 +140,21 @@ export function calculateCreditCardTotal(
       e.expense_date <= endDate
   )
   
+  console.log('💳 calculateCreditCardTotal:', {
+    totalExpenses: expenses.length,
+    creditCardExpenses: creditCardExpenses.length,
+    startDate,
+    endDate,
+    creditCardExpensesList: creditCardExpenses.map(e => ({
+      id: e.id,
+      description: e.description,
+      amount: e.amount,
+      expense_date: e.expense_date,
+      installment_number: e.installment_number,
+      card_name: e.credit_card?.name
+    }))
+  })
+  
   const total = creditCardExpenses.reduce((sum, e) => sum + Number(e.amount), 0)
   const installments = creditCardExpenses.filter((e) => e.installments > 1).length
   const singlePurchases = creditCardExpenses.filter((e) => e.installments === 1).length

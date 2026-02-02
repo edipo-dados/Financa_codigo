@@ -77,6 +77,11 @@ export default function ProjectionChartCore({ expenses, investments, incomes }: 
       
       const monthExpenses = monthExpensesPaid + monthExpensesUnpaid
       
+      // Investimentos do mês
+      const monthInvestments = investments.filter(inv => 
+        inv.investment_date >= monthStartStr && inv.investment_date <= monthEndStr
+      ).reduce((sum, inv) => sum + Number(inv.initial_amount), 0)
+      
       // Calcular recorrências para este mês específico
       const futureIncomes = calculateFutureOccurrences(
         incomes.filter(i => i.is_recurring),
@@ -94,9 +99,26 @@ export default function ProjectionChartCore({ expenses, investments, incomes }: 
         return occMonth === monthKey
       }).reduce((sum, occ) => sum + occ.amount, 0)
 
+      const futureInvestmentsRecurring = calculateFutureOccurrences(
+        investments.filter(inv => inv.is_recurring).map(inv => ({
+          amount: inv.initial_amount,
+          is_recurring: inv.is_recurring,
+          recurrence_frequency: inv.recurrence_frequency,
+          recurrence_start_date: inv.recurrence_start_date,
+          recurrence_end_type: inv.recurrence_end_type,
+          recurrence_end_date: inv.recurrence_end_date,
+          recurrence_count: inv.recurrence_count
+        })),
+        projectionMonths + 6
+      ).filter(occ => {
+        const occMonth = format(occ.date, 'yyyy-MM')
+        return occMonth === monthKey
+      }).reduce((sum, occ) => sum + occ.amount, 0)
+
       // Lógica de projeção (MESMA DO FutureProjectionsWidget)
       let projectedIncomes = monthIncomes
       let projectedExpenses = monthExpenses
+      let projectedInvestments = monthInvestments
 
       // Se é mês futuro, adicionar recorrências
       if (monthStart > today) {
@@ -106,6 +128,10 @@ export default function ProjectionChartCore({ expenses, investments, incomes }: 
         
         if (futureExpenses > 0) {
           projectedExpenses += futureExpenses
+        }
+
+        if (futureInvestmentsRecurring > 0) {
+          projectedInvestments += futureInvestmentsRecurring
         }
 
         // Se não há dados reais, adicionar também média histórica
@@ -150,19 +176,30 @@ export default function ProjectionChartCore({ expenses, investments, incomes }: 
             ? historicalExpensesUnpaid.reduce((sum, e) => sum + Number(e.amount), 0) / 6 
             : 0
           
+          const historicalInvestments = investments.filter(inv => 
+            new Date(inv.investment_date) >= sixMonthsAgo && 
+            new Date(inv.investment_date) <= today &&
+            !inv.is_recurring
+          )
+          const avgHistoricalInvestments = historicalInvestments.length > 0
+            ? historicalInvestments.reduce((sum, inv) => sum + Number(inv.initial_amount), 0) / 6
+            : 0
+          
           // Adicionar média histórica apenas se não há dados reais
           projectedIncomes += avgHistoricalIncomesPaid + avgHistoricalIncomesUnpaid
           projectedExpenses += avgHistoricalExpensesPaid + avgHistoricalExpensesUnpaid
+          projectedInvestments += avgHistoricalInvestments
         }
       }
       
-      // CORRIGIDO: Saldo = Receitas - Despesas (SEM subtrair investimentos)
-      const monthBalance = projectedIncomes - projectedExpenses
+      // CORRIGIDO: Projeção = (Receitas - Investimentos) - Despesas + Saldo anterior
+      const monthBalance = (projectedIncomes - projectedInvestments) - projectedExpenses
       
       projectedMonths.push({
         month: monthLabel,
         receitas: projectedIncomes,
         despesas: projectedExpenses,
+        investimentos: projectedInvestments,
         saldo: monthBalance,
       })
     }
@@ -180,7 +217,7 @@ export default function ProjectionChartCore({ expenses, investments, incomes }: 
     return projectedMonths
   }, [expenses, investments, incomes, mounted])
 
-  if (projectionData.every(item => item.receitas === 0 && item.despesas === 0)) {
+  if (projectionData.every(item => item.receitas === 0 && item.despesas === 0 && item.investimentos === 0)) {
     return (
       <div className="text-center py-8">
         <span className="text-4xl mb-2 block">📊</span>
@@ -235,6 +272,15 @@ export default function ProjectionChartCore({ expenses, investments, incomes }: 
           strokeWidth={3}
           name="Despesas"
           dot={{ fill: '#ef4444', r: 4 }}
+          activeDot={{ r: 6 }}
+        />
+        <Line 
+          type="monotone" 
+          dataKey="investimentos" 
+          stroke="#f59e0b" 
+          strokeWidth={3}
+          name="Investimentos"
+          dot={{ fill: '#f59e0b', r: 4 }}
           activeDot={{ r: 6 }}
         />
         <Line 

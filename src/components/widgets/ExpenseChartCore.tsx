@@ -21,7 +21,10 @@ export default function ExpenseChartCore({ expenses }: Props) {
   }
 
   const categoryData = useMemo(() => {
-    const expensesByCategory = expenses.reduce((acc, expense) => {
+    // Filtrar apenas parcelas de cartão (não parent)
+    const filteredExpenses = expenses.filter(e => !e.is_credit_card || e.is_installment)
+    
+    const expensesByCategory = filteredExpenses.reduce((acc, expense) => {
       const categoryName = expense.category?.name || 'Sem categoria'
       const categoryColor = expense.category?.color || '#6B7280'
       

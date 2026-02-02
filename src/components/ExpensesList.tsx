@@ -979,7 +979,7 @@ export default function ExpensesList({ userId, startDate, endDate }: Props) {
                             label: expense.is_recurring ? 'Excluir Item' : 'Excluir',
                             icon: '✕',
                             color: 'text-apple-red hover:text-apple-red/80',
-                            onClick: () => handleDelete(expense.id),
+                            onClick: () => handleDelete(expense),
                             title: expense.is_recurring ? 'Excluir apenas este item' : 'Excluir despesa'
                           }
                         ]}
@@ -1126,7 +1126,7 @@ export default function ExpensesList({ userId, startDate, endDate }: Props) {
                                 label: 'Excluir',
                                 icon: '✕',
                                 color: 'text-apple-red hover:text-apple-red/80',
-                                onClick: () => handleDelete(expense.id),
+                                onClick: () => handleDelete(expense),
                                 title: 'Excluir despesa'
                               }
                             ]}

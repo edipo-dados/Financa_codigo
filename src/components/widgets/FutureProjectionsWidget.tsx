@@ -211,8 +211,8 @@ export default function FutureProjectionsWidget({ expenses, investments, incomes
         hasRecurrences = futureIncomes > 0 || futureExpenses > 0 || futureInvestmentsRecurring > 0
       }
       
-    // CORRIGIDO: Saldo = Receitas - Despesas (SEM subtrair investimentos)
-      const monthBalance = projectedIncomes - projectedExpenses
+    // CORRIGIDO: Projeção = (Receitas - Investimentos) - Despesas + Saldo anterior
+      const monthBalance = (projectedIncomes - projectedInvestments) - projectedExpenses
       
       projectedMonths.push({
         month: monthLabel,
@@ -290,10 +290,7 @@ export default function FutureProjectionsWidget({ expenses, investments, incomes
         <h3 className="text-lg font-semibold fintech-text-primary">📅 Projeções (Inclui Mês Anterior)</h3>
         <div className="flex items-center gap-3">
           <div className="text-xs fintech-text-muted">
-            {projectionData.hasRecurringData && projectionData.hasHistoricalData && "Recorrências + Histórico"}
-            {projectionData.hasRecurringData && !projectionData.hasHistoricalData && "Baseado em Recorrências"}
-            {!projectionData.hasRecurringData && projectionData.hasHistoricalData && "Baseado no Histórico"}
-            {!projectionData.hasRecurringData && !projectionData.hasHistoricalData && "Sem dados suficientes"}
+            Fórmula: (Receitas - Investimentos) - Despesas + Saldo anterior
           </div>
           {/* Seletor de período */}
           <select
