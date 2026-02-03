@@ -56,7 +56,7 @@ export function calculateInstallmentAmount(totalAmount: number, installments: nu
 
 /**
  * Calcula a data da primeira fatura baseado na data de compra e dia de fechamento
- * Regra: Compras até o fechamento vão para o MÊS SEGUINTE
+ * Regra CORRETA: Compras até o fechamento vão para a fatura do MESMO MÊS
  */
 export function calculateFirstInvoiceDate(purchaseDate: string, closingDay: number, dueDay?: number): Date {
   const purchase = parseISO(purchaseDate)
@@ -64,25 +64,23 @@ export function calculateFirstInvoiceDate(purchaseDate: string, closingDay: numb
   const purchaseMonth = purchase.getMonth()
   const purchaseYear = purchase.getFullYear()
   
-  // SEMPRE vai para o mês seguinte se compra for até o fechamento
-  // SEMPRE vai para 2 meses depois se compra for depois do fechamento
   if (purchaseDay <= closingDay) {
-    // Compra até fechamento → MÊS SEGUINTE
+    // Compra até fechamento → FATURA DO MESMO MÊS
     if (dueDay && dueDay < closingDay) {
-      // Vencimento no mês seguinte ao fechamento
+      // Se vencimento é antes do fechamento, vai para o mês seguinte
       return new Date(purchaseYear, purchaseMonth + 1, dueDay)
     } else {
-      // Vencimento no mesmo mês do fechamento  
-      return new Date(purchaseYear, purchaseMonth + 1, closingDay)
+      // Vencimento no mesmo mês ou depois do fechamento
+      return new Date(purchaseYear, purchaseMonth, dueDay || closingDay)
     }
   } else {
-    // Compra depois do fechamento → 2 MESES DEPOIS
+    // Compra depois do fechamento → FATURA DO MÊS SEGUINTE
     if (dueDay && dueDay < closingDay) {
-      // Vencimento no mês seguinte ao fechamento
+      // Se vencimento é antes do fechamento, vai para 2 meses depois
       return new Date(purchaseYear, purchaseMonth + 2, dueDay)
     } else {
-      // Vencimento no mesmo mês do fechamento
-      return new Date(purchaseYear, purchaseMonth + 2, closingDay)
+      // Vencimento no mês seguinte
+      return new Date(purchaseYear, purchaseMonth + 1, dueDay || closingDay)
     }
   }
 }
