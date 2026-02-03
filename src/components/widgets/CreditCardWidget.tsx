@@ -1,77 +1,52 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Expense } from '@/types'
 import { formatCurrency, getCurrentMonthRange } from '@/lib/utils'
-import { calculateCreditCardTotal, groupByCreditCard } from '@/lib/creditCard'
+import { recalculateAllCreditCardPurchases } from '@/lib/creditCard'
+import { supabase } from '@/lib/supabase'
 
 interface Props {
   expenses: Expense[]
   loading: boolean
   startDate?: string
   endDate?: string
+  userId?: string
+  onRefresh?: () => void
 }
 
-export default function CreditCardWidget({ expenses, loading, startDate, endDate }: Props) {
+export default function CreditCardWidget({ expenses, loading, startDate, endDate, userId, onRefresh }: Props) {
+  const [recalculating, setRecalculating] = useState(false)
   const creditCardData = useMemo(() => {
     const start = startDate || getCurrentMonthRange().start
+    const end = endDate || getCurrentMonthRange().end
     
-    // Widget mostra fatura do mês atual (considerando closing_day)
-    const currentDate = new Date(start)
-    const selectedInvoiceMonth = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`
+    console.log('💳 CreditCardWidget - Período:', { start, end })
     
-    // Função para calcular o mês de fechamento da fatura (da aba de cartões)
-    const getInvoiceMonth = (purchase: any, cardClosingDay: number) => {
-      if (!purchase.purchase_date) return null
-      
-      const purchaseDate = new Date(purchase.purchase_date)
-      const purchaseDay = purchaseDate.getDate()
-      
-      // Se a compra foi antes do fechamento, entra na fatura do mês atual
-      // Se foi depois, entra na fatura do próximo mês
-      if (purchaseDay <= cardClosingDay) {
-        return `${purchaseDate.getFullYear()}-${String(purchaseDate.getMonth() + 1).padStart(2, '0')}`
-      } else {
-        const nextMonth = new Date(purchaseDate.getFullYear(), purchaseDate.getMonth() + 1, 1)
-        return `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, '0')}`
-      }
-    }
-    
-    // Buscar compras parent de cartão
-    const creditCardPurchases = expenses.filter(e => 
+    // Usar a mesma lógica da aba de despesas: filtrar parcelas por expense_date
+    const creditCardExpenses = expenses.filter(e => 
       e.is_credit_card && 
-      !e.is_installment &&
-      e.purchase_date &&
-      e.credit_card
+      e.is_installment && // Apenas parcelas
+      e.expense_date >= start &&
+      e.expense_date <= end
     )
     
-    // Filtrar compras que fecham na fatura do mês atual
-    const invoicePurchases = creditCardPurchases.filter(purchase => {
-      if (!purchase.credit_card) return false
-      
-      const cardClosingDay = purchase.credit_card.closing_day
-      const purchaseInvoiceMonth = getInvoiceMonth(purchase, cardClosingDay)
-      return purchaseInvoiceMonth === selectedInvoiceMonth
-    })
-    
-    // Calcular total das compras que fecham na fatura
-    const total = invoicePurchases.reduce((sum, purchase) => sum + Number(purchase.amount), 0)
-    
-    console.log('💳 CreditCardWidget - Compras que fecham na fatura do mês:', {
-      selectedInvoiceMonth,
-      invoicePurchases: invoicePurchases.length,
-      total,
-      purchasesList: invoicePurchases.map(p => ({
-        id: p.id,
-        description: p.description,
-        amount: p.amount,
-        purchase_date: p.purchase_date,
-        card_name: p.credit_card?.name,
-        closing_day: p.credit_card?.closing_day,
-        invoice_month: getInvoiceMonth(p, p.credit_card?.closing_day || 15)
+    console.log('💳 CreditCardWidget - Parcelas no período:', {
+      totalExpenses: expenses.length,
+      creditCardExpenses: creditCardExpenses.length,
+      parcelas: creditCardExpenses.map(e => ({
+        id: e.id,
+        description: e.description,
+        amount: e.amount,
+        expense_date: e.expense_date,
+        installment_number: e.installment_number,
+        card_name: e.credit_card?.name
       }))
     })
-
+    
+    // Calcular total das parcelas
+    const total = creditCardExpenses.reduce((sum, expense) => sum + Number(expense.amount), 0)
+    
     // Agrupar por cartão para exibição
     const cardTotals = new Map<string, {
       cardId: string
@@ -81,33 +56,66 @@ export default function CreditCardWidget({ expenses, loading, startDate, endDate
       count: number
     }>()
     
-    invoicePurchases.forEach(purchase => {
-      if (!purchase.credit_card) return
+    creditCardExpenses.forEach(expense => {
+      if (!expense.credit_card) return
       
-      const cardId = purchase.credit_card.id
+      const cardId = expense.credit_card.id
       
       if (!cardTotals.has(cardId)) {
         cardTotals.set(cardId, {
           cardId,
-          cardName: purchase.credit_card.name,
-          cardColor: purchase.credit_card.color,
+          cardName: expense.credit_card.name,
+          cardColor: expense.credit_card.color,
           total: 0,
           count: 0
         })
       }
       
       const cardData = cardTotals.get(cardId)!
-      cardData.total += Number(purchase.amount)
+      cardData.total += Number(expense.amount)
       cardData.count += 1
     })
     
     const creditCardByCard = Array.from(cardTotals.values())
 
     return {
-      creditCardStats: { total, installments: invoicePurchases.length, singlePurchases: 0 },
+      creditCardStats: { 
+        total, 
+        installments: creditCardExpenses.length, 
+        singlePurchases: 0 
+      },
       creditCardByCard,
     }
   }, [expenses, startDate, endDate])
+
+  const handleRecalculateAll = async () => {
+    if (!userId) {
+      alert('❌ Erro: ID do usuário não disponível')
+      return
+    }
+
+    if (!confirm('Recalcular todas as datas de parcelas de cartão? Esta ação corrige datas incorretas de compras antigas.')) {
+      return
+    }
+
+    setRecalculating(true)
+    
+    try {
+      const result = await recalculateAllCreditCardPurchases(supabase, userId)
+      
+      if (result.success) {
+        alert(`✅ ${result.message}`)
+        if (onRefresh) onRefresh()
+      } else {
+        alert(`❌ Erro no recálculo: ${result.error}`)
+      }
+    } catch (error) {
+      console.error('Erro ao recalcular:', error)
+      alert('❌ Erro interno ao recalcular compras')
+    } finally {
+      setRecalculating(false)
+    }
+  }
 
   if (loading) {
     return (
@@ -130,7 +138,7 @@ export default function CreditCardWidget({ expenses, loading, startDate, endDate
         <h3 className="text-lg font-semibold fintech-text-primary mb-4">💳 Fatura do Cartão</h3>
         <div className="text-center py-8">
           <span className="text-4xl mb-2 block">💳</span>
-          <p className="fintech-text-muted">Nenhuma fatura do mês anterior</p>
+          <p className="fintech-text-muted">Nenhuma parcela no período</p>
         </div>
       </div>
     )
@@ -140,9 +148,9 @@ export default function CreditCardWidget({ expenses, loading, startDate, endDate
     <div className="fintech-card p-4 sm:p-6 rounded-2xl">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h3 className="text-lg font-semibold fintech-text-primary">💳 Fatura do Cartão</h3>
+          <h3 className="text-lg font-semibold fintech-text-primary">💳 Cartão de Crédito</h3>
           <p className="text-sm fintech-text-muted mt-1">
-            Compras que fecham na fatura do mês ({creditCardData.creditCardStats.installments} compras)
+            Parcelas que vencem no período ({creditCardData.creditCardStats.installments} parcelas)
           </p>
         </div>
         <div className="text-right">

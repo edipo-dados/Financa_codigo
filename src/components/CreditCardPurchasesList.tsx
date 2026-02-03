@@ -72,40 +72,6 @@ export default function CreditCardPurchasesList({ userId }: Props) {
     return Array.from(months).sort() // Ordem cronológica (janeiro primeiro)
   }, [selectedCard, expenses, creditCards])
 
-  // Calcular valor total da fatura do mês selecionado
-  const invoiceTotal = useMemo(() => {
-    if (selectedInvoiceMonth === 'all' || selectedCard === 'all') return 0
-    
-    // Buscar todas as parcelas que vencem no mês selecionado para o cartão selecionado
-    const monthInstallments = expenses.filter(e => 
-      e.is_credit_card && 
-      e.is_installment && 
-      e.credit_card_id === selectedCard
-    ).filter(installment => {
-      const installmentDate = new Date(installment.expense_date)
-      const installmentMonth = `${installmentDate.getFullYear()}-${String(installmentDate.getMonth() + 1).padStart(2, '0')}`
-      return installmentMonth === selectedInvoiceMonth
-    })
-    
-    const total = monthInstallments.reduce((sum, installment) => sum + Number(installment.amount), 0)
-    
-    console.log('💳 CreditCardPurchasesList invoiceTotal:', {
-      selectedCard,
-      selectedInvoiceMonth,
-      monthInstallments: monthInstallments.length,
-      total,
-      installmentsList: monthInstallments.map(e => ({
-        id: e.id,
-        description: e.description,
-        amount: e.amount,
-        expense_date: e.expense_date,
-        installment_number: e.installment_number
-      }))
-    })
-    
-    return total
-  }, [selectedInvoiceMonth, selectedCard, expenses])
-
   // Aplicar filtros
   const filteredPurchases = useMemo(() => {
     return creditCardPurchases.filter(purchase => {
@@ -173,6 +139,82 @@ export default function CreditCardPurchasesList({ userId }: Props) {
       return true
     })
   }, [creditCardPurchases, expenses, selectedStatus, selectedCard, selectedMember, selectedInvoiceMonth, creditCards])
+
+  // Calcular valor total da fatura do mês selecionado (APÓS filteredPurchases)
+  const invoiceTotal = useMemo(() => {
+    if (selectedInvoiceMonth === 'all' || selectedCard === 'all') return 0
+    
+    // Usar as mesmas compras que aparecem na lista filtrada
+    const invoicePurchases = filteredPurchases.filter(purchase => {
+      // Verificar se esta compra tem parcelas que vencem no mês selecionado
+      const installments = expenses.filter(e => 
+        e.parent_expense_id === purchase.id && e.is_installment
+      )
+      
+      if (installments.length > 0) {
+        // Verificar se alguma parcela vence no mês selecionado
+        return installments.some(installment => {
+          const installmentDate = new Date(installment.expense_date)
+          const installmentMonth = `${installmentDate.getFullYear()}-${String(installmentDate.getMonth() + 1).padStart(2, '0')}`
+          return installmentMonth === selectedInvoiceMonth
+        })
+      } else {
+        // Se não há parcelas, usar a lógica original baseada na data da compra
+        const selectedCardData = creditCards.find(c => c.id === selectedCard)
+        if (selectedCardData) {
+          const purchaseInvoiceMonth = getInvoiceMonth(purchase, selectedCardData.closing_day)
+          return purchaseInvoiceMonth === selectedInvoiceMonth
+        }
+      }
+      
+      return false
+    })
+    
+    // Somar apenas as parcelas que vencem no mês selecionado das compras filtradas
+    let total = 0
+    invoicePurchases.forEach(purchase => {
+      const installments = expenses.filter(e => 
+        e.parent_expense_id === purchase.id && e.is_installment
+      )
+      
+      if (installments.length > 0) {
+        // Somar apenas parcelas que vencem no mês selecionado
+        const monthInstallments = installments.filter(installment => {
+          const installmentDate = new Date(installment.expense_date)
+          const installmentMonth = `${installmentDate.getFullYear()}-${String(installmentDate.getMonth() + 1).padStart(2, '0')}`
+          return installmentMonth === selectedInvoiceMonth
+        })
+        
+        total += monthInstallments.reduce((sum, installment) => sum + Number(installment.amount), 0)
+      } else {
+        // Se não há parcelas, usar o valor total da compra
+        total += Number(purchase.total_amount || purchase.amount)
+      }
+    })
+    
+    console.log('💳 CreditCardPurchasesList invoiceTotal (CORRIGIDO):', {
+      selectedCard,
+      selectedInvoiceMonth,
+      invoicePurchases: invoicePurchases.length,
+      total,
+      purchasesList: invoicePurchases.map(p => ({
+        id: p.id,
+        description: p.description,
+        total_amount: p.total_amount || p.amount,
+        installments_in_month: expenses.filter(e => 
+          e.parent_expense_id === p.id && 
+          e.is_installment &&
+          (() => {
+            const installmentDate = new Date(e.expense_date)
+            const installmentMonth = `${installmentDate.getFullYear()}-${String(installmentDate.getMonth() + 1).padStart(2, '0')}`
+            return installmentMonth === selectedInvoiceMonth
+          })()
+        ).length
+      }))
+    })
+    
+    return total
+  }, [selectedInvoiceMonth, selectedCard, expenses, filteredPurchases, creditCards])
 
   // Função para obter status da fatura
   const getInvoiceStatus = (purchase: any) => {

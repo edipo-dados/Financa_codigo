@@ -116,7 +116,8 @@ export default function ExpenseForm({ userId, onSuccess, onRefresh }: Props) {
           formData.installments,
           formData.purchase_date,
           card.closing_day,
-          formData.description
+          formData.description,
+          card.due_day
         )
 
         // Criar despesa principal (parent)

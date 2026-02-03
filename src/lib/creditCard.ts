@@ -56,19 +56,34 @@ export function calculateInstallmentAmount(totalAmount: number, installments: nu
 
 /**
  * Calcula a data da primeira fatura baseado na data de compra e dia de fechamento
+ * Regra: Compras até o fechamento vão para o MÊS SEGUINTE
  */
-export function calculateFirstInvoiceDate(purchaseDate: string, closingDay: number): Date {
+export function calculateFirstInvoiceDate(purchaseDate: string, closingDay: number, dueDay?: number): Date {
   const purchase = parseISO(purchaseDate)
   const purchaseDay = purchase.getDate()
+  const purchaseMonth = purchase.getMonth()
+  const purchaseYear = purchase.getFullYear()
   
-  // Se a compra foi antes do fechamento, entra na fatura do mês atual
-  // Se foi depois, entra na fatura do próximo mês
+  // SEMPRE vai para o mês seguinte se compra for até o fechamento
+  // SEMPRE vai para 2 meses depois se compra for depois do fechamento
   if (purchaseDay <= closingDay) {
-    // Fatura do mês atual
-    return new Date(purchase.getFullYear(), purchase.getMonth(), closingDay)
+    // Compra até fechamento → MÊS SEGUINTE
+    if (dueDay && dueDay < closingDay) {
+      // Vencimento no mês seguinte ao fechamento
+      return new Date(purchaseYear, purchaseMonth + 1, dueDay)
+    } else {
+      // Vencimento no mesmo mês do fechamento  
+      return new Date(purchaseYear, purchaseMonth + 1, closingDay)
+    }
   } else {
-    // Fatura do próximo mês
-    return addMonths(new Date(purchase.getFullYear(), purchase.getMonth(), closingDay), 1)
+    // Compra depois do fechamento → 2 MESES DEPOIS
+    if (dueDay && dueDay < closingDay) {
+      // Vencimento no mês seguinte ao fechamento
+      return new Date(purchaseYear, purchaseMonth + 2, dueDay)
+    } else {
+      // Vencimento no mesmo mês do fechamento
+      return new Date(purchaseYear, purchaseMonth + 2, closingDay)
+    }
   }
 }
 
@@ -80,10 +95,11 @@ export function createInstallmentsData(
   installments: number,
   purchaseDate: string,
   closingDay: number,
-  description: string
+  description: string,
+  dueDay?: number
 ): InstallmentData[] {
   const amounts = calculateInstallmentAmount(totalAmount, installments)
-  const firstInvoiceDate = calculateFirstInvoiceDate(purchaseDate, closingDay)
+  const firstInvoiceDate = calculateFirstInvoiceDate(purchaseDate, closingDay, dueDay)
   
   return amounts.map((amount, index) => {
     const invoiceDate = addMonths(firstInvoiceDate, index)
@@ -209,6 +225,26 @@ export function calculateAvailableLimit(
 }
 
 /**
+ * Recalcula as datas de todas as parcelas de uma compra existente
+ */
+export function recalculateInstallmentDates(
+  purchaseDate: string,
+  closingDay: number,
+  dueDay: number,
+  totalInstallments: number
+): string[] {
+  const firstInvoiceDate = calculateFirstInvoiceDate(purchaseDate, closingDay, dueDay)
+  const dates: string[] = []
+  
+  for (let i = 0; i < totalInstallments; i++) {
+    const installmentDate = addMonths(firstInvoiceDate, i)
+    dates.push(format(installmentDate, 'yyyy-MM-dd'))
+  }
+  
+  return dates
+}
+
+/**
  * Formata informações de parcela para exibição
  */
 export function formatInstallmentInfo(
@@ -217,4 +253,126 @@ export function formatInstallmentInfo(
   amount: number
 ): string {
   return `Parcela ${installmentNumber}/${totalInstallments} - R$ ${amount.toFixed(2)}`
+}
+
+/**
+ * Recalcula todas as compras de cartão de crédito existentes com a lógica corrigida
+ * Usado para corrigir compras criadas antes da correção da lógica
+ */
+export async function recalculateAllCreditCardPurchases(supabase: any, userId: string) {
+  console.log('🔄 Iniciando recálculo de todas as compras de cartão...')
+  
+  try {
+    // 1. Buscar todas as compras parent (não são parcelas)
+    const { data: parentPurchases, error: parentError } = await supabase
+      .from('expenses')
+      .select(`
+        *,
+        credit_card:credit_cards(*)
+      `)
+      .eq('user_id', userId)
+      .eq('is_credit_card', true)
+      .eq('is_installment', false)
+      .is('parent_expense_id', null)
+
+    if (parentError) {
+      console.error('Erro ao buscar compras parent:', parentError)
+      return { success: false, error: parentError.message }
+    }
+
+    if (!parentPurchases || parentPurchases.length === 0) {
+      console.log('Nenhuma compra de cartão encontrada para recalcular')
+      return { success: true, message: 'Nenhuma compra encontrada' }
+    }
+
+    console.log(`📋 Encontradas ${parentPurchases.length} compras para recalcular`)
+
+    let recalculatedCount = 0
+    let errorCount = 0
+
+    // 2. Para cada compra parent, recalcular as parcelas
+    for (const purchase of parentPurchases) {
+      try {
+        console.log(`🔄 Recalculando compra: ${purchase.description} (${purchase.id})`)
+        
+        if (!purchase.credit_card) {
+          console.warn(`⚠️ Cartão não encontrado para compra ${purchase.id}`)
+          errorCount++
+          continue
+        }
+
+        // 3. Buscar todas as parcelas desta compra
+        const { data: installments, error: installmentsError } = await supabase
+          .from('expenses')
+          .select('*')
+          .eq('parent_expense_id', purchase.id)
+          .eq('is_installment', true)
+          .order('installment_number', { ascending: true })
+
+        if (installmentsError) {
+          console.error(`Erro ao buscar parcelas da compra ${purchase.id}:`, installmentsError)
+          errorCount++
+          continue
+        }
+
+        if (!installments || installments.length === 0) {
+          console.warn(`⚠️ Nenhuma parcela encontrada para compra ${purchase.id}`)
+          errorCount++
+          continue
+        }
+
+        // 4. Recalcular datas das parcelas com a lógica corrigida
+        const newDates = recalculateInstallmentDates(
+          purchase.purchase_date,
+          purchase.credit_card.closing_day,
+          purchase.credit_card.due_day,
+          installments.length
+        )
+
+        console.log(`📅 Novas datas calculadas:`, newDates)
+
+        // 5. Atualizar cada parcela com a nova data
+        for (let i = 0; i < installments.length; i++) {
+          const installment = installments[i]
+          const newDate = newDates[i]
+          
+          if (installment.expense_date !== newDate) {
+            console.log(`📝 Atualizando parcela ${installment.installment_number}: ${installment.expense_date} → ${newDate}`)
+            
+            const { error: updateError } = await supabase
+              .from('expenses')
+              .update({ expense_date: newDate })
+              .eq('id', installment.id)
+
+            if (updateError) {
+              console.error(`Erro ao atualizar parcela ${installment.id}:`, updateError)
+              errorCount++
+            }
+          } else {
+            console.log(`✅ Parcela ${installment.installment_number} já está com data correta`)
+          }
+        }
+
+        recalculatedCount++
+        console.log(`✅ Compra ${purchase.description} recalculada com sucesso`)
+
+      } catch (error) {
+        console.error(`Erro ao processar compra ${purchase.id}:`, error)
+        errorCount++
+      }
+    }
+
+    console.log(`🎉 Recálculo concluído: ${recalculatedCount} compras processadas, ${errorCount} erros`)
+
+    return {
+      success: true,
+      message: `Recálculo concluído: ${recalculatedCount} compras processadas${errorCount > 0 ? `, ${errorCount} erros` : ''}`,
+      recalculatedCount,
+      errorCount
+    }
+
+  } catch (error) {
+    console.error('Erro geral no recálculo:', error)
+    return { success: false, error: 'Erro interno no recálculo' }
+  }
 }

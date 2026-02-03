@@ -46,7 +46,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   // Evitar hidration mismatch
   if (!mounted) {
-    return <div className="min-h-screen bg-white">{children}</div>
+    return <>{children}</>
   }
 
   return (

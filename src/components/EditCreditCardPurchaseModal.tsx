@@ -1,12 +1,11 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { formatDate } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 import { useFamilyMembers } from '@/hooks/useFamilyMembers'
 import { useCreditCards } from '@/hooks/useCreditCards'
 import { Expense, ExpenseCategory } from '@/types'
-import { createInstallmentsData, validateCreditCardPurchase } from '@/lib/creditCard'
+import { createInstallmentsData, validateCreditCardPurchase, recalculateAllCreditCardPurchases } from '@/lib/creditCard'
 
 interface Props {
   isOpen: boolean
@@ -20,6 +19,7 @@ export default function EditCreditCardPurchaseModal({ isOpen, onClose, purchase,
   const { creditCards } = useCreditCards(purchase.user_id)
   const [categories, setCategories] = useState<ExpenseCategory[]>([])
   const [loading, setLoading] = useState(false)
+  const [recalculatingAll, setRecalculatingAll] = useState(false)
   
   const [formData, setFormData] = useState({
     description: purchase.description,
@@ -58,6 +58,30 @@ export default function EditCreditCardPurchaseModal({ isOpen, onClose, purchase,
   }
 
   if (!isOpen) return null
+
+  const handleRecalculateAll = async () => {
+    if (!confirm('Tem certeza que deseja recalcular TODAS as compras de cartão de crédito? Esta ação irá corrigir as datas de vencimento de todas as parcelas existentes.')) {
+      return
+    }
+
+    setRecalculatingAll(true)
+    
+    try {
+      const result = await recalculateAllCreditCardPurchases(supabase, purchase.user_id)
+      
+      if (result.success) {
+        alert(`✅ ${result.message}`)
+        onSuccess() // Refresh the data
+      } else {
+        alert(`❌ Erro no recálculo: ${result.error}`)
+      }
+    } catch (error) {
+      console.error('Erro ao recalcular:', error)
+      alert('❌ Erro interno ao recalcular compras')
+    } finally {
+      setRecalculatingAll(false)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -437,6 +461,39 @@ export default function EditCreditCardPurchaseModal({ isOpen, onClose, purchase,
                   <li>• Se aumentar o número de parcelas, novas parcelas serão criadas</li>
                   <li>• Se diminuir o número de parcelas, as parcelas extras serão excluídas</li>
                 </ul>
+              </div>
+            </div>
+          </div>
+
+          {/* Botão para recalcular todas as compras */}
+          <div className="bg-apple-blue/5 p-4 rounded-lg border border-apple-blue/20">
+            <div className="flex items-start gap-3">
+              <span className="text-lg">🔄</span>
+              <div className="flex-1">
+                <p className="font-medium text-sm text-apple-gray-700 mb-2">
+                  Recalcular Todas as Compras de Cartão
+                </p>
+                <p className="text-xs text-apple-gray-600 mb-3">
+                  Se você tem compras antigas com datas incorretas (especialmente para cartões com fechamento no final do mês), 
+                  use esta opção para corrigir automaticamente todas as datas de vencimento das parcelas.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleRecalculateAll}
+                  disabled={recalculatingAll}
+                  className="px-3 py-2 bg-apple-blue text-white text-xs rounded-lg hover:bg-apple-blue/90 transition-colors disabled:opacity-50 flex items-center gap-2"
+                >
+                  {recalculatingAll ? (
+                    <>
+                      <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Recalculando...
+                    </>
+                  ) : (
+                    <>
+                      🔄 Recalcular Todas
+                    </>
+                  )}
+                </button>
               </div>
             </div>
           </div>
