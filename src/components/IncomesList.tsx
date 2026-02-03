@@ -110,8 +110,27 @@ export default function IncomesList({ userId, startDate, endDate }: Props) {
         return income.income_date >= startDate && income.income_date <= endDate
       })
       
+      console.log('🔍 IncomesList Debug:', {
+        periodo: `${startDate} até ${endDate}`,
+        todasReceitas: incomes.length,
+        receitasPeriodo: periodIncomes.length,
+        detalhesTodas: incomes.map(i => ({
+          id: i.id,
+          description: i.description,
+          income_date: i.income_date,
+          is_recurring: i.is_recurring
+        })),
+        detalhesPeriodo: periodIncomes.map(i => ({
+          id: i.id,
+          description: i.description,
+          income_date: i.income_date,
+          is_recurring: i.is_recurring
+        }))
+      })
+      
       // Gerar receitas recorrentes para o período atual se necessário
-      const recurringIncomes = incomes.filter(i => i.is_recurring)
+      // CORREÇÃO: Usar apenas receitas recorrentes que começaram no período atual
+      const recurringIncomes = periodIncomes.filter(i => i.is_recurring)
       const generatedIncomes: any[] = []
       
       recurringIncomes.forEach(recurringIncome => {
