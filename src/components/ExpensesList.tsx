@@ -159,12 +159,18 @@ export default function ExpensesList({ userId, startDate, endDate }: Props) {
         // Verificar se já existe uma despesa real para essas datas
         periodOccurrences.forEach(occ => {
           const occDate = occ.date.toISOString().split('T')[0]
-          const existingExpense = periodExpenses.find(expense => 
-            expense.expense_date === occDate && 
-            expense.description === recurringExpense.description &&
-            expense.amount === recurringExpense.amount &&
-            !expense.is_installment
-          )
+          
+          // Verificar se já existe uma despesa real para esta data
+          // Comparar apenas descrição base (sem sufixos) e valor
+          const existingExpense = periodExpenses.find(expense => {
+            const expenseDesc = expense.description.replace(/\s*\(Recorrente\)\s*$/i, '').trim()
+            const recurringDesc = recurringExpense.description.replace(/\s*\(Recorrente\)\s*$/i, '').trim()
+            
+            return expense.expense_date === occDate && 
+              expenseDesc === recurringDesc &&
+              Math.abs(Number(expense.amount) - Number(recurringExpense.amount)) < 0.01 &&
+              !expense.is_installment
+          })
           
           // Se não existe, criar uma ocorrência virtual
           if (!existingExpense) {
@@ -174,7 +180,7 @@ export default function ExpensesList({ userId, startDate, endDate }: Props) {
               category_id: recurringExpense.category_id,
               member_id: recurringExpense.member_id,
               amount: recurringExpense.amount,
-              description: `${recurringExpense.description} (Recorrente)`,
+              description: recurringExpense.description, // Remover o sufixo (Recorrente)
               expense_date: occDate,
               payment_method: recurringExpense.payment_method,
               is_recurring: true,

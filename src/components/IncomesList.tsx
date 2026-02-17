@@ -156,11 +156,17 @@ export default function IncomesList({ userId, startDate, endDate }: Props) {
         // Verificar se já existe uma receita real para essas datas
         periodOccurrences.forEach(occ => {
           const occDate = occ.date.toISOString().split('T')[0]
-          const existingIncome = periodIncomes.find(income => 
-            income.income_date === occDate && 
-            income.description === recurringIncome.description &&
-            income.amount === recurringIncome.amount
-          )
+          
+          // Verificar se já existe uma receita real para esta data
+          // Comparar apenas descrição base (sem sufixos) e valor
+          const existingIncome = periodIncomes.find(income => {
+            const incomeDesc = income.description.replace(/\s*\(Recorrente\)\s*$/i, '').trim()
+            const recurringDesc = recurringIncome.description.replace(/\s*\(Recorrente\)\s*$/i, '').trim()
+            
+            return income.income_date === occDate && 
+              incomeDesc === recurringDesc &&
+              Math.abs(Number(income.amount) - Number(recurringIncome.amount)) < 0.01
+          })
           
           // Se não existe, criar uma ocorrência virtual
           if (!existingIncome) {
@@ -170,7 +176,7 @@ export default function IncomesList({ userId, startDate, endDate }: Props) {
               category_id: recurringIncome.category_id,
               member_id: recurringIncome.member_id,
               amount: recurringIncome.amount,
-              description: `${recurringIncome.description} (Recorrente)`,
+              description: recurringIncome.description, // Remover o sufixo (Recorrente)
               income_date: occDate,
               source: recurringIncome.source,
               is_recurring: true,

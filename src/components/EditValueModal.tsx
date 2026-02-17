@@ -37,27 +37,150 @@ export default function EditValueModal({ isOpen, onClose, item, onSuccess }: Pro
     try {
       let error: any = null
       
+      // Verificar se é uma ocorrência virtual de recorrência
+      const isVirtualRecurrence = item.id.startsWith('recurring-')
+      
       if (item.type === 'expense') {
-        const result = await (supabase as any)
-          .from('expenses')
-          .update({ amount })
-          .eq('id', item.id)
-        error = result.error
+        if (isVirtualRecurrence) {
+          // Se é uma ocorrência virtual, criar uma nova despesa real
+          // Extrair o ID da despesa pai e a data
+          const parts = item.id.split('-')
+          const parentId = parts[1]
+          const occurrenceDate = parts[2]
+          
+          // Buscar a despesa pai para copiar os dados
+          const { data: parentExpense, error: fetchError } = await (supabase as any)
+            .from('expenses')
+            .select('*')
+            .eq('id', parentId)
+            .single()
+          
+          if (fetchError) {
+            throw new Error('Erro ao buscar despesa pai: ' + fetchError.message)
+          }
+          
+          // Criar uma nova despesa com o valor editado
+          const result = await (supabase as any)
+            .from('expenses')
+            .insert({
+              user_id: parentExpense.user_id,
+              category_id: parentExpense.category_id,
+              member_id: parentExpense.member_id,
+              amount: amount,
+              description: parentExpense.description,
+              expense_date: occurrenceDate,
+              payment_method: parentExpense.payment_method,
+              is_recurring: false, // Esta ocorrência específica não é recorrente
+              is_paid: true, // Marcar como paga
+              is_credit_card: false,
+              is_installment: false,
+              parent_expense_id: parentId // Referência à despesa pai
+            })
+          
+          error = result.error
+        } else {
+          // Se é uma despesa real, atualizar normalmente
+          const result = await (supabase as any)
+            .from('expenses')
+            .update({ amount })
+            .eq('id', item.id)
+          error = result.error
+        }
       } else if (item.type === 'income') {
-        const result = await (supabase as any)
-          .from('incomes')
-          .update({ amount })
-          .eq('id', item.id)
-        error = result.error
+        if (isVirtualRecurrence) {
+          // Se é uma ocorrência virtual, criar uma nova receita real
+          const parts = item.id.split('-')
+          const parentId = parts[1]
+          const occurrenceDate = parts[2]
+          
+          // Buscar a receita pai para copiar os dados
+          const { data: parentIncome, error: fetchError } = await (supabase as any)
+            .from('incomes')
+            .select('*')
+            .eq('id', parentId)
+            .single()
+          
+          if (fetchError) {
+            throw new Error('Erro ao buscar receita pai: ' + fetchError.message)
+          }
+          
+          // Criar uma nova receita com o valor editado
+          const result = await (supabase as any)
+            .from('incomes')
+            .insert({
+              user_id: parentIncome.user_id,
+              category_id: parentIncome.category_id,
+              member_id: parentIncome.member_id,
+              amount: amount,
+              description: parentIncome.description,
+              income_date: occurrenceDate,
+              source: parentIncome.source,
+              is_recurring: false, // Esta ocorrência específica não é recorrente
+              is_paid: true, // Marcar como paga
+              parent_income_id: parentId // Referência à receita pai
+            })
+          
+          error = result.error
+        } else {
+          // Se é uma receita real, atualizar normalmente
+          const result = await (supabase as any)
+            .from('incomes')
+            .update({ amount })
+            .eq('id', item.id)
+          error = result.error
+        }
       } else if (item.type === 'investment') {
-        const result = await (supabase as any)
-          .from('investments')
-          .update({ 
-            initial_amount: amount,
-            current_amount: amount
-          })
-          .eq('id', item.id)
-        error = result.error
+        if (isVirtualRecurrence) {
+          // Se é uma ocorrência virtual, criar um novo investimento real
+          const parts = item.id.split('-')
+          const parentId = parts[1]
+          const occurrenceDate = parts[2]
+          
+          // Buscar o investimento pai para copiar os dados
+          const { data: parentInvestment, error: fetchError } = await (supabase as any)
+            .from('investments')
+            .select('*')
+            .eq('id', parentId)
+            .single()
+          
+          if (fetchError) {
+            throw new Error('Erro ao buscar investimento pai: ' + fetchError.message)
+          }
+          
+          // Criar um novo investimento com o valor editado
+          const result = await (supabase as any)
+            .from('investments')
+            .insert({
+              user_id: parentInvestment.user_id,
+              investment_type_id: parentInvestment.investment_type_id,
+              member_id: parentInvestment.member_id,
+              name: parentInvestment.name,
+              institution: parentInvestment.institution,
+              initial_amount: amount,
+              current_amount: amount,
+              investment_date: occurrenceDate,
+              expected_return: parentInvestment.expected_return,
+              is_recurring: false, // Esta ocorrência específica não é recorrente
+              recurrence_frequency: null,
+              recurrence_start_date: null,
+              recurrence_end_type: null,
+              recurrence_end_date: null,
+              recurrence_count: null,
+              parent_investment_id: parentId // Referência ao investimento pai
+            })
+          
+          error = result.error
+        } else {
+          // Se é um investimento real, atualizar normalmente
+          const result = await (supabase as any)
+            .from('investments')
+            .update({ 
+              initial_amount: amount,
+              current_amount: amount
+            })
+            .eq('id', item.id)
+          error = result.error
+        }
       }
 
       if (error) {
@@ -67,9 +190,9 @@ export default function EditValueModal({ isOpen, onClose, item, onSuccess }: Pro
         onSuccess()
         onClose()
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao atualizar valor:', error)
-      alert('Erro ao atualizar valor')
+      alert('Erro ao atualizar valor: ' + (error.message || 'Erro desconhecido'))
     } finally {
       setLoading(false)
     }
