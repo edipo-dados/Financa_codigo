@@ -250,9 +250,10 @@ export default function ExpensesList({ userId, startDate, endDate }: Props) {
     creditCardExpenses.forEach(expense => {
       if (!expense.credit_card) return
       
-      const expenseDate = new Date(expense.expense_date)
-      const monthKey = `${expense.credit_card.id}-${expenseDate.getFullYear()}-${expenseDate.getMonth()}`
-      const monthLabel = expenseDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+      // Usar split para evitar problemas de timezone
+      const [year, month] = expense.expense_date.split('-')
+      const monthKey = `${expense.credit_card.id}-${year}-${month}`
+      const monthLabel = new Date(parseInt(year), parseInt(month) - 1, 15).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
       
       if (!creditCardGroups.has(monthKey)) {
         creditCardGroups.set(monthKey, {

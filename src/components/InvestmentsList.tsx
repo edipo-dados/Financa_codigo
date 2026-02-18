@@ -87,7 +87,7 @@ export default function InvestmentsList({ userId, startDate, endDate }: Props) {
             user_id: userId,
             investment_type_id: originalInvestment?.investment_type_id || null,
             member_id: originalInvestment?.member_id || null,
-            name: originalInvestment?.name || 'Investimento recorrente',
+            name: (originalInvestment?.name || 'Investimento recorrente').replace(/\s*\(Recorrente\)\s*$/i, '').trim(),
             institution: originalInvestment?.institution || null,
             initial_amount: occ.amount,
             current_amount: occ.amount, // Para recorrências, valor atual = inicial
@@ -124,12 +124,18 @@ export default function InvestmentsList({ userId, startDate, endDate }: Props) {
       })
       
       // Filtrar recorrências para evitar duplicatas com investimentos reais
+      // Usar a mesma lógica de ExpensesList: verificar se já existe um item real para aquela data
       const recurringInvestments = futureInvestments.filter(recurring => {
-        return !realInvestments.some(real => 
-          real.investment_date === recurring.investment_date && 
-          real.name === recurring.name &&
-          real.initial_amount === recurring.initial_amount
-        )
+        // Verificar se já existe um investimento real para esta data e descrição
+        return !realInvestments.some(real => {
+          // Comparar descrição base (sem sufixos) e valor
+          const realName = real.name.replace(/\s*\(Recorrente\)\s*$/i, '').trim()
+          const recurringName = recurring.name.replace(/\s*\(Recorrente\)\s*$/i, '').trim()
+          
+          return real.investment_date === recurring.investment_date && 
+            realName === recurringName &&
+            Math.abs(Number(real.initial_amount) - Number(recurring.initial_amount)) < 0.01
+        })
       })
       
       currentInvestments = [...realInvestments, ...recurringInvestments]

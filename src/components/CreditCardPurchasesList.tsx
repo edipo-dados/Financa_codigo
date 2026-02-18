@@ -29,23 +29,6 @@ export default function CreditCardPurchasesList({ userId }: Props) {
     e.is_credit_card && !e.is_installment
   )
 
-  // Função para calcular o mês de fechamento da fatura
-  const getInvoiceMonth = (purchase: any, cardClosingDay: number) => {
-    if (!purchase.purchase_date) return null
-    
-    const purchaseDate = new Date(purchase.purchase_date)
-    const purchaseDay = purchaseDate.getDate()
-    
-    // Se a compra foi antes do fechamento, entra na fatura do mês atual
-    // Se foi depois, entra na fatura do próximo mês
-    if (purchaseDay <= cardClosingDay) {
-      return `${purchaseDate.getFullYear()}-${String(purchaseDate.getMonth() + 1).padStart(2, '0')}`
-    } else {
-      const nextMonth = new Date(purchaseDate.getFullYear(), purchaseDate.getMonth() + 1, 1)
-      return `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, '0')}`
-    }
-  }
-
   // Gerar lista de meses de fatura disponíveis baseado no cartão selecionado
   const availableInvoiceMonths = useMemo(() => {
     if (selectedCard === 'all') return []
@@ -64,8 +47,9 @@ export default function CreditCardPurchasesList({ userId }: Props) {
     
     // Adicionar meses baseados nas datas das parcelas
     cardInstallments.forEach(installment => {
-      const installmentDate = new Date(installment.expense_date)
-      const monthKey = `${installmentDate.getFullYear()}-${String(installmentDate.getMonth() + 1).padStart(2, '0')}`
+      // Usar split para evitar problemas de timezone
+      const [year, month] = installment.expense_date.split('-')
+      const monthKey = `${year}-${month}`
       months.add(monthKey)
     })
     
@@ -90,24 +74,18 @@ export default function CreditCardPurchasesList({ userId }: Props) {
         if (installments.length > 0) {
           // Verificar se alguma parcela vence no mês selecionado
           const hasInstallmentInMonth = installments.some(installment => {
-            const installmentDate = new Date(installment.expense_date)
-            const installmentMonth = `${installmentDate.getFullYear()}-${String(installmentDate.getMonth() + 1).padStart(2, '0')}`
+            // Usar split para evitar problemas de timezone
+            const [year, month] = installment.expense_date.split('-')
+            const installmentMonth = `${year}-${month}`
             return installmentMonth === selectedInvoiceMonth
           })
           
           if (!hasInstallmentInMonth) {
             return false
           }
-        } else {
-          // Se não há parcelas, usar a lógica original baseada na data da compra
-          const selectedCardData = creditCards.find(c => c.id === selectedCard)
-          if (selectedCardData) {
-            const purchaseInvoiceMonth = getInvoiceMonth(purchase, selectedCardData.closing_day)
-            if (purchaseInvoiceMonth !== selectedInvoiceMonth) {
-              return false
-            }
-          }
         }
+        // Se não há parcelas, a compra não deve aparecer em nenhum filtro de mês específico
+        // (compras sem parcelas são casos excepcionais/erro de dados)
       }
 
       // Filtro por status de pagamento (baseado nas parcelas)
@@ -154,19 +132,14 @@ export default function CreditCardPurchasesList({ userId }: Props) {
       if (installments.length > 0) {
         // Verificar se alguma parcela vence no mês selecionado
         return installments.some(installment => {
-          const installmentDate = new Date(installment.expense_date)
-          const installmentMonth = `${installmentDate.getFullYear()}-${String(installmentDate.getMonth() + 1).padStart(2, '0')}`
+          // Usar split para evitar problemas de timezone
+          const [year, month] = installment.expense_date.split('-')
+          const installmentMonth = `${year}-${month}`
           return installmentMonth === selectedInvoiceMonth
         })
-      } else {
-        // Se não há parcelas, usar a lógica original baseada na data da compra
-        const selectedCardData = creditCards.find(c => c.id === selectedCard)
-        if (selectedCardData) {
-          const purchaseInvoiceMonth = getInvoiceMonth(purchase, selectedCardData.closing_day)
-          return purchaseInvoiceMonth === selectedInvoiceMonth
-        }
       }
       
+      // Se não há parcelas, não incluir na fatura
       return false
     })
     
@@ -180,8 +153,9 @@ export default function CreditCardPurchasesList({ userId }: Props) {
       if (installments.length > 0) {
         // Somar apenas parcelas que vencem no mês selecionado
         const monthInstallments = installments.filter(installment => {
-          const installmentDate = new Date(installment.expense_date)
-          const installmentMonth = `${installmentDate.getFullYear()}-${String(installmentDate.getMonth() + 1).padStart(2, '0')}`
+          // Usar split para evitar problemas de timezone
+          const [year, month] = installment.expense_date.split('-')
+          const installmentMonth = `${year}-${month}`
           return installmentMonth === selectedInvoiceMonth
         })
         
@@ -428,12 +402,13 @@ export default function CreditCardPurchasesList({ userId }: Props) {
                   💳 Valor Total da Fatura
                 </h4>
                 <p className="text-sm text-blue-600 dark:text-blue-300 mt-1">
-                  {creditCards.find(c => c.id === selectedCard)?.name} - {
-                    new Date(selectedInvoiceMonth + '-01').toLocaleDateString('pt-BR', { 
+                  {creditCards.find(c => c.id === selectedCard)?.name} - {(() => {
+                    const [year, month] = selectedInvoiceMonth.split('-')
+                    return new Date(parseInt(year), parseInt(month) - 1, 15).toLocaleDateString('pt-BR', { 
                       month: 'long', 
                       year: 'numeric' 
                     })
-                  }
+                  })()}
                 </p>
               </div>
               <div className="text-right">
@@ -578,9 +553,10 @@ export default function CreditCardPurchasesList({ userId }: Props) {
             Mostrando <span className="font-semibold">{filteredPurchases.length}</span> de <span className="font-semibold">{creditCardPurchases.length}</span> compras
             {selectedCard !== 'all' && selectedInvoiceMonth !== 'all' && (
               <span className="ml-2 text-blue-600">
-                • Fatura: {availableInvoiceMonths.find(m => m === selectedInvoiceMonth) && 
-                  new Date(selectedInvoiceMonth + '-01').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
-                }
+                • Fatura: {(() => {
+                  const [year, month] = selectedInvoiceMonth.split('-')
+                  return new Date(parseInt(year), parseInt(month) - 1, 15).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+                })()}
               </span>
             )}
           </p>
@@ -596,12 +572,13 @@ export default function CreditCardPurchasesList({ userId }: Props) {
                 💳 Valor Total da Fatura
               </h4>
               <p className="text-sm text-blue-600 dark:text-blue-300 mt-1">
-                {creditCards.find(c => c.id === selectedCard)?.name} - {
-                  new Date(selectedInvoiceMonth + '-01').toLocaleDateString('pt-BR', { 
+                {creditCards.find(c => c.id === selectedCard)?.name} - {(() => {
+                  const [year, month] = selectedInvoiceMonth.split('-')
+                  return new Date(parseInt(year), parseInt(month) - 1, 15).toLocaleDateString('pt-BR', { 
                     month: 'long', 
                     year: 'numeric' 
                   })
-                }
+                })()}
               </p>
             </div>
             <div className="text-right">
@@ -673,8 +650,9 @@ export default function CreditCardPurchasesList({ userId }: Props) {
                 if (selectedInvoiceMonth !== 'all') {
                   // Filtrar parcelas do mês selecionado
                   const monthInstallments = allInstallments.filter(installment => {
-                    const installmentDate = new Date(installment.expense_date)
-                    const installmentMonth = `${installmentDate.getFullYear()}-${String(installmentDate.getMonth() + 1).padStart(2, '0')}`
+                    // Usar split para evitar problemas de timezone
+                    const [year, month] = installment.expense_date.split('-')
+                    const installmentMonth = `${year}-${month}`
                     return installmentMonth === selectedInvoiceMonth
                   })
                   
@@ -693,8 +671,9 @@ export default function CreditCardPurchasesList({ userId }: Props) {
                 const progressText = selectedInvoiceMonth !== 'all' && allInstallments.length > 0
                   ? (() => {
                       const monthInstallments = allInstallments.filter(installment => {
-                        const installmentDate = new Date(installment.expense_date)
-                        const installmentMonth = `${installmentDate.getFullYear()}-${String(installmentDate.getMonth() + 1).padStart(2, '0')}`
+                        // Usar split para evitar problemas de timezone
+                        const [year, month] = installment.expense_date.split('-')
+                        const installmentMonth = `${year}-${month}`
                         return installmentMonth === selectedInvoiceMonth
                       })
                       const monthPaidInstallments = monthInstallments.filter(inst => inst.is_paid).length

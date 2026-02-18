@@ -1,132 +1,53 @@
 'use client'
 
-import { useMemo, useEffect, useState } from 'react'
+import { useMemo } from 'react'
 import { Expense, Investment, Income } from '@/types'
 import { formatCurrency } from '@/lib/utils'
-import { supabase } from '@/lib/supabase'
 
 interface Props {
   expenses: Expense[]
   investments: Investment[]
   incomes: Income[]
   loading: boolean
-  userId?: string
 }
 
-export default function CurrentBalanceWidget({ expenses, investments, incomes, loading, userId }: Props) {
-  const [allData, setAllData] = useState<{
-    allExpenses: Expense[]
-    allInvestments: Investment[]
-    allIncomes: Income[]
-  }>({
-    allExpenses: [],
-    allInvestments: [],
-    allIncomes: []
-  })
-  const [dataLoading, setDataLoading] = useState(true)
-  const [mounted, setMounted] = useState(false)
-
-  // Criar hash simples dos IDs para detectar mudanças
-  const expensesHash = useMemo(() => expenses.map(e => e.id).sort().join(','), [expenses])
-  const incomesHash = useMemo(() => incomes.map(i => i.id).sort().join(','), [incomes])
-  const investmentsHash = useMemo(() => investments.map(i => i.id).sort().join(','), [investments])
-
-  // Evitar hidration mismatch
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  // Buscar TODOS os dados para cálculo real do saldo
-  useEffect(() => {
-    if (!userId) {
-      setDataLoading(false)
-      return
-    }
-
-    console.log('🔄 CurrentBalanceWidget: Recalculando saldo total...', { 
-      userId,
-      expensesCount: expenses.length,
-      expensesHash: expensesHash.substring(0, 20) + '...'
-    })
-
-    const fetchAllData = async () => {
-      try {
-        const [expensesRes, investmentsRes, incomesRes] = await Promise.all([
-          supabase
-            .from('expenses')
-            .select('*, category:expense_categories(*), credit_card:credit_cards(*), member:family_members(*)')
-            .eq('user_id', userId)
-            .eq('is_paid', true), // Apenas despesas pagas para saldo real
-          
-          supabase
-            .from('investments')
-            .select('*, investment_type:investment_types(*), member:family_members(*)')
-            .eq('user_id', userId),
-          
-          supabase
-            .from('incomes')
-            .select('*, category:income_categories(*), member:family_members(*)')
-            .eq('user_id', userId)
-            .eq('is_paid', true) // Apenas receitas recebidas para saldo real
-        ])
-
-        setAllData({
-          allExpenses: expensesRes.data || [],
-          allInvestments: investmentsRes.data || [],
-          allIncomes: incomesRes.data || []
-        })
-
-        console.log('💰 CurrentBalanceWidget: Dados atualizados', {
-          totalExpenses: (expensesRes.data || []).length,
-          totalIncomes: (incomesRes.data || []).length,
-          totalInvestments: (investmentsRes.data || []).length
-        })
-      } catch (error) {
-        console.error('Erro ao buscar dados completos:', error)
-      } finally {
-        setDataLoading(false)
-      }
-    }
-
-    fetchAllData()
-  }, [userId, expensesHash, incomesHash, investmentsHash]) // Usar hashes para detectar mudanças nos dados
-
+export default function CurrentBalanceWidget({ expenses, investments, incomes, loading }: Props) {
   const balanceData = useMemo(() => {
-    // Usar dados completos para cálculo real do saldo
-    const { allExpenses, allInvestments, allIncomes } = allData
+    // Usar dados filtrados passados via props
+    // Filtrar apenas itens pagos/recebidos
+    const paidIncomes = incomes.filter(i => i.is_paid)
+    const paidExpenses = expenses.filter(e => e.is_paid)
     
     // CORRIGIDO: Filtrar despesas para incluir apenas parcelas de cartão, não compras parent
-    // Mesma lógica aplicada em todos os widgets para consistência
-    const totalIncomes = allIncomes.reduce((sum, income) => sum + Number(income.amount), 0)
-    const totalExpenses = allExpenses
+    const totalIncomes = paidIncomes.reduce((sum, income) => sum + Number(income.amount), 0)
+    const totalExpenses = paidExpenses
       .filter(expense => !expense.is_credit_card || expense.is_installment)
       .reduce((sum, expense) => sum + Number(expense.amount), 0)
     
     // Para investimentos, usar initial_amount (valor investido)
-    const totalInvestments = allInvestments.reduce((sum, investment) => sum + Number(investment.initial_amount), 0)
-    const totalInvestmentValue = allInvestments.reduce((sum, investment) => sum + Number(investment.current_amount), 0)
+    const totalInvestments = investments.reduce((sum, investment) => sum + Number(investment.initial_amount), 0)
+    const totalInvestmentValue = investments.reduce((sum, investment) => sum + Number(investment.current_amount), 0)
     
     // CORRIGIDO: Saldo líquido = Receitas - Despesas - Investimentos
-    // Investimentos reduzem o saldo líquido pois o dinheiro sai da conta corrente
     const currentBalance = totalIncomes - totalExpenses - totalInvestments
 
-    // Saldo de Patrimônio = Saldo Líquido + Investimentos (recupera como patrimônio)
+    // Saldo de Patrimônio = Saldo Líquido + Investimentos
     const patrimonialBalance = currentBalance + totalInvestments
 
     return {
       totalIncomes,
       totalExpenses,
-      totalInvestments, // Valor investido (initial_amount)
-      totalInvestmentValue, // Valor atual dos investimentos
-      currentBalance, // Saldo líquido em conta (receitas - despesas)
-      patrimonialBalance, // Saldo de patrimônio (saldo líquido + investimentos)
-      expenseCount: allExpenses.length,
-      incomeCount: allIncomes.length,
-      investmentCount: allInvestments.length
+      totalInvestments,
+      totalInvestmentValue,
+      currentBalance,
+      patrimonialBalance,
+      expenseCount: paidExpenses.length,
+      incomeCount: paidIncomes.length,
+      investmentCount: investments.length
     }
-  }, [allData])
+  }, [expenses, incomes, investments])
 
-  if (loading || dataLoading || !mounted) {
+  if (loading) {
     return (
       <div className="fintech-card p-4 sm:p-6 rounded-2xl">
         <div className="animate-pulse">

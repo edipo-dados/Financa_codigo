@@ -144,26 +144,17 @@ export default function StatsCardsWidget({ expenses, investments, incomes, loadi
     const pendingIncomes = periodIncomes.filter(i => !i.is_paid).reduce((sum, i) => sum + Number(i.amount), 0)
     const monthlyIncomes = receivedIncomes + pendingIncomes
     
-    // Para investimentos do período, usar initial_amount (valor investido)
-    const monthlyInvestments = periodInvestments.reduce((sum, inv) => sum + Number(inv.initial_amount), 0)
-    
-    // Saldo do período = Receitas - Despesas - Investimentos
-    // Investimentos reduzem o saldo líquido pois saem da conta corrente
-    const monthlyBalance = monthlyIncomes - monthlyExpenses - monthlyInvestments
+    // Saldo do período = Receitas - Despesas (SEM investimentos)
+    const monthlyBalance = monthlyIncomes - monthlyExpenses
 
     // Saldo líquido acumulado = Saldo do período + Saldo acumulado anterior
     const cumulativeBalance = monthlyBalance + previousMonthBalance
-
-    // Saldo de Patrimônio = Saldo Líquido + Investimentos (recupera o valor investido como patrimônio)
-    const patrimonialBalance = cumulativeBalance + monthlyInvestments
 
     return {
       monthlyExpenses,
       monthlyIncomes,
       monthlyBalance,
       cumulativeBalance, // Saldo líquido acumulado
-      patrimonialBalance, // Novo: Saldo de patrimônio
-      monthlyInvestments, // Valor investido no período
       expenseCount: filteredPeriodExpenses.length,
       incomeCount: periodIncomes.length,
       investmentCount: periodInvestments.length,
@@ -193,7 +184,7 @@ export default function StatsCardsWidget({ expenses, investments, incomes, loadi
     <div className="fintech-card p-4 sm:p-6 rounded-2xl">
       <h3 className="text-lg font-semibold fintech-text-primary mb-4">📊 Resumo Financeiro</h3>
       
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
         <StatCard
           title="Receitas do Período"
           value={formatCurrency(stats.monthlyIncomes)}
@@ -209,25 +200,11 @@ export default function StatsCardsWidget({ expenses, investments, incomes, loadi
           subtitle={`✓${formatCurrency(stats.paidExpenses)} | ⏳${formatCurrency(stats.unpaidExpenses)}`}
         />
         <StatCard
-          title="Saldo Líquido"
-          value={formatCurrency(stats.cumulativeBalance)}
+          title="Saldo do Período"
+          value={formatCurrency(stats.monthlyBalance)}
           icon="📊"
-          color={stats.cumulativeBalance >= 0 ? 'green' : 'red'}
-          subtitle={`(Receitas - Despesas - Investimentos) + Acumulado anterior`}
-        />
-        <StatCard
-          title="Investido no Período"
-          value={formatCurrency(stats.monthlyInvestments)}
-          icon="📈"
-          color="blue"
-          subtitle={`${stats.investmentCount} investimento(s)`}
-        />
-        <StatCard
-          title="Saldo de Patrimônio"
-          value={formatCurrency(stats.patrimonialBalance)}
-          icon="💎"
-          color={stats.patrimonialBalance >= 0 ? 'green' : 'red'}
-          subtitle={`Saldo Líquido + Investimentos`}
+          color={stats.monthlyBalance >= 0 ? 'green' : 'red'}
+          subtitle={`Receitas - Despesas`}
         />
       </div>
     </div>

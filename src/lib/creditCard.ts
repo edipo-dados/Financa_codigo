@@ -64,25 +64,44 @@ export function calculateFirstInvoiceDate(purchaseDate: string, closingDay: numb
   const purchaseMonth = purchase.getMonth()
   const purchaseYear = purchase.getFullYear()
   
+  console.log('🔍 calculateFirstInvoiceDate:', {
+    purchaseDate,
+    purchaseDay,
+    purchaseMonth: purchaseMonth + 1,
+    purchaseYear,
+    closingDay,
+    dueDay
+  })
+  
+  let result: Date
+  
   if (purchaseDay <= closingDay) {
     // Compra até fechamento → FATURA DO MESMO MÊS
     if (dueDay && dueDay < closingDay) {
       // Se vencimento é antes do fechamento, vai para o mês seguinte
-      return new Date(purchaseYear, purchaseMonth + 1, dueDay)
+      result = new Date(purchaseYear, purchaseMonth + 1, dueDay)
+      console.log('✅ Caso 1: Compra até fechamento + vencimento antes do fechamento → mês seguinte')
     } else {
       // Vencimento no mesmo mês ou depois do fechamento
-      return new Date(purchaseYear, purchaseMonth, dueDay || closingDay)
+      result = new Date(purchaseYear, purchaseMonth, dueDay || closingDay)
+      console.log('✅ Caso 2: Compra até fechamento + vencimento depois do fechamento → mesmo mês')
     }
   } else {
     // Compra depois do fechamento → FATURA DO MÊS SEGUINTE
     if (dueDay && dueDay < closingDay) {
       // Se vencimento é antes do fechamento, vai para 2 meses depois
-      return new Date(purchaseYear, purchaseMonth + 2, dueDay)
+      result = new Date(purchaseYear, purchaseMonth + 2, dueDay)
+      console.log('✅ Caso 3: Compra após fechamento + vencimento antes do fechamento → 2 meses depois')
     } else {
       // Vencimento no mês seguinte
-      return new Date(purchaseYear, purchaseMonth + 1, dueDay || closingDay)
+      result = new Date(purchaseYear, purchaseMonth + 1, dueDay || closingDay)
+      console.log('✅ Caso 4: Compra após fechamento + vencimento depois do fechamento → mês seguinte')
     }
   }
+  
+  console.log('📅 Data calculada:', result.toISOString().split('T')[0])
+  
+  return result
 }
 
 /**
