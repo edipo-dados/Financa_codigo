@@ -183,7 +183,6 @@ export default function DraggableDashboard({
             investments={investments}
             incomes={incomes}
             loading={loading}
-            userId={userId}
           />
         )
       case 'stats':
