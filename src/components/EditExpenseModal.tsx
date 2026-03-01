@@ -72,30 +72,65 @@ export default function EditExpenseModal({ isOpen, onClose, expense, onSuccess }
     }
 
     try {
-      const updateData = {
-        description: formData.description.trim(),
-        amount,
-        expense_date: formData.expense_date,
-        category_id: formData.category_id || null,
-        member_id: formData.member_id || null,
-        is_paid: formData.is_paid
-      }
+      // Verificar se é uma despesa recorrente virtual (gerada dinamicamente)
+      const isVirtualRecurring = expense.id.startsWith('recurring-')
+      
+      if (isVirtualRecurring) {
+        // Para despesas recorrentes virtuais, criar uma nova despesa real
+        const newExpense = {
+          user_id: expense.user_id,
+          description: formData.description.trim(),
+          amount,
+          expense_date: formData.expense_date,
+          category_id: formData.category_id || null,
+          member_id: formData.member_id || null,
+          is_paid: formData.is_paid,
+          payment_method: expense.payment_method || null,
+          is_recurring: false, // Não é mais recorrente, é uma ocorrência específica
+          is_credit_card: false,
+          is_installment: false,
+          parent_expense_id: null
+        }
 
-      const { error } = await (supabase as any)
-        .from('expenses')
-        .update(updateData)
-        .eq('id', expense.id)
+        const { error } = await (supabase as any)
+          .from('expenses')
+          .insert(newExpense)
 
-      if (error) {
-        console.error('Erro ao atualizar despesa:', error)
-        alert('Erro ao atualizar despesa: ' + error.message)
+        if (error) {
+          console.error('Erro ao criar despesa:', error)
+          alert('Erro ao criar despesa: ' + error.message)
+        } else {
+          alert('✅ Despesa criada com sucesso! Esta é agora uma despesa independente.')
+          onSuccess()
+          onClose()
+        }
       } else {
-        onSuccess()
-        onClose()
+        // Para despesas normais, atualizar normalmente
+        const updateData = {
+          description: formData.description.trim(),
+          amount,
+          expense_date: formData.expense_date,
+          category_id: formData.category_id || null,
+          member_id: formData.member_id || null,
+          is_paid: formData.is_paid
+        }
+
+        const { error } = await (supabase as any)
+          .from('expenses')
+          .update(updateData)
+          .eq('id', expense.id)
+
+        if (error) {
+          console.error('Erro ao atualizar despesa:', error)
+          alert('Erro ao atualizar despesa: ' + error.message)
+        } else {
+          onSuccess()
+          onClose()
+        }
       }
     } catch (error) {
-      console.error('Erro ao atualizar despesa:', error)
-      alert('Erro ao atualizar despesa')
+      console.error('Erro ao processar despesa:', error)
+      alert('Erro ao processar despesa')
     } finally {
       setLoading(false)
     }
@@ -245,7 +280,12 @@ export default function EditExpenseModal({ isOpen, onClose, expense, onSuccess }
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
                   <p><strong>Criada em:</strong> {new Date(expense.created_at).toLocaleDateString('pt-BR')}</p>
                   <p><strong>ID:</strong> {expense.id.slice(0, 8)}...</p>
-                  {expense.is_recurring && (
+                  {expense.id.startsWith('recurring-') && (
+                    <p className="md:col-span-2 text-orange-600 font-medium">
+                      ⚠️ Esta é uma ocorrência de despesa recorrente. Ao salvar, será criada uma despesa independente para este mês.
+                    </p>
+                  )}
+                  {expense.is_recurring && !expense.id.startsWith('recurring-') && (
                     <p className="md:col-span-2"><strong>Tipo:</strong> Despesa recorrente</p>
                   )}
                   {expense.is_credit_card && (
