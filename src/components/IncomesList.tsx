@@ -558,28 +558,26 @@ export default function IncomesList({ userId, startDate, endDate }: Props) {
             </select>
           </div>
 
-          {/* Data De */}
+          {/* Mês */}
           <div>
             <label className="block text-xs font-medium text-apple-gray-600 mb-1">
-              Data De
+              Mês
             </label>
             <input
-              type="date"
-              value={filters.dateFrom}
-              onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
-              className="w-full px-3 py-2 text-sm border border-apple-gray-200 rounded-lg focus:ring-1 focus:ring-apple-blue focus:border-apple-blue"
-            />
-          </div>
-
-          {/* Data Até */}
-          <div>
-            <label className="block text-xs font-medium text-apple-gray-600 mb-1">
-              Data Até
-            </label>
-            <input
-              type="date"
-              value={filters.dateTo}
-              onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
+              type="month"
+              value={filters.dateFrom ? filters.dateFrom.substring(0, 7) : ''}
+              onChange={(e) => {
+                if (e.target.value) {
+                  const year = e.target.value.split('-')[0]
+                  const month = e.target.value.split('-')[1]
+                  const firstDay = `${year}-${month}-01`
+                  const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate()
+                  const lastDayFormatted = `${year}-${month}-${lastDay.toString().padStart(2, '0')}`
+                  setFilters({ ...filters, dateFrom: firstDay, dateTo: lastDayFormatted })
+                } else {
+                  setFilters({ ...filters, dateFrom: '', dateTo: '' })
+                }
+              }}
               className="w-full px-3 py-2 text-sm border border-apple-gray-200 rounded-lg focus:ring-1 focus:ring-apple-blue focus:border-apple-blue"
             />
           </div>
