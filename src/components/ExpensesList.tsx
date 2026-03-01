@@ -123,13 +123,17 @@ export default function ExpensesList({ userId, startDate, endDate }: Props) {
 
   // Combinar despesas reais com futuras baseado no período
   const currentMonthExpenses = useMemo(() => {
+    // Usar o período dos filtros se definido, senão usar o período das props
+    const effectiveStartDate = filters.dateFrom || startDate
+    const effectiveEndDate = filters.dateTo || endDate
+    
     if (isFuturePeriod) {
       // Se é período futuro, mostrar apenas projeções
       return futureExpenses
-    } else if (startDate && endDate) {
+    } else if (effectiveStartDate && effectiveEndDate) {
       // Filtrar despesas pelo período selecionado
       const periodExpenses = displayExpenses.filter(expense => {
-        return expense.expense_date >= startDate && expense.expense_date <= endDate
+        return expense.expense_date >= effectiveStartDate && expense.expense_date <= effectiveEndDate
       })
       
       // Gerar despesas recorrentes para o período atual se necessário
@@ -153,7 +157,7 @@ export default function ExpensesList({ userId, startDate, endDate }: Props) {
         // Filtrar apenas as ocorrências do período selecionado
         const periodOccurrences = occurrences.filter(occ => {
           const occDate = occ.date.toISOString().split('T')[0]
-          return occDate >= startDate && occDate <= endDate
+          return occDate >= effectiveStartDate && occDate <= effectiveEndDate
         })
         
         // Verificar se já existe uma despesa real para essas datas
@@ -209,7 +213,7 @@ export default function ExpensesList({ userId, startDate, endDate }: Props) {
       // Quando não há período específico, mostrar todas as despesas
       return displayExpenses
     }
-  }, [displayExpenses, futureExpenses, isFuturePeriod, startDate, endDate, expenses, userId])
+  }, [displayExpenses, futureExpenses, isFuturePeriod, startDate, endDate, expenses, userId, filters.dateFrom, filters.dateTo])
 
   // Calcular totais
   const totals = useMemo(() => {
@@ -281,10 +285,6 @@ export default function ExpensesList({ userId, startDate, endDate }: Props) {
       // Filtro por status
       if (filters.status === 'paid' && !expense.is_paid) return false
       if (filters.status === 'unpaid' && expense.is_paid) return false
-      
-      // Filtro por data
-      if (filters.dateFrom && expense.expense_date < filters.dateFrom) return false
-      if (filters.dateTo && expense.expense_date > filters.dateTo) return false
       
       // Filtro por busca
       if (filters.search && !expense.description.toLowerCase().includes(filters.search.toLowerCase())) return false

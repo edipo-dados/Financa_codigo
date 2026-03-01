@@ -160,12 +160,16 @@ export default function IncomesList({ userId, startDate, endDate }: Props) {
   const filteredIncomes = useMemo(() => {
     let currentIncomes
     
+    // Usar o período dos filtros se definido, senão usar o período das props
+    const effectiveStartDate = filters.dateFrom || startDate
+    const effectiveEndDate = filters.dateTo || endDate
+    
     if (isFuturePeriod) {
       currentIncomes = futureIncomes
-    } else if (startDate && endDate) {
+    } else if (effectiveStartDate && effectiveEndDate) {
       // Filtrar receitas pelo período selecionado
       const periodIncomes = incomes.filter(income => {
-        return income.income_date >= startDate && income.income_date <= endDate
+        return income.income_date >= effectiveStartDate && income.income_date <= effectiveEndDate
       })
       
       // Gerar receitas recorrentes para o período atual se necessário
@@ -190,7 +194,7 @@ export default function IncomesList({ userId, startDate, endDate }: Props) {
         // Filtrar apenas as ocorrências do período selecionado
         const periodOccurrences = occurrences.filter(occ => {
           const occDate = occ.date.toISOString().split('T')[0]
-          return occDate >= startDate && occDate <= endDate
+          return occDate >= effectiveStartDate && occDate <= effectiveEndDate
         })
         
         // Verificar se já existe uma receita real para essas datas
@@ -255,16 +259,12 @@ export default function IncomesList({ userId, startDate, endDate }: Props) {
       if (filters.status === 'paid' && !income.is_paid) return false
       if (filters.status === 'unpaid' && income.is_paid) return false
       
-      // Filtro por data
-      if (filters.dateFrom && income.income_date < filters.dateFrom) return false
-      if (filters.dateTo && income.income_date > filters.dateTo) return false
-      
       // Filtro por busca
       if (filters.search && !income.description.toLowerCase().includes(filters.search.toLowerCase())) return false
       
       return true
     })
-  }, [incomes, filters])
+  }, [incomes, filters, isFuturePeriod, futureIncomes, startDate, endDate, userId])
 
   // Obter categorias únicas
   const categories = useMemo(() => {
