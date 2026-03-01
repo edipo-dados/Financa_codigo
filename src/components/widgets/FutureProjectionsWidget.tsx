@@ -14,8 +14,13 @@ interface Props {
 }
 
 export default function FutureProjectionsWidget({ expenses, investments, incomes, loading }: Props) {
-  const [projectionMonths, setProjectionMonths] = useState(12) // Padrão 12 meses, configurável
   const [mounted, setMounted] = useState(false)
+
+  // Calcular quantos meses faltam até o final do ano corrente
+  const today = new Date()
+  const currentMonth = today.getMonth() // 0-11
+  const monthsUntilYearEnd = 12 - currentMonth // Meses restantes incluindo o atual
+  const projectionMonths = monthsUntilYearEnd
 
   // Evitar hidration mismatch
   useEffect(() => {
@@ -287,23 +292,11 @@ export default function FutureProjectionsWidget({ expenses, investments, incomes
   return (
     <div className="fintech-card p-4 sm:p-6 rounded-2xl">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold fintech-text-primary">📅 Projeções (Inclui Mês Anterior)</h3>
+        <h3 className="text-lg font-semibold fintech-text-primary">📅 Projeções (Ano Corrente)</h3>
         <div className="flex items-center gap-3">
           <div className="text-xs fintech-text-muted">
             Fórmula: (Receitas - Investimentos) - Despesas + Saldo anterior
           </div>
-          {/* Seletor de período */}
-          <select
-            value={projectionMonths}
-            onChange={(e) => setProjectionMonths(Number(e.target.value))}
-            className="px-2 py-1 text-xs border border-apple-gray-200 rounded focus:ring-1 focus:ring-apple-blue focus:border-apple-blue"
-          >
-            <option value={6}>6 meses</option>
-            <option value={12}>12 meses</option>
-            <option value={18}>18 meses</option>
-            <option value={24}>24 meses</option>
-            <option value={36}>36 meses</option>
-          </select>
         </div>
       </div>
       
@@ -315,7 +308,7 @@ export default function FutureProjectionsWidget({ expenses, investments, incomes
             <span className="text-lg">💰</span>
           </div>
           <p className="text-xs fintech-text-muted mb-2">
-            Próximos {projectionMonths} meses
+            Até o final do ano
             {projectionData.recurringCounts.incomes > 0 && (
               <span className="ml-1 text-green-600">({projectionData.recurringCounts.incomes} recorrentes)</span>
             )}
@@ -331,7 +324,7 @@ export default function FutureProjectionsWidget({ expenses, investments, incomes
             <span className="text-lg">💸</span>
           </div>
           <p className="text-xs fintech-text-muted mb-2">
-            Próximos {projectionMonths} meses
+            Até o final do ano
             {projectionData.recurringCounts.expenses > 0 && (
               <span className="ml-1 text-red-600">({projectionData.recurringCounts.expenses} recorrentes)</span>
             )}
@@ -347,7 +340,7 @@ export default function FutureProjectionsWidget({ expenses, investments, incomes
             <span className="text-lg">📈</span>
           </div>
           <p className="text-xs fintech-text-muted mb-2">
-            Próximos {projectionMonths} meses
+            Até o final do ano
             {projectionData.recurringCounts.investments > 0 && (
               <span className="ml-1 text-blue-600">({projectionData.recurringCounts.investments} recorrentes)</span>
             )}
@@ -364,7 +357,7 @@ export default function FutureProjectionsWidget({ expenses, investments, incomes
           <div>
             <h4 className="text-sm font-semibold fintech-text-primary mb-1">Saldo Acumulado Final</h4>
             <p className="text-xs fintech-text-muted">
-              Saldo acumulado após {projectionMonths} meses (cada mês soma ao anterior)
+              Saldo acumulado até o final do ano (cada mês soma ao anterior)
             </p>
           </div>
           <div className="text-right">
@@ -391,12 +384,12 @@ export default function FutureProjectionsWidget({ expenses, investments, incomes
           <div className="flex items-center justify-between">
             <h4 className="text-sm font-medium fintech-text-secondary">Projeção Mensal:</h4>
             <div className="text-xs fintech-text-muted">
-              Mostrando primeiros {Math.min(projectionMonths, 12)} meses
+              Mostrando meses do ano corrente
             </div>
           </div>
           
           <div className="max-h-64 overflow-y-auto space-y-2">
-            {projectionData.projectedMonths.slice(0, 12).map((monthData, index) => {
+            {projectionData.projectedMonths.map((monthData, index) => {
               if (monthData.incomes === 0 && monthData.expenses === 0 && monthData.investments === 0) return null
 
               return (
@@ -485,14 +478,6 @@ export default function FutureProjectionsWidget({ expenses, investments, incomes
               <span className="font-medium">Valores mostrados:</span> Saldo acumulado (soma com mês anterior)
             </div>
           </div>
-          
-          {projectionMonths > 12 && (
-            <div className="text-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-              <p className="text-xs fintech-text-muted">
-                + {projectionMonths - 12} meses adicionais incluídos no cálculo total
-              </p>
-            </div>
-          )}
         </div>
       )}
 
