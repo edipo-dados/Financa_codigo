@@ -18,6 +18,7 @@ export default function EditRecurrenceModal({ isOpen, onClose, item, type, onSuc
   const [loading, setLoading] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
   const [formData, setFormData] = useState({
+    description: '',
     recurrence_frequency: 'monthly' as RecurrenceFrequency,
     recurrence_end_type: 'never' as RecurrenceEndType,
     recurrence_count: '12',
@@ -27,13 +28,14 @@ export default function EditRecurrenceModal({ isOpen, onClose, item, type, onSuc
   useEffect(() => {
     if (item && isOpen) {
       setFormData({
+        description: type === 'investment' ? (item as Investment).name : (item as Expense | Income).description,
         recurrence_frequency: item.recurrence_frequency || 'monthly',
         recurrence_end_type: item.recurrence_end_type || 'never',
         recurrence_count: item.recurrence_count?.toString() || '12',
         recurrence_end_date: item.recurrence_end_date || '',
       })
     }
-  }, [item, isOpen])
+  }, [item, isOpen, type])
 
   const getPreviewOccurrences = () => {
     if (!item) return []
@@ -98,6 +100,7 @@ export default function EditRecurrenceModal({ isOpen, onClose, item, type, onSuc
           await (supabase as any)
             .from('expenses')
             .update({
+              description: formData.description,
               recurrence_frequency: formData.recurrence_frequency,
               recurrence_end_type: formData.recurrence_end_type,
               recurrence_end_date: formData.recurrence_end_type === 'on_date' ? formData.recurrence_end_date : null,
@@ -108,6 +111,7 @@ export default function EditRecurrenceModal({ isOpen, onClose, item, type, onSuc
           await (supabase as any)
             .from('incomes')
             .update({
+              description: formData.description,
               recurrence_frequency: formData.recurrence_frequency,
               recurrence_end_type: formData.recurrence_end_type,
               recurrence_end_date: formData.recurrence_end_type === 'on_date' ? formData.recurrence_end_date : null,
@@ -118,6 +122,7 @@ export default function EditRecurrenceModal({ isOpen, onClose, item, type, onSuc
           await (supabase as any)
             .from('investments')
             .update({
+              name: formData.description,
               recurrence_frequency: formData.recurrence_frequency,
               recurrence_end_type: formData.recurrence_end_type,
               recurrence_end_date: formData.recurrence_end_type === 'on_date' ? formData.recurrence_end_date : null,
@@ -231,6 +236,19 @@ export default function EditRecurrenceModal({ isOpen, onClose, item, type, onSuc
           </div>
 
           <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-apple-gray-600 mb-2">
+                {type === 'investment' ? 'Nome' : 'Descrição'}
+              </label>
+              <input
+                type="text"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                className="input-field"
+                placeholder={type === 'investment' ? 'Nome do investimento' : 'Descrição'}
+              />
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-apple-gray-600 mb-2">
                 Frequência

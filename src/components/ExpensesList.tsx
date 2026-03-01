@@ -165,21 +165,19 @@ export default function ExpensesList({ userId, startDate, endDate }: Props) {
           const occDate = occ.date.toISOString().split('T')[0]
           
           // Verificar se já existe uma despesa para esta data e recorrência
-          // CORREÇÃO: Verificar pelo parent_expense_id ou pela combinação de data + descrição base
+          // Priorizar verificação pelo parent_expense_id (mais confiável)
           const existingExpense = periodExpenses.find(expense => {
-            // Se a despesa tem parent_expense_id, verificar se é desta recorrência
+            // Verificar se é uma ocorrência desta recorrência pela data e parent_expense_id
             if (expense.parent_expense_id === recurringExpense.id && expense.expense_date === occDate) {
               return true
             }
             
-            // Caso contrário, verificar por descrição e valor (para compatibilidade com dados antigos)
-            const expenseDesc = expense.description.replace(/\s*\(Recorrente\)\s*$/i, '').trim()
-            const recurringDesc = recurringExpense.description.replace(/\s*\(Recorrente\)\s*$/i, '').trim()
+            // Verificar se é a própria despesa recorrente (não criar ocorrência na mesma data)
+            if (expense.id === recurringExpense.id && expense.expense_date === occDate) {
+              return true
+            }
             
-            return expense.expense_date === occDate && 
-              expenseDesc === recurringDesc &&
-              Math.abs(Number(expense.amount) - Number(recurringExpense.amount)) < 0.01 &&
-              !expense.is_installment
+            return false
           })
           
           // Se não existe, criar uma ocorrência virtual

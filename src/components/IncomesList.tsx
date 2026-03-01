@@ -202,20 +202,19 @@ export default function IncomesList({ userId, startDate, endDate }: Props) {
           const occDate = occ.date.toISOString().split('T')[0]
           
           // Verificar se já existe uma receita para esta data e recorrência
-          // CORREÇÃO: Verificar pelo parent_income_id ou pela combinação de data + descrição base
+          // Priorizar verificação pelo parent_income_id (mais confiável)
           const existingIncome = periodIncomes.find(income => {
-            // Se a receita tem parent_income_id, verificar se é desta recorrência
+            // Verificar se é uma ocorrência desta recorrência pela data e parent_income_id
             if (income.parent_income_id === recurringIncome.id && income.income_date === occDate) {
               return true
             }
             
-            // Caso contrário, verificar por descrição e valor (para compatibilidade com dados antigos)
-            const incomeDesc = income.description.replace(/\s*\(Recorrente\)\s*$/i, '').trim()
-            const recurringDesc = recurringIncome.description.replace(/\s*\(Recorrente\)\s*$/i, '').trim()
+            // Verificar se é a própria receita recorrente (não criar ocorrência na mesma data)
+            if (income.id === recurringIncome.id && income.income_date === occDate) {
+              return true
+            }
             
-            return income.income_date === occDate && 
-              incomeDesc === recurringDesc &&
-              Math.abs(Number(income.amount) - Number(recurringIncome.amount)) < 0.01
+            return false
           })
           
           // Se não existe, criar uma ocorrência virtual
