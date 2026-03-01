@@ -168,29 +168,6 @@ export default function IncomesList({ userId, startDate, endDate }: Props) {
         return income.income_date >= startDate && income.income_date <= endDate
       })
       
-      console.log('🔍 IncomesList Debug:', {
-        periodo: `${startDate} até ${endDate}`,
-        todasReceitas: incomes.length,
-        receitasPeriodo: periodIncomes.length,
-        filtroMembro: filters.member,
-        detalhesTodas: incomes.map(i => ({
-          id: i.id,
-          description: i.description,
-          income_date: i.income_date,
-          is_recurring: i.is_recurring,
-          member_id: i.member_id,
-          member_name: i.member?.name || 'Sem membro'
-        })),
-        detalhesPeriodo: periodIncomes.map(i => ({
-          id: i.id,
-          description: i.description,
-          income_date: i.income_date,
-          is_recurring: i.is_recurring,
-          member_id: i.member_id,
-          member_name: i.member?.name || 'Sem membro'
-        }))
-      })
-      
       // Gerar receitas recorrentes para o período atual se necessário
       // CORREÇÃO: Usar TODAS as receitas recorrentes, não apenas as do período
       const recurringIncomes = incomes.filter(i => i.is_recurring)
@@ -220,9 +197,15 @@ export default function IncomesList({ userId, startDate, endDate }: Props) {
         periodOccurrences.forEach(occ => {
           const occDate = occ.date.toISOString().split('T')[0]
           
-          // Verificar se já existe uma receita real para esta data
-          // Comparar apenas descrição base (sem sufixos) e valor
+          // Verificar se já existe uma receita para esta data e recorrência
+          // CORREÇÃO: Verificar pelo parent_income_id ou pela combinação de data + descrição base
           const existingIncome = periodIncomes.find(income => {
+            // Se a receita tem parent_income_id, verificar se é desta recorrência
+            if (income.parent_income_id === recurringIncome.id && income.income_date === occDate) {
+              return true
+            }
+            
+            // Caso contrário, verificar por descrição e valor (para compatibilidade com dados antigos)
             const incomeDesc = income.description.replace(/\s*\(Recorrente\)\s*$/i, '').trim()
             const recurringDesc = recurringIncome.description.replace(/\s*\(Recorrente\)\s*$/i, '').trim()
             
@@ -239,7 +222,7 @@ export default function IncomesList({ userId, startDate, endDate }: Props) {
               category_id: recurringIncome.category_id,
               member_id: recurringIncome.member_id,
               amount: recurringIncome.amount,
-              description: recurringIncome.description, // Remover o sufixo (Recorrente)
+              description: recurringIncome.description,
               income_date: occDate,
               source: recurringIncome.source,
               is_recurring: true,

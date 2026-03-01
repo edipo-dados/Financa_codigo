@@ -160,9 +160,15 @@ export default function ExpensesList({ userId, startDate, endDate }: Props) {
         periodOccurrences.forEach(occ => {
           const occDate = occ.date.toISOString().split('T')[0]
           
-          // Verificar se já existe uma despesa real para esta data
-          // Comparar apenas descrição base (sem sufixos) e valor
+          // Verificar se já existe uma despesa para esta data e recorrência
+          // CORREÇÃO: Verificar pelo parent_expense_id ou pela combinação de data + descrição base
           const existingExpense = periodExpenses.find(expense => {
+            // Se a despesa tem parent_expense_id, verificar se é desta recorrência
+            if (expense.parent_expense_id === recurringExpense.id && expense.expense_date === occDate) {
+              return true
+            }
+            
+            // Caso contrário, verificar por descrição e valor (para compatibilidade com dados antigos)
             const expenseDesc = expense.description.replace(/\s*\(Recorrente\)\s*$/i, '').trim()
             const recurringDesc = recurringExpense.description.replace(/\s*\(Recorrente\)\s*$/i, '').trim()
             
@@ -180,7 +186,7 @@ export default function ExpensesList({ userId, startDate, endDate }: Props) {
               category_id: recurringExpense.category_id,
               member_id: recurringExpense.member_id,
               amount: recurringExpense.amount,
-              description: recurringExpense.description, // Remover o sufixo (Recorrente)
+              description: recurringExpense.description,
               expense_date: occDate,
               payment_method: recurringExpense.payment_method,
               is_recurring: true,
