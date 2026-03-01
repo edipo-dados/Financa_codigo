@@ -205,6 +205,64 @@ export default function ExpensesList({ userId, startDate, endDate }: Props) {
     }
   }, [displayExpenses, futureExpenses, isFuturePeriod, startDate, endDate, expenses, userId])
 
+  // Calcular totais
+  const totals = useMemo(() => {
+    let currentExpenses = expenses
+    
+    if (startDate && endDate) {
+      currentExpenses = expenses.filter(expense => {
+        return expense.expense_date >= startDate && expense.expense_date <= endDate
+      })
+      
+      // Adicionar despesas recorrentes geradas
+      const recurringExpenses = expenses.filter(e => e.is_recurring)
+      recurringExpenses.forEach(recurringExpense => {
+        if (!recurringExpense.recurrence_start_date || !recurringExpense.recurrence_frequency) return
+        
+        const config = {
+          startDate: parseISO(recurringExpense.recurrence_start_date),
+          frequency: recurringExpense.recurrence_frequency,
+          endType: recurringExpense.recurrence_end_type || 'never' as RecurrenceEndType,
+          endDate: recurringExpense.recurrence_end_date ? parseISO(recurringExpense.recurrence_end_date) : undefined,
+          occurrences: recurringExpense.recurrence_count || undefined,
+        }
+        
+        const occurrences = generateRecurrenceOccurrences(config, 24)
+        const periodOccurrences = occurrences.filter(occ => {
+          const occDate = occ.date.toISOString().split('T')[0]
+          return occDate >= startDate && occDate <= endDate
+        })
+        
+        periodOccurrences.forEach(occ => {
+          const occDate = occ.date.toISOString().split('T')[0]
+          const existingExpense = currentExpenses.find(expense => {
+            const expenseDesc = expense.description.replace(/\s*\(Recorrente\)\s*$/i, '').trim()
+            const recurringDesc = recurringExpense.description.replace(/\s*\(Recorrente\)\s*$/i, '').trim()
+            
+            return expense.expense_date === occDate && 
+              expenseDesc === recurringDesc &&
+              Math.abs(Number(expense.amount) - Number(recurringExpense.amount)) < 0.01
+          })
+          
+          if (!existingExpense) {
+            currentExpenses.push({
+              ...recurringExpense,
+              id: `recurring-${recurringExpense.id}-${occDate}`,
+              expense_date: occDate,
+              is_paid: false,
+            } as any)
+          }
+        })
+      })
+    }
+    
+    const total = currentExpenses.reduce((sum, exp) => sum + Number(exp.amount), 0)
+    const paid = currentExpenses.filter(exp => exp.is_paid).reduce((sum, exp) => sum + Number(exp.amount), 0)
+    const unpaid = currentExpenses.filter(exp => !exp.is_paid).reduce((sum, exp) => sum + Number(exp.amount), 0)
+    
+    return { total, paid, unpaid, count: currentExpenses.length }
+  }, [expenses, startDate, endDate])
+
   // Aplicar filtros
   const filteredExpenses = useMemo(() => {
     return currentMonthExpenses.filter(expense => {
@@ -668,6 +726,60 @@ export default function ExpensesList({ userId, startDate, endDate }: Props) {
           </div>
         </div>
       )}
+
+      {/* Card de Totais */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="glass-card p-4 rounded-2xl">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-apple-gray-500 uppercase tracking-wider">Total</p>
+              <p className="text-2xl font-bold text-apple-gray-700 mt-1">{formatCurrency(totals.total)}</p>
+            </div>
+            <div className="w-12 h-12 bg-apple-blue/10 rounded-xl flex items-center justify-center">
+              <span className="text-2xl">💰</span>
+            </div>
+          </div>
+          <p className="text-xs text-apple-gray-400 mt-2">{totals.count} despesa(s)</p>
+        </div>
+
+        <div className="glass-card p-4 rounded-2xl">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-apple-gray-500 uppercase tracking-wider">Pagas</p>
+              <p className="text-2xl font-bold text-apple-green mt-1">{formatCurrency(totals.paid)}</p>
+            </div>
+            <div className="w-12 h-12 bg-apple-green/10 rounded-xl flex items-center justify-center">
+              <span className="text-2xl">✓</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="glass-card p-4 rounded-2xl">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-apple-gray-500 uppercase tracking-wider">A Pagar</p>
+              <p className="text-2xl font-bold text-apple-orange mt-1">{formatCurrency(totals.unpaid)}</p>
+            </div>
+            <div className="w-12 h-12 bg-apple-orange/10 rounded-xl flex items-center justify-center">
+              <span className="text-2xl">⏳</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="glass-card p-4 rounded-2xl">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-apple-gray-500 uppercase tracking-wider">Período</p>
+              <p className="text-sm font-semibold text-apple-gray-700 mt-2">
+                {startDate && endDate ? `${formatDate(startDate)} - ${formatDate(endDate)}` : 'Todas'}
+              </p>
+            </div>
+            <div className="w-12 h-12 bg-apple-purple/10 rounded-xl flex items-center justify-center">
+              <span className="text-2xl">📅</span>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Filtros */}
       <div className="glass-card p-4 rounded-2xl">

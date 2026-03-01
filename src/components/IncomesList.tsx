@@ -98,6 +98,64 @@ export default function IncomesList({ userId, startDate, endDate }: Props) {
     generateFutureIncomes()
   }, [incomes, isFuturePeriod, startDate, endDate, userId])
 
+  // Calcular totais
+  const totals = useMemo(() => {
+    let currentIncomes = incomes
+    
+    if (startDate && endDate) {
+      currentIncomes = incomes.filter(income => {
+        return income.income_date >= startDate && income.income_date <= endDate
+      })
+      
+      // Adicionar receitas recorrentes geradas
+      const recurringIncomes = incomes.filter(i => i.is_recurring)
+      recurringIncomes.forEach(recurringIncome => {
+        if (!recurringIncome.recurrence_start_date || !recurringIncome.recurrence_frequency) return
+        
+        const config = {
+          startDate: parseISO(recurringIncome.recurrence_start_date),
+          frequency: recurringIncome.recurrence_frequency,
+          endType: recurringIncome.recurrence_end_type || 'never' as RecurrenceEndType,
+          endDate: recurringIncome.recurrence_end_date ? parseISO(recurringIncome.recurrence_end_date) : undefined,
+          occurrences: recurringIncome.recurrence_count || undefined,
+        }
+        
+        const occurrences = generateRecurrenceOccurrences(config, 24)
+        const periodOccurrences = occurrences.filter(occ => {
+          const occDate = occ.date.toISOString().split('T')[0]
+          return occDate >= startDate && occDate <= endDate
+        })
+        
+        periodOccurrences.forEach(occ => {
+          const occDate = occ.date.toISOString().split('T')[0]
+          const existingIncome = currentIncomes.find(income => {
+            const incomeDesc = income.description.replace(/\s*\(Recorrente\)\s*$/i, '').trim()
+            const recurringDesc = recurringIncome.description.replace(/\s*\(Recorrente\)\s*$/i, '').trim()
+            
+            return income.income_date === occDate && 
+              incomeDesc === recurringDesc &&
+              Math.abs(Number(income.amount) - Number(recurringIncome.amount)) < 0.01
+          })
+          
+          if (!existingIncome) {
+            currentIncomes.push({
+              ...recurringIncome,
+              id: `recurring-${recurringIncome.id}-${occDate}`,
+              income_date: occDate,
+              is_paid: false,
+            } as any)
+          }
+        })
+      })
+    }
+    
+    const total = currentIncomes.reduce((sum, inc) => sum + Number(inc.amount), 0)
+    const paid = currentIncomes.filter(inc => inc.is_paid).reduce((sum, inc) => sum + Number(inc.amount), 0)
+    const unpaid = currentIncomes.filter(inc => !inc.is_paid).reduce((sum, inc) => sum + Number(inc.amount), 0)
+    
+    return { total, paid, unpaid, count: currentIncomes.length }
+  }, [incomes, startDate, endDate])
+
   // Aplicar filtros
   const filteredIncomes = useMemo(() => {
     let currentIncomes
@@ -363,6 +421,60 @@ export default function IncomesList({ userId, startDate, endDate }: Props) {
           >
             {showForm ? '✕ Cancelar' : '+ Nova Receita'}
           </button>
+        </div>
+      </div>
+
+      {/* Card de Totais */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="glass-card p-4 rounded-2xl">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-apple-gray-500 uppercase tracking-wider">Total</p>
+              <p className="text-2xl font-bold text-apple-gray-700 mt-1">{formatCurrency(totals.total)}</p>
+            </div>
+            <div className="w-12 h-12 bg-apple-green/10 rounded-xl flex items-center justify-center">
+              <span className="text-2xl">💰</span>
+            </div>
+          </div>
+          <p className="text-xs text-apple-gray-400 mt-2">{totals.count} receita(s)</p>
+        </div>
+
+        <div className="glass-card p-4 rounded-2xl">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-apple-gray-500 uppercase tracking-wider">Recebidas</p>
+              <p className="text-2xl font-bold text-apple-green mt-1">{formatCurrency(totals.paid)}</p>
+            </div>
+            <div className="w-12 h-12 bg-apple-green/10 rounded-xl flex items-center justify-center">
+              <span className="text-2xl">✓</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="glass-card p-4 rounded-2xl">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-apple-gray-500 uppercase tracking-wider">A Receber</p>
+              <p className="text-2xl font-bold text-apple-blue mt-1">{formatCurrency(totals.unpaid)}</p>
+            </div>
+            <div className="w-12 h-12 bg-apple-blue/10 rounded-xl flex items-center justify-center">
+              <span className="text-2xl">⏳</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="glass-card p-4 rounded-2xl">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-apple-gray-500 uppercase tracking-wider">Período</p>
+              <p className="text-sm font-semibold text-apple-gray-700 mt-2">
+                {startDate && endDate ? `${formatDate(startDate)} - ${formatDate(endDate)}` : 'Todas'}
+              </p>
+            </div>
+            <div className="w-12 h-12 bg-apple-purple/10 rounded-xl flex items-center justify-center">
+              <span className="text-2xl">📅</span>
+            </div>
+          </div>
         </div>
       </div>
 
