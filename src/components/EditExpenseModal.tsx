@@ -115,12 +115,13 @@ export default function EditExpenseModal({ isOpen, onClose, expense, onSuccess }
         
         if (choice) {
           // Editar apenas esta ocorrência - criar uma nova despesa não recorrente
-          // Se é uma despesa virtual (ID começa com "recurring-"), extrair o ID real
+          // Se é uma despesa virtual, usar parentRecurringId
           let parentId = expense.id
-          if (expense.id.startsWith('recurring-')) {
-            // Formato: recurring-{uuid}-{date}
+          if ((expense as any).parentRecurringId) {
+            parentId = (expense as any).parentRecurringId
+          } else if (expense.id.startsWith('recurring-')) {
+            // Fallback: extrair do ID se não tiver parentRecurringId
             const parts = expense.id.split('-')
-            // Reconstruir o UUID (primeiros 5 partes após "recurring")
             parentId = parts.slice(1, 6).join('-')
           }
           

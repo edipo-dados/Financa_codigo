@@ -85,12 +85,13 @@ export default function EditIncomeModal({ isOpen, onClose, income, onSuccess }: 
       if (choice) {
         // Editar apenas esta ocorrência - criar uma nova receita não recorrente
         try {
-          // Se é uma receita virtual (ID começa com "recurring-"), extrair o ID real
+          // Se é uma receita virtual, usar parentRecurringId
           let parentId = income.id
-          if (income.id.startsWith('recurring-')) {
-            // Formato: recurring-{uuid}-{date}
+          if ((income as any).parentRecurringId) {
+            parentId = (income as any).parentRecurringId
+          } else if (income.id.startsWith('recurring-')) {
+            // Fallback: extrair do ID se não tiver parentRecurringId
             const parts = income.id.split('-')
-            // Reconstruir o UUID (primeiros 5 partes após "recurring")
             parentId = parts.slice(1, 6).join('-')
           }
           
