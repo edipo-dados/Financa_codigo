@@ -115,6 +115,15 @@ export default function EditExpenseModal({ isOpen, onClose, expense, onSuccess }
         
         if (choice) {
           // Editar apenas esta ocorrência - criar uma nova despesa não recorrente
+          // Se é uma despesa virtual (ID começa com "recurring-"), extrair o ID real
+          let parentId = expense.id
+          if (expense.id.startsWith('recurring-')) {
+            // Formato: recurring-{uuid}-{date}
+            const parts = expense.id.split('-')
+            // Reconstruir o UUID (primeiros 5 partes após "recurring")
+            parentId = parts.slice(1, 6).join('-')
+          }
+          
           const newExpense = {
             user_id: expense.user_id,
             description: formData.description.trim(),
@@ -127,7 +136,7 @@ export default function EditExpenseModal({ isOpen, onClose, expense, onSuccess }
             is_recurring: false,
             is_credit_card: false,
             is_installment: false,
-            parent_expense_id: expense.id
+            parent_expense_id: parentId
           }
 
           const { error } = await supabase

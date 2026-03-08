@@ -85,6 +85,15 @@ export default function EditIncomeModal({ isOpen, onClose, income, onSuccess }: 
       if (choice) {
         // Editar apenas esta ocorrência - criar uma nova receita não recorrente
         try {
+          // Se é uma receita virtual (ID começa com "recurring-"), extrair o ID real
+          let parentId = income.id
+          if (income.id.startsWith('recurring-')) {
+            // Formato: recurring-{uuid}-{date}
+            const parts = income.id.split('-')
+            // Reconstruir o UUID (primeiros 5 partes após "recurring")
+            parentId = parts.slice(1, 6).join('-')
+          }
+          
           const newIncome = {
             user_id: income.user_id,
             description: formData.description.trim(),
@@ -95,7 +104,7 @@ export default function EditIncomeModal({ isOpen, onClose, income, onSuccess }: 
             source: formData.source.trim() || null,
             is_paid: formData.is_paid,
             is_recurring: false,
-            parent_income_id: income.id
+            parent_income_id: parentId
           }
 
           const { error } = await supabase
