@@ -73,6 +73,51 @@ export default function EditIncomeModal({ isOpen, onClose, income, onSuccess }: 
       return
     }
 
+    // Se é uma receita recorrente, perguntar se quer editar apenas esta ou toda a série
+    if (income.is_recurring) {
+      const choice = confirm(
+        'Esta é uma receita recorrente.\n\n' +
+        'Clique em OK para editar APENAS esta ocorrência (recomendado).\n' +
+        'Clique em Cancelar para editar TODA a série de recorrências.\n\n' +
+        'ATENÇÃO: Editar toda a série afetará todas as ocorrências futuras!'
+      )
+      
+      if (choice) {
+        // Editar apenas esta ocorrência - criar uma nova receita não recorrente
+        try {
+          const newIncome = {
+            user_id: income.user_id,
+            description: formData.description.trim(),
+            amount,
+            income_date: formData.income_date,
+            category_id: formData.category_id || null,
+            member_id: formData.member_id || null,
+            source: formData.source.trim() || null,
+            is_paid: formData.is_paid,
+            is_recurring: false,
+            parent_income_id: income.id
+          }
+
+          const { error } = await supabase
+            .from('incomes')
+            .insert(newIncome as any)
+
+          if (error) {
+            console.error('Erro ao criar receita:', error)
+            alert('Erro ao criar receita: ' + error.message)
+          } else {
+            onSuccess()
+            onClose()
+          }
+        } catch (error) {
+          console.error('Erro ao criar receita:', error)
+          alert('Erro ao criar receita')
+        }
+        setLoading(false)
+        return
+      }
+    }
+
     try {
       const updateData = {
         description: formData.description.trim(),

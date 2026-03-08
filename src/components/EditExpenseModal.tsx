@@ -89,7 +89,7 @@ export default function EditExpenseModal({ isOpen, onClose, expense, onSuccess }
           is_recurring: false, // Não é mais recorrente, é uma ocorrência específica
           is_credit_card: false,
           is_installment: false,
-          parent_expense_id: null
+          parent_expense_id: (expense as any).parentRecurringId || null
         }
 
         const { error } = await (supabase as any)
@@ -101,6 +101,69 @@ export default function EditExpenseModal({ isOpen, onClose, expense, onSuccess }
           alert('Erro ao criar despesa: ' + error.message)
         } else {
           alert('✅ Despesa criada com sucesso! Esta é agora uma despesa independente.')
+          onSuccess()
+          onClose()
+        }
+      } else if (expense.is_recurring) {
+        // Se é uma despesa recorrente REAL, perguntar se quer editar apenas esta ou toda a série
+        const choice = confirm(
+          'Esta é uma despesa recorrente.\n\n' +
+          'Clique em OK para editar APENAS esta ocorrência (recomendado).\n' +
+          'Clique em Cancelar para editar TODA a série de recorrências.\n\n' +
+          'ATENÇÃO: Editar toda a série afetará todas as ocorrências futuras!'
+        )
+        
+        if (choice) {
+          // Editar apenas esta ocorrência - criar uma nova despesa não recorrente
+          const newExpense = {
+            user_id: expense.user_id,
+            description: formData.description.trim(),
+            amount,
+            expense_date: formData.expense_date,
+            category_id: formData.category_id || null,
+            member_id: formData.member_id || null,
+            is_paid: formData.is_paid,
+            payment_method: expense.payment_method || null,
+            is_recurring: false,
+            is_credit_card: false,
+            is_installment: false,
+            parent_expense_id: expense.id
+          }
+
+          const { error } = await supabase
+            .from('expenses')
+            .insert(newExpense as any)
+
+          if (error) {
+            console.error('Erro ao criar despesa:', error)
+            alert('Erro ao criar despesa: ' + error.message)
+          } else {
+            onSuccess()
+            onClose()
+          }
+          setLoading(false)
+          return
+        }
+        
+        // Se escolheu editar toda a série, continua com o update normal
+        const updateData = {
+          description: formData.description.trim(),
+          amount,
+          expense_date: formData.expense_date,
+          category_id: formData.category_id || null,
+          member_id: formData.member_id || null,
+          is_paid: formData.is_paid
+        }
+
+        const { error } = await (supabase as any)
+          .from('expenses')
+          .update(updateData)
+          .eq('id', expense.id)
+
+        if (error) {
+          console.error('Erro ao atualizar despesa:', error)
+          alert('Erro ao atualizar despesa: ' + error.message)
+        } else {
           onSuccess()
           onClose()
         }
