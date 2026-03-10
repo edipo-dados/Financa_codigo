@@ -12,8 +12,14 @@ SUPABASE_SERVICE_ROLE_KEY=sua_service_role_key_aqui
 
 ## 🌐 Base URL
 
+**Produção (Vercel):**
 ```
-https://seu-dominio.vercel.app/api
+https://financa-codigo.vercel.app/api
+```
+
+**Desenvolvimento (Local):**
+```
+http://localhost:3000/api
 ```
 
 ---
@@ -32,7 +38,7 @@ https://seu-dominio.vercel.app/api
 
 **Exemplo de Request:**
 ```bash
-curl "https://seu-dominio.vercel.app/api/expenses?user_id=123&start_date=2026-01-01&end_date=2026-12-31"
+curl "https://financa-codigo.vercel.app/api/expenses?user_id=123&start_date=2026-01-01&end_date=2026-12-31"
 ```
 
 **Exemplo de Response:**
@@ -75,7 +81,7 @@ curl "https://seu-dominio.vercel.app/api/expenses?user_id=123&start_date=2026-01
 
 **Exemplo de Request:**
 ```bash
-curl "https://seu-dominio.vercel.app/api/expenses/uuid-da-despesa"
+curl "https://financa-codigo.vercel.app/api/expenses/uuid-da-despesa"
 ```
 
 **Exemplo de Response:**
@@ -134,7 +140,7 @@ curl "https://seu-dominio.vercel.app/api/expenses/uuid-da-despesa"
 
 **Exemplo de Request:**
 ```bash
-curl -X POST "https://seu-dominio.vercel.app/api/expenses" \
+curl -X POST "https://financa-codigo.vercel.app/api/expenses" \
   -H "Content-Type: application/json" \
   -d '{
     "user_id": "uuid",
@@ -178,7 +184,7 @@ curl -X POST "https://seu-dominio.vercel.app/api/expenses" \
 
 **Exemplo de Request:**
 ```bash
-curl -X PATCH "https://seu-dominio.vercel.app/api/expenses/uuid" \
+curl -X PATCH "https://financa-codigo.vercel.app/api/expenses/uuid" \
   -H "Content-Type: application/json" \
   -d '{"amount": 200.00, "is_paid": true}'
 ```
@@ -191,7 +197,7 @@ curl -X PATCH "https://seu-dominio.vercel.app/api/expenses/uuid" \
 
 **Exemplo de Request:**
 ```bash
-curl -X DELETE "https://seu-dominio.vercel.app/api/expenses/uuid"
+curl -X DELETE "https://financa-codigo.vercel.app/api/expenses/uuid"
 ```
 
 **Exemplo de Response:**
@@ -218,7 +224,7 @@ curl -X DELETE "https://seu-dominio.vercel.app/api/expenses/uuid"
 
 **Exemplo de Request:**
 ```bash
-curl "https://seu-dominio.vercel.app/api/incomes?user_id=123&start_date=2026-01-01"
+curl "https://financa-codigo.vercel.app/api/incomes?user_id=123&start_date=2026-01-01"
 ```
 
 **Exemplo de Response:**
@@ -260,7 +266,7 @@ curl "https://seu-dominio.vercel.app/api/incomes?user_id=123&start_date=2026-01-
 
 **Exemplo de Request:**
 ```bash
-curl "https://seu-dominio.vercel.app/api/incomes/uuid-da-receita"
+curl "https://financa-codigo.vercel.app/api/incomes/uuid-da-receita"
 ```
 
 ---
@@ -340,7 +346,7 @@ curl "https://seu-dominio.vercel.app/api/incomes/uuid-da-receita"
 
 **Exemplo de Request:**
 ```bash
-curl "https://seu-dominio.vercel.app/api/summary?user_id=123&start_date=2026-03-01&end_date=2026-03-31"
+curl "https://financa-codigo.vercel.app/api/summary?user_id=123&start_date=2026-03-01&end_date=2026-03-31"
 ```
 
 **Exemplo de Response:**
@@ -384,6 +390,205 @@ curl "https://seu-dominio.vercel.app/api/summary?user_id=123&start_date=2026-03-
 
 ---
 
+## � Compras de Cartão de Crédito
+
+### 1. Listar Compras de Cartão
+
+**Endpoint:** `GET /api/credit-card-purchases`
+
+**Query Parameters:**
+- `user_id` (obrigatório) - ID do usuário
+- `credit_card_id` (opcional) - Filtrar por cartão específico
+
+**Exemplo de Request:**
+```bash
+curl "https://financa-codigo.vercel.app/api/credit-card-purchases?user_id=uuid"
+```
+
+**Exemplo de Response:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "uuid",
+      "user_id": "uuid",
+      "credit_card_id": "uuid",
+      "category_id": "uuid",
+      "member_id": "uuid",
+      "description": "Notebook Dell",
+      "amount": 416.67,
+      "total_amount": 5000.00,
+      "installments": 12,
+      "purchase_date": "2026-03-10",
+      "expense_date": "2026-03-10",
+      "is_credit_card": true,
+      "is_installment": false,
+      "is_paid": false,
+      "credit_card": {
+        "id": "uuid",
+        "name": "Nubank",
+        "closing_day": 15,
+        "due_day": 25
+      },
+      "category": {
+        "id": "uuid",
+        "name": "Eletrônicos"
+      },
+      "member": {
+        "id": "uuid",
+        "name": "João"
+      }
+    }
+  ]
+}
+```
+
+---
+
+### 2. Buscar Compra de Cartão por ID
+
+**Endpoint:** `GET /api/credit-card-purchases/[id]`
+
+**Exemplo de Request:**
+```bash
+curl "https://financa-codigo.vercel.app/api/credit-card-purchases/uuid"
+```
+
+**Exemplo de Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "description": "Notebook Dell",
+    "total_amount": 5000.00,
+    "installments": 12,
+    "purchase_date": "2026-03-10",
+    "credit_card": {
+      "id": "uuid",
+      "name": "Nubank"
+    },
+    "installments_detail": [
+      {
+        "id": "uuid",
+        "description": "Notebook Dell - Parcela 1/12",
+        "amount": 416.67,
+        "expense_date": "2026-04-25",
+        "installment_number": 1,
+        "is_paid": false
+      }
+    ]
+  }
+}
+```
+
+---
+
+### 3. Criar Compra de Cartão
+
+**Endpoint:** `POST /api/credit-card-purchases`
+
+**⚠️ IMPORTANTE:** Use este endpoint ao invés de `/api/expenses` para compras de cartão, pois ele:
+1. Cria a compra parent (que aparece na aba de cartões)
+2. Cria automaticamente todas as parcelas
+3. Calcula as datas corretas baseadas no dia de fechamento do cartão
+
+**Body (JSON):**
+```json
+{
+  "user_id": "uuid",
+  "credit_card_id": "uuid",
+  "category_id": "uuid",
+  "member_id": "uuid",
+  "description": "Notebook Dell Inspiron",
+  "total_amount": 5000.00,
+  "installments": 12,
+  "purchase_date": "2026-03-10"
+}
+```
+
+**Campos Obrigatórios:**
+- `user_id` - ID do usuário
+- `credit_card_id` - ID do cartão de crédito
+- `description` - Descrição da compra
+- `total_amount` - Valor total da compra
+- `installments` - Número de parcelas (1 a 48)
+- `purchase_date` - Data da compra (YYYY-MM-DD)
+
+**Campos Opcionais:**
+- `category_id` - ID da categoria
+- `member_id` - ID do membro da família
+
+**Exemplo de Request:**
+```bash
+curl -X POST "https://financa-codigo.vercel.app/api/credit-card-purchases" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": "uuid",
+    "credit_card_id": "uuid",
+    "category_id": "uuid",
+    "description": "Notebook Dell Inspiron",
+    "total_amount": 5000.00,
+    "installments": 12,
+    "purchase_date": "2026-03-10"
+  }'
+```
+
+**Exemplo de Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "parent": {
+      "id": "uuid",
+      "user_id": "uuid",
+      "credit_card_id": "uuid",
+      "description": "Notebook Dell Inspiron",
+      "amount": 416.67,
+      "total_amount": 5000.00,
+      "installments": 12,
+      "purchase_date": "2026-03-10",
+      "is_credit_card": true,
+      "is_installment": false
+    },
+    "installments": [
+      {
+        "id": "uuid",
+        "description": "Notebook Dell Inspiron - Parcela 1/12",
+        "amount": 416.67,
+        "expense_date": "2026-04-25",
+        "installment_number": 1,
+        "parent_expense_id": "parent_uuid"
+      }
+    ]
+  }
+}
+```
+
+---
+
+### 4. Excluir Compra de Cartão
+
+**Endpoint:** `DELETE /api/credit-card-purchases/[id]`
+
+**⚠️ ATENÇÃO:** Esta ação exclui a compra e TODAS as suas parcelas.
+
+**Exemplo de Request:**
+```bash
+curl -X DELETE "https://financa-codigo.vercel.app/api/credit-card-purchases/uuid"
+```
+
+**Exemplo de Response:**
+```json
+{
+  "success": true,
+  "message": "Compra e parcelas excluídas com sucesso"
+}
+```
+
+---
+
 ## 🚨 Códigos de Erro
 
 - `400` - Bad Request (parâmetros inválidos)
@@ -408,7 +613,7 @@ import requests
 
 # Buscar despesas do mês
 response = requests.get(
-    "https://seu-dominio.vercel.app/api/expenses",
+    "https://financa-codigo.vercel.app/api/expenses",
     params={
         "user_id": "uuid-do-usuario",
         "start_date": "2026-03-01",
@@ -430,7 +635,7 @@ import requests
 
 # IA detectou uma despesa e cria automaticamente
 response = requests.post(
-    "https://seu-dominio.vercel.app/api/expenses",
+    "https://financa-codigo.vercel.app/api/expenses",
     json={
         "user_id": "uuid-do-usuario",
         "amount": 150.50,
@@ -443,14 +648,37 @@ response = requests.post(
 print(response.json())
 ```
 
-### Exemplo 3: Análise de Saldo
+### Exemplo 3: Criar Compra Parcelada no Cartão
+
+```python
+import requests
+
+# IA detectou uma compra parcelada e cria automaticamente
+response = requests.post(
+    "https://financa-codigo.vercel.app/api/credit-card-purchases",
+    json={
+        "user_id": "uuid-do-usuario",
+        "credit_card_id": "uuid-do-cartao",
+        "description": "Notebook Dell detectado via IA",
+        "total_amount": 5000.00,
+        "installments": 12,
+        "purchase_date": "2026-03-10"
+    }
+)
+
+result = response.json()
+print(f"Compra criada: {result['data']['parent']['id']}")
+print(f"Parcelas criadas: {len(result['data']['installments'])}")
+```
+
+### Exemplo 4: Análise de Saldo
 
 ```python
 import requests
 
 # Buscar resumo financeiro
 response = requests.get(
-    "https://seu-dominio.vercel.app/api/summary",
+    "https://financa-codigo.vercel.app/api/summary",
     params={
         "user_id": "uuid-do-usuario",
         "start_date": "2026-03-01",
