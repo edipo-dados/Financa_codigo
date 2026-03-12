@@ -390,7 +390,198 @@ curl "https://financa-codigo.vercel.app/api/summary?user_id=123&start_date=2026-
 
 ---
 
-## � Compras de Cartão de Crédito
+## 💳 Cartões de Crédito
+
+### 1. Listar Cartões
+
+**Endpoint:** `GET /api/credit-cards`
+
+**Query Parameters:**
+- `user_id` (obrigatório) - ID do usuário
+- `month` (opcional) - Mês para calcular fatura (YYYY-MM). Se omitido, calcula todas as parcelas
+- `include_invoice` (opcional) - Incluir informações de fatura (default: true)
+- `only_with_invoice` (opcional) - Retornar apenas cartões que tenham fatura no período (default: false)
+
+**Exemplo de Request:**
+```bash
+# Listar todos os cartões com fatura de março/2026
+curl "https://financa-codigo.vercel.app/api/credit-cards?user_id=uuid&month=2026-03"
+
+# Listar apenas cartões que tenham fatura em março/2026
+curl "https://financa-codigo.vercel.app/api/credit-cards?user_id=uuid&month=2026-03&only_with_invoice=true"
+```
+
+**Exemplo de Response:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "uuid",
+      "user_id": "uuid",
+      "name": "Nubank",
+      "closing_day": 15,
+      "due_day": 25,
+      "credit_limit": 10000.00,
+      "color": "#8b10ae",
+      "created_at": "2026-01-01T00:00:00Z",
+      "invoice": {
+        "total": 2500.00,
+        "paid": 1000.00,
+        "unpaid": 1500.00,
+        "count": 15,
+        "month": "2026-03"
+      }
+    },
+    {
+      "id": "uuid2",
+      "name": "Inter",
+      "closing_day": 10,
+      "due_day": 20,
+      "credit_limit": 5000.00,
+      "invoice": {
+        "total": 800.00,
+        "paid": 800.00,
+        "unpaid": 0.00,
+        "count": 5,
+        "month": "2026-03"
+      }
+    }
+  ]
+}
+```
+
+**Campos do Response:**
+- `invoice.total` - Valor total da fatura (pagas + a pagar)
+- `invoice.paid` - Valor já pago
+- `invoice.unpaid` - Valor a pagar
+- `invoice.count` - Número de parcelas na fatura
+- `invoice.month` - Mês de referência ou "all"
+
+---
+
+### 2. Buscar Cartão por ID com Detalhes da Fatura
+
+**Endpoint:** `GET /api/credit-cards/[id]`
+
+**Query Parameters:**
+- `month` (opcional) - Mês para filtrar fatura (YYYY-MM)
+
+**Exemplo de Request:**
+```bash
+curl "https://financa-codigo.vercel.app/api/credit-cards/uuid?month=2026-03"
+```
+
+**Exemplo de Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "card": {
+      "id": "uuid",
+      "name": "Nubank",
+      "closing_day": 15,
+      "due_day": 25,
+      "credit_limit": 10000.00
+    },
+    "invoice": {
+      "total": 2500.00,
+      "paid": 1000.00,
+      "unpaid": 1500.00,
+      "count": 15,
+      "month": "2026-03"
+    },
+    "purchases": [
+      {
+        "parent_id": "uuid",
+        "description": "Notebook Dell",
+        "total_amount": 5000.00,
+        "installments_count": 12,
+        "purchase_date": "2026-03-10",
+        "installments": [
+          {
+            "id": "uuid",
+            "description": "Notebook Dell - Parcela 1/12",
+            "amount": 416.67,
+            "expense_date": "2026-04-25",
+            "installment_number": 1,
+            "is_paid": false
+          }
+        ]
+      }
+    ],
+    "installments": []
+  }
+}
+```
+
+---
+
+### 3. Criar Cartão de Crédito
+
+**Endpoint:** `POST /api/credit-cards`
+
+**Body (JSON):**
+```json
+{
+  "user_id": "uuid",
+  "name": "Nubank",
+  "closing_day": 15,
+  "due_day": 25,
+  "credit_limit": 10000.00,
+  "color": "#8b10ae"
+}
+```
+
+**Campos Obrigatórios:**
+- `user_id` - ID do usuário
+- `name` - Nome do cartão
+- `closing_day` - Dia de fechamento da fatura (1-31)
+- `due_day` - Dia de vencimento da fatura (1-31)
+
+**Campos Opcionais:**
+- `credit_limit` - Limite do cartão
+- `color` - Cor para identificação (hex, default: #3b82f6)
+
+**Exemplo de Request:**
+```bash
+curl -X POST "https://financa-codigo.vercel.app/api/credit-cards" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": "uuid",
+    "name": "Nubank",
+    "closing_day": 15,
+    "due_day": 25,
+    "credit_limit": 10000.00
+  }'
+```
+
+---
+
+### 4. Atualizar Cartão de Crédito
+
+**Endpoint:** `PATCH /api/credit-cards/[id]`
+
+**Body (JSON):**
+```json
+{
+  "name": "Nubank Platinum",
+  "credit_limit": 15000.00,
+  "closing_day": 20
+}
+```
+
+---
+
+### 5. Excluir Cartão de Crédito
+
+**Endpoint:** `DELETE /api/credit-cards/[id]`
+
+**⚠️ ATENÇÃO:** Não é possível excluir um cartão com compras vinculadas.
+
+---
+
+## 🛒 Compras de Cartão de Crédito
 
 ### 1. Listar Compras de Cartão
 
