@@ -120,6 +120,14 @@ export default function Dashboard() {
     { id: 'about', label: 'Sobre', icon: '📱' },
   ]
 
+  // Tabs simplificadas para mobile (apenas 4)
+  const mobileTabs = [
+    { id: 'overview', label: 'Dashboard', icon: '📊' },
+    { id: 'expenses', label: 'Despesas', icon: '💸' },
+    { id: 'incomes', label: 'Receitas', icon: '💰' },
+    { id: 'creditcard', label: 'Cartões', icon: '💳' },
+  ]
+
   return (
     <div className="min-h-screen pb-20 md:pb-0">
       <Navigation />
@@ -368,7 +376,7 @@ export default function Dashboard() {
 
       {/* Mobile Bottom Navigation */}
       <MobileBottomNav 
-        tabs={tabs}
+        tabs={mobileTabs}
         activeTab={activeTab}
         onTabChange={(tabId) => setActiveTab(tabId as any)}
       />
