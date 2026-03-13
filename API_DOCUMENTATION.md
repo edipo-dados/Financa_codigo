@@ -24,6 +24,160 @@ http://localhost:3000/api
 
 ---
 
+## 📁 Categorias
+
+### 1. Listar Categorias
+
+**Endpoint:** `GET /api/categories`
+
+**Query Parameters:**
+- `user_id` (obrigatório) - ID do usuário
+- `type` (opcional) - Tipo de categoria: 'expense', 'income', ou omitir para ambas
+
+**Exemplo de Request:**
+```bash
+# Listar todas as categorias (despesas e receitas)
+curl "https://financa-codigo.vercel.app/api/categories?user_id=uuid"
+
+# Listar apenas categorias de despesas
+curl "https://financa-codigo.vercel.app/api/categories?user_id=uuid&type=expense"
+
+# Listar apenas categorias de receitas
+curl "https://financa-codigo.vercel.app/api/categories?user_id=uuid&type=income"
+```
+
+**Exemplo de Response (todas):**
+```json
+{
+  "success": true,
+  "data": {
+    "expenses": [
+      {
+        "id": "uuid",
+        "user_id": "uuid",
+        "name": "Saúde",
+        "color": "#ff6b6b",
+        "icon": "🏥",
+        "created_at": "2026-01-01T00:00:00Z"
+      },
+      {
+        "id": "uuid",
+        "name": "Alimentação",
+        "color": "#51cf66",
+        "icon": "🍔"
+      }
+    ],
+    "incomes": [
+      {
+        "id": "uuid",
+        "user_id": "uuid",
+        "name": "Salário",
+        "color": "#34c759",
+        "icon": "💰"
+      }
+    ]
+  }
+}
+```
+
+**Exemplo de Response (apenas despesas):**
+```json
+{
+  "success": true,
+  "type": "expense",
+  "data": [
+    {
+      "id": "uuid",
+      "user_id": "uuid",
+      "name": "Saúde",
+      "color": "#ff6b6b",
+      "icon": "🏥"
+    }
+  ]
+}
+```
+
+---
+
+### 2. Buscar Categoria por ID
+
+**Endpoint:** `GET /api/categories/[id]`
+
+**Query Parameters:**
+- `type` (opcional) - 'expense' ou 'income' (default: expense)
+
+**Exemplo de Request:**
+```bash
+curl "https://financa-codigo.vercel.app/api/categories/uuid?type=expense"
+```
+
+---
+
+### 3. Criar Categoria
+
+**Endpoint:** `POST /api/categories`
+
+**Body (JSON):**
+```json
+{
+  "user_id": "uuid",
+  "name": "Transporte",
+  "color": "#ffd43b",
+  "icon": "🚗",
+  "type": "expense"
+}
+```
+
+**Campos Obrigatórios:**
+- `user_id` - ID do usuário
+- `name` - Nome da categoria
+- `type` - Tipo: 'expense' ou 'income'
+
+**Campos Opcionais:**
+- `color` - Cor em hexadecimal (default: #3b82f6)
+- `icon` - Emoji ou ícone (default: 📁)
+
+**Exemplo de Request:**
+```bash
+curl -X POST "https://financa-codigo.vercel.app/api/categories" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": "uuid",
+    "name": "Transporte",
+    "color": "#ffd43b",
+    "icon": "🚗",
+    "type": "expense"
+  }'
+```
+
+---
+
+### 4. Atualizar Categoria
+
+**Endpoint:** `PATCH /api/categories/[id]`
+
+**Body (JSON):**
+```json
+{
+  "name": "Transporte Público",
+  "color": "#ff9800",
+  "type": "expense"
+}
+```
+
+---
+
+### 5. Excluir Categoria
+
+**Endpoint:** `DELETE /api/categories/[id]`
+
+**Query Parameters:**
+- `type` (opcional) - 'expense' ou 'income' (default: expense)
+
+**⚠️ ATENÇÃO:** Não é possível excluir uma categoria com despesas/receitas vinculadas.
+
+---
+
 ## 💸 Despesas (Expenses)
 
 ### 1. Listar Despesas
