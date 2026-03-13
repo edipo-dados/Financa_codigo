@@ -133,18 +133,7 @@ export default function ExpensesList({ userId, startDate, endDate }: Props) {
     } else if (effectiveStartDate && effectiveEndDate) {
       // Filtrar despesas pelo período selecionado
       const periodExpenses = displayExpenses.filter(expense => {
-        // Incluir despesas do período
-        if (expense.expense_date >= effectiveStartDate && expense.expense_date <= effectiveEndDate) {
-          return true
-        }
-        
-        // IMPORTANTE: Incluir despesas que são edições de recorrentes (têm parent_expense_id)
-        // mesmo que estejam fora do período, para evitar duplicação
-        if (expense.parent_expense_id && !expense.is_recurring && !expense.is_installment) {
-          return true
-        }
-        
-        return false
+        return expense.expense_date >= effectiveStartDate && expense.expense_date <= effectiveEndDate
       })
       
       // Gerar despesas recorrentes para o período atual se necessário
@@ -176,8 +165,8 @@ export default function ExpensesList({ userId, startDate, endDate }: Props) {
           const occDate = occ.date.toISOString().split('T')[0]
           
           // Verificar se já existe uma despesa para esta data e recorrência
-          // Priorizar verificação pelo parent_expense_id (mais confiável)
-          const existingExpense = periodExpenses.find(expense => {
+          // Buscar em TODAS as despesas do usuário, não apenas do período
+          const existingExpense = expenses.find(expense => {
             // Verificar se é uma ocorrência desta recorrência pela data e parent_expense_id
             if (expense.parent_expense_id === recurringExpense.id && expense.expense_date === occDate) {
               return true

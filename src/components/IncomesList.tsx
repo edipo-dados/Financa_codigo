@@ -169,18 +169,7 @@ export default function IncomesList({ userId, startDate, endDate }: Props) {
     } else if (effectiveStartDate && effectiveEndDate) {
       // Filtrar receitas pelo período selecionado
       const periodIncomes = incomes.filter(income => {
-        // Incluir receitas do período
-        if (income.income_date >= effectiveStartDate && income.income_date <= effectiveEndDate) {
-          return true
-        }
-        
-        // IMPORTANTE: Incluir receitas que são edições de recorrentes (têm parent_income_id)
-        // mesmo que estejam fora do período, para evitar duplicação
-        if (income.parent_income_id && !income.is_recurring) {
-          return true
-        }
-        
-        return false
+        return income.income_date >= effectiveStartDate && income.income_date <= effectiveEndDate
       })
       
       // Gerar receitas recorrentes para o período atual se necessário
@@ -213,8 +202,8 @@ export default function IncomesList({ userId, startDate, endDate }: Props) {
           const occDate = occ.date.toISOString().split('T')[0]
           
           // Verificar se já existe uma receita para esta data e recorrência
-          // Priorizar verificação pelo parent_income_id (mais confiável)
-          const existingIncome = periodIncomes.find(income => {
+          // Buscar em TODAS as receitas do usuário, não apenas do período
+          const existingIncome = incomes.find(income => {
             // Verificar se é uma ocorrência desta recorrência pela data e parent_income_id
             if (income.parent_income_id === recurringIncome.id && income.income_date === occDate) {
               return true
