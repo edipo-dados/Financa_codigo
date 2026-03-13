@@ -95,6 +95,12 @@ export default function EditIncomeModal({ isOpen, onClose, income, onSuccess }: 
             parentId = parts.slice(1, 6).join('-')
           }
           
+          console.log('Criando receita editada:', {
+            income_date: formData.income_date,
+            parent_income_id: parentId,
+            original_id: income.id
+          })
+          
           const newIncome = {
             user_id: income.user_id,
             description: formData.description.trim(),
@@ -108,14 +114,16 @@ export default function EditIncomeModal({ isOpen, onClose, income, onSuccess }: 
             parent_income_id: parentId
           }
 
-          const { error } = await supabase
+          const { data, error } = await supabase
             .from('incomes')
             .insert(newIncome as any)
+            .select()
 
           if (error) {
             console.error('Erro ao criar receita:', error)
             alert('Erro ao criar receita: ' + error.message)
           } else {
+            console.log('Receita criada com sucesso:', data)
             onSuccess()
             onClose()
           }
