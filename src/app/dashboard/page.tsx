@@ -73,20 +73,20 @@ export default function Dashboard() {
     }
   }, [currentMonth])
 
-  // Saldo anual — mesma lógica que ExpensesList/IncomesList usam nos totais
+  // Saldo anual — de janeiro até o fim do mês selecionado
   const yearBalance = useMemo(() => {
     if (!currentMonth) return { totalIncomes: 0, totalExpenses: 0, balance: 0 }
 
     const yearStart = format(startOfYear(currentMonth), 'yyyy-MM-dd')
-    const yearEnd = format(endOfYear(currentMonth), 'yyyy-MM-dd')
+    const monthEnd = format(endOfMonth(currentMonth), 'yyyy-MM-dd')
 
     let yearIncomes = incomes.filter(i => {
       if (i.description.endsWith('(Excluída)')) return false
-      return i.income_date >= yearStart && i.income_date <= yearEnd
+      return i.income_date >= yearStart && i.income_date <= monthEnd
     })
     let yearExpenses = expenses.filter(e => {
       if (e.description.endsWith('(Excluída)')) return false
-      return e.expense_date >= yearStart && e.expense_date <= yearEnd
+      return e.expense_date >= yearStart && e.expense_date <= monthEnd
     })
 
     if (selectedMember) {
@@ -262,7 +262,7 @@ export default function Dashboard() {
               {/* Saldo do Ano */}
               <div className="glass-card p-6 rounded-2xl">
                 <h3 className="text-lg font-semibold fintech-text-primary mb-4">
-                  💰 Saldo do Ano {currentMonth.getFullYear()}
+                  💰 Saldo Acumulado {currentMonth.getFullYear()} (Jan - {format(currentMonth, 'MMM')})
                   {selectedMemberName && <span className="text-sm font-normal text-apple-gray-500 ml-2">({selectedMemberName})</span>}
                 </h3>
                 <div className={`text-4xl font-bold mb-4 ${yearBalance.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
@@ -270,11 +270,11 @@ export default function Dashboard() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-xl">
-                    <p className="text-xs text-green-600 font-medium">Receitas no Ano</p>
+                    <p className="text-xs text-green-600 font-medium">Receitas Acumuladas</p>
                     <p className="text-lg font-bold text-green-700">+{formatCurrency(yearBalance.totalIncomes)}</p>
                   </div>
                   <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-xl">
-                    <p className="text-xs text-red-600 font-medium">Despesas no Ano</p>
+                    <p className="text-xs text-red-600 font-medium">Despesas Acumuladas</p>
                     <p className="text-lg font-bold text-red-700">-{formatCurrency(yearBalance.totalExpenses)}</p>
                   </div>
                 </div>
