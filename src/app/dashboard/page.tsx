@@ -73,13 +73,25 @@ export default function Dashboard() {
     }
   }, [currentMonth])
 
+  // Coletar IDs de recorrências que têm filhas materializadas (usando dados completos)
+  const expenseParentsWithChildren = useMemo(() => {
+    const parents = new Set<string>()
+    expenses.forEach(e => { if (e.parent_expense_id) parents.add(e.parent_expense_id) })
+    return parents
+  }, [expenses])
+
+  const incomeParentsWithChildren = useMemo(() => {
+    const parents = new Set<string>()
+    incomes.forEach(i => { if (i.parent_income_id) parents.add(i.parent_income_id) })
+    return parents
+  }, [incomes])
+
   // Função auxiliar para filtrar despesas reais
   const filterRealExpenses = (exps: typeof expenses) => {
     return exps.filter(e => {
-      // Excluir registros marcados como excluídos
       if (e.description.endsWith('(Excluída)')) return false
-      // Excluir compras parent de cartão (apenas parcelas contam)
       if (e.is_credit_card && !e.is_installment) return false
+      if (e.is_recurring && !e.parent_expense_id && expenseParentsWithChildren.has(e.id)) return false
       return true
     })
   }
@@ -88,6 +100,7 @@ export default function Dashboard() {
   const filterRealIncomes = (incs: typeof incomes) => {
     return incs.filter(i => {
       if (i.description.endsWith('(Excluída)')) return false
+      if (i.is_recurring && !i.parent_income_id && incomeParentsWithChildren.has(i.id)) return false
       return true
     })
   }
