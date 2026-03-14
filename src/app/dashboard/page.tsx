@@ -94,7 +94,7 @@ export default function Dashboard() {
 
   // Saldo anual
   const yearBalance = useMemo(() => {
-    if (!currentMonth) return { totalIncomes: 0, totalExpenses: 0, totalInvested: 0, balance: 0 }
+    if (!currentMonth) return { totalIncomes: 0, totalExpenses: 0, balance: 0 }
 
     const yearStart = format(startOfYear(currentMonth), 'yyyy-MM-dd')
     const yearEnd = format(endOfYear(currentMonth), 'yyyy-MM-dd')
@@ -105,26 +105,21 @@ export default function Dashboard() {
     let yearExpenses = filterRealExpenses(expenses).filter(e =>
       e.expense_date >= yearStart && e.expense_date <= yearEnd
     )
-    let yearInvestments = investments.filter(i =>
-      i.investment_date >= yearStart && i.investment_date <= yearEnd
-    )
 
     if (selectedMember) {
       yearIncomes = yearIncomes.filter(i => i.member_id === selectedMember)
       yearExpenses = yearExpenses.filter(e => e.member_id === selectedMember)
-      yearInvestments = yearInvestments.filter(i => i.member_id === selectedMember)
     }
 
     const totalIncomes = yearIncomes.reduce((sum, i) => sum + Number(i.amount), 0)
     const totalExpenses = yearExpenses.reduce((sum, e) => sum + Number(e.amount), 0)
-    const totalInvested = yearInvestments.reduce((sum, i) => sum + Number(i.initial_amount), 0)
 
-    return { totalIncomes, totalExpenses, totalInvested, balance: totalIncomes - totalExpenses - totalInvested }
-  }, [incomes, expenses, investments, currentMonth, selectedMember])
+    return { totalIncomes, totalExpenses, balance: totalIncomes - totalExpenses }
+  }, [incomes, expenses, currentMonth, selectedMember])
 
   // Saldo do mês
   const monthBalance = useMemo(() => {
-    if (!currentPeriod) return { totalIncomes: 0, totalExpenses: 0, totalInvested: 0, balance: 0 }
+    if (!currentPeriod) return { totalIncomes: 0, totalExpenses: 0, balance: 0 }
 
     let monthIncomes = filterRealIncomes(incomes).filter(i =>
       i.income_date >= currentPeriod.startDate && i.income_date <= currentPeriod.endDate
@@ -132,22 +127,17 @@ export default function Dashboard() {
     let monthExpenses = filterRealExpenses(expenses).filter(e =>
       e.expense_date >= currentPeriod.startDate && e.expense_date <= currentPeriod.endDate
     )
-    let monthInvestments = investments.filter(i =>
-      i.investment_date >= currentPeriod.startDate && i.investment_date <= currentPeriod.endDate
-    )
 
     if (selectedMember) {
       monthIncomes = monthIncomes.filter(i => i.member_id === selectedMember)
       monthExpenses = monthExpenses.filter(e => e.member_id === selectedMember)
-      monthInvestments = monthInvestments.filter(i => i.member_id === selectedMember)
     }
 
     const totalIncomes = monthIncomes.reduce((sum, i) => sum + Number(i.amount), 0)
     const totalExpenses = monthExpenses.reduce((sum, e) => sum + Number(e.amount), 0)
-    const totalInvested = monthInvestments.reduce((sum, i) => sum + Number(i.initial_amount), 0)
 
-    return { totalIncomes, totalExpenses, totalInvested, balance: totalIncomes - totalExpenses - totalInvested }
-  }, [incomes, expenses, investments, currentPeriod, selectedMember])
+    return { totalIncomes, totalExpenses, balance: totalIncomes - totalExpenses }
+  }, [incomes, expenses, currentPeriod, selectedMember])
 
   // Investimentos (card separado)
   const investmentSummary = useMemo(() => {
@@ -290,22 +280,17 @@ export default function Dashboard() {
                   💰 Saldo do Ano {currentMonth.getFullYear()}
                   {selectedMemberName && <span className="text-sm font-normal text-apple-gray-500 ml-2">({selectedMemberName})</span>}
                 </h3>
-                <p className="text-xs text-apple-gray-400 mb-2">Receitas − Despesas − Investimentos</p>
                 <div className={`text-4xl font-bold mb-4 ${yearBalance.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                   {yearBalance.balance >= 0 ? '+' : ''}{formatCurrency(yearBalance.balance)}
                 </div>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 gap-4">
                   <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-xl">
-                    <p className="text-xs text-green-600 font-medium">Receitas</p>
+                    <p className="text-xs text-green-600 font-medium">Receitas no Ano</p>
                     <p className="text-lg font-bold text-green-700">+{formatCurrency(yearBalance.totalIncomes)}</p>
                   </div>
                   <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-xl">
-                    <p className="text-xs text-red-600 font-medium">Despesas</p>
+                    <p className="text-xs text-red-600 font-medium">Despesas no Ano</p>
                     <p className="text-lg font-bold text-red-700">-{formatCurrency(yearBalance.totalExpenses)}</p>
-                  </div>
-                  <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
-                    <p className="text-xs text-blue-600 font-medium">Investido</p>
-                    <p className="text-lg font-bold text-blue-700">-{formatCurrency(yearBalance.totalInvested)}</p>
                   </div>
                 </div>
               </div>
@@ -316,22 +301,17 @@ export default function Dashboard() {
                   📅 Saldo do Mês
                   {selectedMemberName && <span className="text-sm font-normal text-apple-gray-500 ml-2">({selectedMemberName})</span>}
                 </h3>
-                <p className="text-xs text-apple-gray-400 mb-2">Receitas − Despesas − Investimentos</p>
                 <div className={`text-3xl font-bold mb-4 ${monthBalance.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                   {monthBalance.balance >= 0 ? '+' : ''}{formatCurrency(monthBalance.balance)}
                 </div>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 gap-4">
                   <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-xl">
-                    <p className="text-xs text-green-600 font-medium">Receitas</p>
+                    <p className="text-xs text-green-600 font-medium">Receitas no Mês</p>
                     <p className="text-lg font-bold text-green-700">+{formatCurrency(monthBalance.totalIncomes)}</p>
                   </div>
                   <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-xl">
-                    <p className="text-xs text-red-600 font-medium">Despesas</p>
+                    <p className="text-xs text-red-600 font-medium">Despesas no Mês</p>
                     <p className="text-lg font-bold text-red-700">-{formatCurrency(monthBalance.totalExpenses)}</p>
-                  </div>
-                  <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
-                    <p className="text-xs text-blue-600 font-medium">Investido</p>
-                    <p className="text-lg font-bold text-blue-700">-{formatCurrency(monthBalance.totalInvested)}</p>
                   </div>
                 </div>
               </div>
