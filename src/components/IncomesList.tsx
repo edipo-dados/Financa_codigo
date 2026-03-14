@@ -104,6 +104,7 @@ export default function IncomesList({ userId, startDate, endDate }: Props) {
     
     if (startDate && endDate) {
       currentIncomes = incomes.filter(income => {
+        if (income.description.endsWith('(Excluída)')) return false
         return income.income_date >= startDate && income.income_date <= endDate
       })
       
@@ -198,8 +199,9 @@ export default function IncomesList({ userId, startDate, endDate }: Props) {
     if (isFuturePeriod) {
       currentIncomes = futureIncomes
     } else if (effectiveStartDate && effectiveEndDate) {
-      // Filtrar receitas pelo período selecionado
+      // Filtrar receitas pelo período selecionado (excluindo ocorrências marcadas como excluídas)
       const periodIncomes = incomes.filter(income => {
+        if (income.description.endsWith('(Excluída)')) return false
         return income.income_date >= effectiveStartDate && income.income_date <= effectiveEndDate
       })
       
@@ -304,8 +306,8 @@ export default function IncomesList({ userId, startDate, endDate }: Props) {
       
       currentIncomes = [...periodIncomes, ...generatedIncomes]
     } else {
-      // Quando não há período específico, mostrar todas as receitas
-      currentIncomes = incomes
+      // Quando não há período específico, mostrar todas as receitas (exceto excluídas)
+      currentIncomes = incomes.filter(i => !i.description.endsWith('(Excluída)'))
     }
 
     return currentIncomes.filter(income => {
@@ -350,24 +352,33 @@ export default function IncomesList({ userId, startDate, endDate }: Props) {
 
 
 
-  const handleDeleteRecurrence = async (income: Income) => {
+  const handleDeleteRecurrence = async (income: any) => {
     const confirmMsg = `Deseja excluir TODA a recorrência "${income.description}"?\n\nIsso excluirá este item e impedirá a criação de futuras ocorrências.`
     
     if (!confirm(confirmMsg)) return
     
     try {
-      // Excluir todas as ocorrências futuras desta recorrência
+      // Determinar o ID real da recorrência pai
+      let parentId = income.id
+      if ((income as any).parentRecurringId) {
+        parentId = (income as any).parentRecurringId
+      } else if (income.id.startsWith('recurring-')) {
+        const parts = income.id.split('-')
+        parentId = parts.slice(1, 6).join('-')
+      }
+      
+      // Excluir todas as ocorrências filhas desta recorrência
       const { error: deleteError } = await supabase
         .from('incomes')
         .delete()
-        .eq('parent_income_id', income.id)
+        .eq('parent_income_id', parentId)
       
       if (deleteError) {
         console.error('Erro ao excluir ocorrências futuras:', deleteError)
       }
       
       // Excluir o item principal
-      await deleteIncome(income.id)
+      await deleteIncome(parentId)
       refetch()
     } catch (error) {
       console.error('Erro ao excluir recorrência:', error)
@@ -375,11 +386,46 @@ export default function IncomesList({ userId, startDate, endDate }: Props) {
     }
   }
 
-  const handleDelete = async (id: string) => {
-    if (confirm('Deseja realmente excluir esta receita?')) {
-      await deleteIncome(id)
-      refetch()
+  const handleDelete = async (income: any) => {
+    if (!confirm('Deseja realmente excluir esta receita?')) return
+    
+    // Se é uma ocorrência virtual de recorrência, criar um registro "excluído" no banco
+    // para que a detecção de duplicatas saiba que essa ocorrência foi removida
+    if (income.isRecurringOccurrence) {
+      const parentIncome = incomes.find(i => i.id === income.parentRecurringId)
+      if (!parentIncome) {
+        alert('Erro: receita recorrente original não encontrada')
+        return
+      }
+      
+      const deletedOccurrence = {
+        user_id: userId,
+        category_id: parentIncome.category_id,
+        member_id: parentIncome.member_id,
+        amount: 0,
+        description: `${parentIncome.description} (Excluída)`,
+        income_date: income.income_date,
+        source: parentIncome.source,
+        is_recurring: false,
+        is_paid: true,
+        parent_income_id: parentIncome.id
+      }
+      
+      const { error } = await supabase
+        .from('incomes')
+        .insert(deletedOccurrence as any)
+      
+      if (error) {
+        console.error('Erro ao registrar exclusão da ocorrência:', error)
+        alert('Erro ao excluir: ' + error.message)
+      } else {
+        refetch()
+      }
+      return
     }
+    
+    await deleteIncome(income.id)
+    refetch()
   }
 
   const togglePaid = async (income: any) => {
@@ -797,7 +843,7 @@ export default function IncomesList({ userId, startDate, endDate }: Props) {
                             label: income.is_recurring ? 'Excluir Item' : 'Excluir',
                             icon: '✕',
                             color: 'text-apple-red hover:text-apple-red/80',
-                            onClick: () => handleDelete(income.id),
+                            onClick: () => handleDelete(income),
                             title: income.is_recurring ? 'Excluir apenas este item' : 'Excluir receita'
                           }
                         ]}
