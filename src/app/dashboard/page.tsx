@@ -73,37 +73,21 @@ export default function Dashboard() {
     }
   }, [currentMonth])
 
-  // Filtro base: exclui marcadores, templates de recorrência e parents de cartão
-  const isRealExpense = (e: typeof expenses[0]) => {
-    if (e.description.endsWith('(Excluída)')) return false
-    if (e.amount === 0) return false
-    if (e.is_credit_card && !e.is_installment) return false
-    // Template de recorrência (pai sem parent_id) = não é despesa real
-    if (e.is_recurring && !e.parent_expense_id) return false
-    return true
-  }
-
-  const isRealIncome = (i: typeof incomes[0]) => {
-    if (i.description.endsWith('(Excluída)')) return false
-    if (i.amount === 0) return false
-    // Template de recorrência (pai sem parent_id) = não é receita real
-    if (i.is_recurring && !i.parent_income_id) return false
-    return true
-  }
-
-  // Saldo anual — apenas registros reais do banco (sem templates de recorrência)
+  // Saldo anual — mesma lógica que ExpensesList/IncomesList usam nos totais
   const yearBalance = useMemo(() => {
     if (!currentMonth) return { totalIncomes: 0, totalExpenses: 0, balance: 0 }
 
     const yearStart = format(startOfYear(currentMonth), 'yyyy-MM-dd')
     const yearEnd = format(endOfYear(currentMonth), 'yyyy-MM-dd')
 
-    let yearIncomes = incomes.filter(i =>
-      isRealIncome(i) && i.income_date >= yearStart && i.income_date <= yearEnd
-    )
-    let yearExpenses = expenses.filter(e =>
-      isRealExpense(e) && e.expense_date >= yearStart && e.expense_date <= yearEnd
-    )
+    let yearIncomes = incomes.filter(i => {
+      if (i.description.endsWith('(Excluída)')) return false
+      return i.income_date >= yearStart && i.income_date <= yearEnd
+    })
+    let yearExpenses = expenses.filter(e => {
+      if (e.description.endsWith('(Excluída)')) return false
+      return e.expense_date >= yearStart && e.expense_date <= yearEnd
+    })
 
     if (selectedMember) {
       yearIncomes = yearIncomes.filter(i => i.member_id === selectedMember)
@@ -120,12 +104,14 @@ export default function Dashboard() {
   const monthBalance = useMemo(() => {
     if (!currentPeriod) return { totalIncomes: 0, totalExpenses: 0, balance: 0 }
 
-    let monthIncomes = incomes.filter(i =>
-      isRealIncome(i) && i.income_date >= currentPeriod.startDate && i.income_date <= currentPeriod.endDate
-    )
-    let monthExpenses = expenses.filter(e =>
-      isRealExpense(e) && e.expense_date >= currentPeriod.startDate && e.expense_date <= currentPeriod.endDate
-    )
+    let monthIncomes = incomes.filter(i => {
+      if (i.description.endsWith('(Excluída)')) return false
+      return i.income_date >= currentPeriod.startDate && i.income_date <= currentPeriod.endDate
+    })
+    let monthExpenses = expenses.filter(e => {
+      if (e.description.endsWith('(Excluída)')) return false
+      return e.expense_date >= currentPeriod.startDate && e.expense_date <= currentPeriod.endDate
+    })
 
     if (selectedMember) {
       monthIncomes = monthIncomes.filter(i => i.member_id === selectedMember)
