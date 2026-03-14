@@ -36,21 +36,15 @@ function getNextMonthlyDate(currentDate: Date, originalDay: number): Date {
 }
 
 /**
- * Gera lista de ocorrências futuras baseada na configuração de recorrência
- * Sempre prospectivo (apenas datas futuras)
+ * Gera lista de ocorrências baseada na configuração de recorrência
+ * Avança a partir da data de início respeitando a frequência,
+ * sem pular para "hoje" — assim cada ocorrência cai na data correta do ciclo.
  */
 export function generateRecurrenceOccurrences(config: RecurrenceConfig, maxOccurrences: number = 12): RecurrenceOccurrence[] {
   const occurrences: RecurrenceOccurrence[] = []
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
   
   let currentDate = new Date(config.startDate)
   currentDate.setHours(0, 0, 0, 0)
-  
-  // Se a data inicial é no passado, começar de hoje
-  if (isBefore(currentDate, today)) {
-    currentDate = new Date(today)
-  }
   
   const originalDay = config.startDate.getDate()
   let occurrenceCount = 0
@@ -60,7 +54,13 @@ export function generateRecurrenceOccurrences(config: RecurrenceConfig, maxOccur
     ? config.occurrences
     : maxOccurrences
   
-  while (occurrenceCount < limit) {
+  // Limite de segurança para evitar loop infinito ao avançar datas
+  const maxIterations = limit + 500
+  let iterations = 0
+  
+  while (occurrenceCount < limit && iterations < maxIterations) {
+    iterations++
+    
     // Verificar se passou da data final (se definida)
     if (config.endType === 'on_date' && config.endDate) {
       if (isAfter(currentDate, config.endDate)) {

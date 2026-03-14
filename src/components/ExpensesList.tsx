@@ -4,7 +4,7 @@ import React, { useState, useMemo, useEffect } from 'react'
 import { useExpenses } from '@/hooks/useExpenses'
 import { useFamilyMembers } from '@/hooks/useFamilyMembers'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import { parseISO } from 'date-fns'
+import { parseISO, differenceInMonths, differenceInWeeks, differenceInDays, differenceInYears } from 'date-fns'
 import { supabase } from '@/lib/supabase'
 import { calculateFutureOccurrences, generateRecurrenceOccurrences, RecurrenceEndType } from '@/lib/recurrence'
 import ExpenseForm from './ExpenseForm'
@@ -140,6 +140,17 @@ export default function ExpensesList({ userId, startDate, endDate }: Props) {
       const recurringExpenses = expenses.filter(e => e.is_recurring && !e.is_installment)
       const generatedExpenses: any[] = []
       
+      // Coletar receitas filhas por parent para detecção robusta de duplicatas
+      const childDatesByParent = new Map<string, Set<string>>()
+      expenses.forEach(exp => {
+        if (exp.parent_expense_id) {
+          if (!childDatesByParent.has(exp.parent_expense_id)) {
+            childDatesByParent.set(exp.parent_expense_id, new Set())
+          }
+          childDatesByParent.get(exp.parent_expense_id)!.add(exp.expense_date)
+        }
+      })
+      
       recurringExpenses.forEach(recurringExpense => {
         if (!recurringExpense.recurrence_start_date || !recurringExpense.recurrence_frequency) return
         
@@ -151,8 +162,20 @@ export default function ExpensesList({ userId, startDate, endDate }: Props) {
           occurrences: recurringExpense.recurrence_count || undefined,
         }
         
-        // Gerar ocorrências para um período amplo
-        const occurrences = generateRecurrenceOccurrences(config, 24)
+        // Calcular número de ocorrências necessárias para cobrir até o fim do período
+        const recStart = parseISO(recurringExpense.recurrence_start_date)
+        const periodEnd = parseISO(effectiveEndDate!)
+        let neededOccurrences = 24
+        switch (recurringExpense.recurrence_frequency) {
+          case 'daily': neededOccurrences = differenceInDays(periodEnd, recStart) + 2; break
+          case 'weekly': neededOccurrences = differenceInWeeks(periodEnd, recStart) + 2; break
+          case 'monthly': neededOccurrences = differenceInMonths(periodEnd, recStart) + 2; break
+          case 'yearly': neededOccurrences = differenceInYears(periodEnd, recStart) + 2; break
+        }
+        neededOccurrences = Math.max(neededOccurrences, 2)
+        
+        // Gerar ocorrências para cobrir o período
+        const occurrences = generateRecurrenceOccurrences(config, neededOccurrences)
         
         // Filtrar apenas as ocorrências do período selecionado
         const periodOccurrences = occurrences.filter(occ => {
@@ -160,28 +183,27 @@ export default function ExpensesList({ userId, startDate, endDate }: Props) {
           return occDate >= effectiveStartDate && occDate <= effectiveEndDate
         })
         
+        const childDates = childDatesByParent.get(recurringExpense.id) || new Set()
+        
         // Verificar se já existe uma despesa real para essas datas
         periodOccurrences.forEach(occ => {
           const occDate = occ.date.toISOString().split('T')[0]
           
           // Verificar se já existe uma despesa para esta data e recorrência
-          // Buscar em TODAS as despesas do usuário, não apenas do período
           const existingExpense = expenses.find(expense => {
-            // Verificar se é uma ocorrência desta recorrência pela data e parent_expense_id
             if (expense.parent_expense_id === recurringExpense.id && expense.expense_date === occDate) {
               return true
             }
-            
-            // Verificar se é a própria despesa recorrente (não criar ocorrência na mesma data)
             if (expense.id === recurringExpense.id && expense.expense_date === occDate) {
               return true
             }
-            
             return false
           })
           
+          const hasChildForThisDate = childDates.has(occDate)
+          
           // Se não existe, criar uma ocorrência virtual
-          if (!existingExpense) {
+          if (!existingExpense && !hasChildForThisDate) {
             generatedExpenses.push({
               id: `recurring-${recurringExpense.id}-${occDate}`,
               user_id: userId,
@@ -224,6 +246,18 @@ export default function ExpensesList({ userId, startDate, endDate }: Props) {
       
       // Adicionar despesas recorrentes geradas
       const recurringExpenses = expenses.filter(e => e.is_recurring)
+      
+      // Coletar despesas filhas por parent para detecção de duplicatas
+      const childDatesByParent = new Map<string, Set<string>>()
+      expenses.forEach(exp => {
+        if (exp.parent_expense_id) {
+          if (!childDatesByParent.has(exp.parent_expense_id)) {
+            childDatesByParent.set(exp.parent_expense_id, new Set())
+          }
+          childDatesByParent.get(exp.parent_expense_id)!.add(exp.expense_date)
+        }
+      })
+      
       recurringExpenses.forEach(recurringExpense => {
         if (!recurringExpense.recurrence_start_date || !recurringExpense.recurrence_frequency) return
         
@@ -235,24 +269,42 @@ export default function ExpensesList({ userId, startDate, endDate }: Props) {
           occurrences: recurringExpense.recurrence_count || undefined,
         }
         
-        const occurrences = generateRecurrenceOccurrences(config, 24)
+        // Calcular número de ocorrências necessárias
+        const recStart2 = parseISO(recurringExpense.recurrence_start_date)
+        const periodEnd2 = parseISO(endDate!)
+        let neededOcc = 24
+        switch (recurringExpense.recurrence_frequency) {
+          case 'daily': neededOcc = differenceInDays(periodEnd2, recStart2) + 2; break
+          case 'weekly': neededOcc = differenceInWeeks(periodEnd2, recStart2) + 2; break
+          case 'monthly': neededOcc = differenceInMonths(periodEnd2, recStart2) + 2; break
+          case 'yearly': neededOcc = differenceInYears(periodEnd2, recStart2) + 2; break
+        }
+        neededOcc = Math.max(neededOcc, 2)
+        
+        const occurrences = generateRecurrenceOccurrences(config, neededOcc)
         const periodOccurrences = occurrences.filter(occ => {
           const occDate = occ.date.toISOString().split('T')[0]
           return occDate >= startDate && occDate <= endDate
         })
         
+        const childDates = childDatesByParent.get(recurringExpense.id) || new Set()
+        
         periodOccurrences.forEach(occ => {
           const occDate = occ.date.toISOString().split('T')[0]
-          const existingExpense = currentExpenses.find(expense => {
-            const expenseDesc = expense.description.replace(/\s*\(Recorrente\)\s*$/i, '').trim()
-            const recurringDesc = recurringExpense.description.replace(/\s*\(Recorrente\)\s*$/i, '').trim()
-            
-            return expense.expense_date === occDate && 
-              expenseDesc === recurringDesc &&
-              Math.abs(Number(expense.amount) - Number(recurringExpense.amount)) < 0.01
+          
+          const existingExpense = expenses.find(expense => {
+            if (expense.parent_expense_id === recurringExpense.id && expense.expense_date === occDate) {
+              return true
+            }
+            if (expense.id === recurringExpense.id && expense.expense_date === occDate) {
+              return true
+            }
+            return false
           })
           
-          if (!existingExpense) {
+          const hasChildForThisDate = childDates.has(occDate)
+          
+          if (!existingExpense && !hasChildForThisDate) {
             currentExpenses.push({
               ...recurringExpense,
               id: `recurring-${recurringExpense.id}-${occDate}`,

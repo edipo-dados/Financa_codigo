@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from 'react'
 import { useIncomes } from '@/hooks/useIncomes'
 import { useFamilyMembers } from '@/hooks/useFamilyMembers'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import { parseISO } from 'date-fns'
+import { parseISO, differenceInMonths, differenceInWeeks, differenceInDays, differenceInYears } from 'date-fns'
 import { supabase } from '@/lib/supabase'
 import { calculateFutureOccurrences, generateRecurrenceOccurrences, RecurrenceEndType } from '@/lib/recurrence'
 import IncomeForm from './IncomeForm'
@@ -109,6 +109,18 @@ export default function IncomesList({ userId, startDate, endDate }: Props) {
       
       // Adicionar receitas recorrentes geradas
       const recurringIncomes = incomes.filter(i => i.is_recurring)
+      
+      // Coletar receitas filhas por parent para detecção de duplicatas
+      const childDatesByParent = new Map<string, Set<string>>()
+      incomes.forEach(inc => {
+        if (inc.parent_income_id) {
+          if (!childDatesByParent.has(inc.parent_income_id)) {
+            childDatesByParent.set(inc.parent_income_id, new Set())
+          }
+          childDatesByParent.get(inc.parent_income_id)!.add(inc.income_date)
+        }
+      })
+      
       recurringIncomes.forEach(recurringIncome => {
         if (!recurringIncome.recurrence_start_date || !recurringIncome.recurrence_frequency) return
         
@@ -120,24 +132,43 @@ export default function IncomesList({ userId, startDate, endDate }: Props) {
           occurrences: recurringIncome.recurrence_count || undefined,
         }
         
-        const occurrences = generateRecurrenceOccurrences(config, 24)
+        // Calcular número de ocorrências necessárias para cobrir até o fim do período
+        const recStart = parseISO(recurringIncome.recurrence_start_date)
+        const periodEnd = parseISO(endDate!)
+        let neededOccurrences = 24
+        switch (recurringIncome.recurrence_frequency) {
+          case 'daily': neededOccurrences = differenceInDays(periodEnd, recStart) + 2; break
+          case 'weekly': neededOccurrences = differenceInWeeks(periodEnd, recStart) + 2; break
+          case 'monthly': neededOccurrences = differenceInMonths(periodEnd, recStart) + 2; break
+          case 'yearly': neededOccurrences = differenceInYears(periodEnd, recStart) + 2; break
+        }
+        neededOccurrences = Math.max(neededOccurrences, 2)
+        
+        const occurrences = generateRecurrenceOccurrences(config, neededOccurrences)
         const periodOccurrences = occurrences.filter(occ => {
           const occDate = occ.date.toISOString().split('T')[0]
-          return occDate >= startDate && occDate <= endDate
+          return occDate >= startDate! && occDate <= endDate!
         })
+        
+        const childDates = childDatesByParent.get(recurringIncome.id) || new Set()
         
         periodOccurrences.forEach(occ => {
           const occDate = occ.date.toISOString().split('T')[0]
-          const existingIncome = currentIncomes.find(income => {
-            const incomeDesc = income.description.replace(/\s*\(Recorrente\)\s*$/i, '').trim()
-            const recurringDesc = recurringIncome.description.replace(/\s*\(Recorrente\)\s*$/i, '').trim()
-            
-            return income.income_date === occDate && 
-              incomeDesc === recurringDesc &&
-              Math.abs(Number(income.amount) - Number(recurringIncome.amount)) < 0.01
+          
+          // Verificar se já existe receita real (filha ou a própria) para esta data
+          const existingIncome = incomes.find(income => {
+            if (income.parent_income_id === recurringIncome.id && income.income_date === occDate) {
+              return true
+            }
+            if (income.id === recurringIncome.id && income.income_date === occDate) {
+              return true
+            }
+            return false
           })
           
-          if (!existingIncome) {
+          const hasChildForThisDate = childDates.has(occDate)
+          
+          if (!existingIncome && !hasChildForThisDate) {
             currentIncomes.push({
               ...recurringIncome,
               id: `recurring-${recurringIncome.id}-${occDate}`,
@@ -177,6 +208,18 @@ export default function IncomesList({ userId, startDate, endDate }: Props) {
       const recurringIncomes = incomes.filter(i => i.is_recurring)
       const generatedIncomes: any[] = []
       
+      // Coletar todas as receitas filhas de cada recorrência para detecção robusta de duplicatas
+      // Mapeia: parentId -> Set de datas das receitas filhas
+      const childIncomesByParent = new Map<string, Set<string>>()
+      incomes.forEach(income => {
+        if (income.parent_income_id) {
+          if (!childIncomesByParent.has(income.parent_income_id)) {
+            childIncomesByParent.set(income.parent_income_id, new Set())
+          }
+          childIncomesByParent.get(income.parent_income_id)!.add(income.income_date)
+        }
+      })
+      
       recurringIncomes.forEach(recurringIncome => {
         if (!recurringIncome.recurrence_start_date || !recurringIncome.recurrence_frequency) return
         
@@ -188,8 +231,20 @@ export default function IncomesList({ userId, startDate, endDate }: Props) {
           occurrences: recurringIncome.recurrence_count || undefined,
         }
         
-        // Gerar ocorrências para um período amplo
-        const occurrences = generateRecurrenceOccurrences(config, 24)
+        // Calcular número de ocorrências necessárias para cobrir até o fim do período
+        const recStart = parseISO(recurringIncome.recurrence_start_date)
+        const periodEnd = parseISO(effectiveEndDate!)
+        let neededOccurrences = 24
+        switch (recurringIncome.recurrence_frequency) {
+          case 'daily': neededOccurrences = differenceInDays(periodEnd, recStart) + 2; break
+          case 'weekly': neededOccurrences = differenceInWeeks(periodEnd, recStart) + 2; break
+          case 'monthly': neededOccurrences = differenceInMonths(periodEnd, recStart) + 2; break
+          case 'yearly': neededOccurrences = differenceInYears(periodEnd, recStart) + 2; break
+        }
+        neededOccurrences = Math.max(neededOccurrences, 2)
+        
+        // Gerar ocorrências para cobrir o período
+        const occurrences = generateRecurrenceOccurrences(config, neededOccurrences)
         
         // Filtrar apenas as ocorrências do período selecionado
         const periodOccurrences = occurrences.filter(occ => {
@@ -197,14 +252,16 @@ export default function IncomesList({ userId, startDate, endDate }: Props) {
           return occDate >= effectiveStartDate && occDate <= effectiveEndDate
         })
         
+        // Obter datas das receitas filhas desta recorrência
+        const childDates = childIncomesByParent.get(recurringIncome.id) || new Set()
+        
         // Verificar se já existe uma receita real para essas datas
         periodOccurrences.forEach(occ => {
           const occDate = occ.date.toISOString().split('T')[0]
           
           // Verificar se já existe uma receita para esta data e recorrência
-          // Buscar em TODAS as receitas do usuário, não apenas do período
           const existingIncome = incomes.find(income => {
-            // Verificar se é uma ocorrência desta recorrência pela data e parent_income_id
+            // Verificar se é uma ocorrência editada desta recorrência (receita filha com mesma data)
             if (income.parent_income_id === recurringIncome.id && income.income_date === occDate) {
               return true
             }
@@ -217,8 +274,12 @@ export default function IncomesList({ userId, startDate, endDate }: Props) {
             return false
           })
           
+          // Também verificar se existe uma receita filha que foi originalmente desta data
+          // mas teve a data alterada pelo usuário ao editar
+          const hasChildForThisDate = childDates.has(occDate)
+          
           // Se não existe, criar uma ocorrência virtual
-          if (!existingIncome) {
+          if (!existingIncome && !hasChildForThisDate) {
             generatedIncomes.push({
               id: `recurring-${recurringIncome.id}-${occDate}`,
               user_id: userId,
