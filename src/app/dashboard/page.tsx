@@ -73,51 +73,63 @@ export default function Dashboard() {
     }
   }, [currentMonth])
 
-  // Saldo anual: receitas do ano - despesas do ano (sem investimentos)
+  // Função auxiliar para filtrar despesas reais (sem templates de recorrência, sem excluídas, sem investimentos)
+  const filterRealExpenses = (exps: typeof expenses) => {
+    return exps.filter(e => {
+      // Excluir registros marcados como excluídos
+      if (e.description.endsWith('(Excluída)')) return false
+      // Excluir templates de recorrência (o original que gera ocorrências virtuais)
+      // Templates são is_recurring=true e NÃO têm parent_expense_id (são o pai)
+      if (e.is_recurring && !e.parent_expense_id) return false
+      // Excluir compras parent de cartão (apenas parcelas contam)
+      if (e.is_credit_card && !e.is_installment) return false
+      return true
+    })
+  }
+
+  // Função auxiliar para filtrar receitas reais
+  const filterRealIncomes = (incs: typeof incomes) => {
+    return incs.filter(i => {
+      if (i.description.endsWith('(Excluída)')) return false
+      // Excluir templates de recorrência
+      if (i.is_recurring && !i.parent_income_id) return false
+      return true
+    })
+  }
+
+  // Saldo anual
   const yearBalance = useMemo(() => {
     if (!currentMonth) return { totalIncomes: 0, totalExpenses: 0, balance: 0 }
 
     const yearStart = format(startOfYear(currentMonth), 'yyyy-MM-dd')
     const yearEnd = format(endOfYear(currentMonth), 'yyyy-MM-dd')
 
-    let yearIncomes = incomes.filter(i =>
+    let yearIncomes = filterRealIncomes(incomes).filter(i =>
       i.income_date >= yearStart && i.income_date <= yearEnd
     )
-    let yearExpenses = expenses.filter(e =>
+    let yearExpenses = filterRealExpenses(expenses).filter(e =>
       e.expense_date >= yearStart && e.expense_date <= yearEnd
     )
 
-    // Filtrar por membro se selecionado
     if (selectedMember) {
       yearIncomes = yearIncomes.filter(i => i.member_id === selectedMember)
       yearExpenses = yearExpenses.filter(e => e.member_id === selectedMember)
     }
 
-    // Excluir receitas marcadas como excluídas
-    yearIncomes = yearIncomes.filter(i => !i.description.endsWith('(Excluída)'))
-
-    // Não considerar compras parent de cartão (apenas parcelas) e excluir despesas marcadas
-    yearExpenses = yearExpenses.filter(e => !e.description.endsWith('(Excluída)'))
-    yearExpenses = yearExpenses.filter(e => !e.is_credit_card || e.is_installment)
-
     const totalIncomes = yearIncomes.reduce((sum, i) => sum + Number(i.amount), 0)
     const totalExpenses = yearExpenses.reduce((sum, e) => sum + Number(e.amount), 0)
 
-    return {
-      totalIncomes,
-      totalExpenses,
-      balance: totalIncomes - totalExpenses,
-    }
+    return { totalIncomes, totalExpenses, balance: totalIncomes - totalExpenses }
   }, [incomes, expenses, currentMonth, selectedMember])
 
-  // Saldo do mês selecionado
+  // Saldo do mês
   const monthBalance = useMemo(() => {
     if (!currentPeriod) return { totalIncomes: 0, totalExpenses: 0, balance: 0 }
 
-    let monthIncomes = incomes.filter(i =>
+    let monthIncomes = filterRealIncomes(incomes).filter(i =>
       i.income_date >= currentPeriod.startDate && i.income_date <= currentPeriod.endDate
     )
-    let monthExpenses = expenses.filter(e =>
+    let monthExpenses = filterRealExpenses(expenses).filter(e =>
       e.expense_date >= currentPeriod.startDate && e.expense_date <= currentPeriod.endDate
     )
 
@@ -126,19 +138,22 @@ export default function Dashboard() {
       monthExpenses = monthExpenses.filter(e => e.member_id === selectedMember)
     }
 
-    monthIncomes = monthIncomes.filter(i => !i.description.endsWith('(Excluída)'))
-    monthExpenses = monthExpenses.filter(e => !e.description.endsWith('(Excluída)'))
-    monthExpenses = monthExpenses.filter(e => !e.is_credit_card || e.is_installment)
-
     const totalIncomes = monthIncomes.reduce((sum, i) => sum + Number(i.amount), 0)
     const totalExpenses = monthExpenses.reduce((sum, e) => sum + Number(e.amount), 0)
 
-    return {
-      totalIncomes,
-      totalExpenses,
-      balance: totalIncomes - totalExpenses,
-    }
+    return { totalIncomes, totalExpenses, balance: totalIncomes - totalExpenses }
   }, [incomes, expenses, currentPeriod, selectedMember])
+
+  // Investimentos (card separado)
+  const investmentSummary = useMemo(() => {
+    let filtered = investments
+    if (selectedMember) {
+      filtered = filtered.filter(i => i.member_id === selectedMember)
+    }
+    const totalInvested = filtered.reduce((sum, i) => sum + Number(i.initial_amount), 0)
+    const totalCurrent = filtered.reduce((sum, i) => sum + Number(i.current_amount), 0)
+    return { totalInvested, totalCurrent, profit: totalCurrent - totalInvested, count: filtered.length }
+  }, [investments, selectedMember])
 
   if (authLoading || !user || !currentMonth || !currentPeriod) {
     return (
@@ -305,6 +320,33 @@ export default function Dashboard() {
                   </div>
                 </div>
               </div>
+
+              {/* Investimentos */}
+              {investmentSummary.count > 0 && (
+                <div className="glass-card p-6 rounded-2xl">
+                  <h3 className="text-lg font-semibold fintech-text-primary mb-4">
+                    📈 Investimentos
+                    {selectedMemberName && <span className="text-sm font-normal text-apple-gray-500 ml-2">({selectedMemberName})</span>}
+                  </h3>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
+                      <p className="text-xs text-blue-600 font-medium">Valor Investido</p>
+                      <p className="text-lg font-bold text-blue-700">{formatCurrency(investmentSummary.totalInvested)}</p>
+                    </div>
+                    <div className="p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl">
+                      <p className="text-xs text-indigo-600 font-medium">Valor Atual</p>
+                      <p className="text-lg font-bold text-indigo-700">{formatCurrency(investmentSummary.totalCurrent)}</p>
+                    </div>
+                    <div className={`p-3 rounded-xl ${investmentSummary.profit >= 0 ? 'bg-green-50 dark:bg-green-900/20' : 'bg-red-50 dark:bg-red-900/20'}`}>
+                      <p className={`text-xs font-medium ${investmentSummary.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>Rendimento</p>
+                      <p className={`text-lg font-bold ${investmentSummary.profit >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                        {investmentSummary.profit >= 0 ? '+' : ''}{formatCurrency(investmentSummary.profit)}
+                      </p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-apple-gray-400 mt-3">{investmentSummary.count} investimento(s) — não contabilizados como despesa</p>
+                </div>
+              )}
             </div>
           )}
 
