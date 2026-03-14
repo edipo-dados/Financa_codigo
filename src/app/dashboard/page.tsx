@@ -73,14 +73,11 @@ export default function Dashboard() {
     }
   }, [currentMonth])
 
-  // Função auxiliar para filtrar despesas reais (sem templates de recorrência, sem excluídas, sem investimentos)
+  // Função auxiliar para filtrar despesas reais
   const filterRealExpenses = (exps: typeof expenses) => {
     return exps.filter(e => {
       // Excluir registros marcados como excluídos
       if (e.description.endsWith('(Excluída)')) return false
-      // Excluir templates de recorrência (o original que gera ocorrências virtuais)
-      // Templates são is_recurring=true e NÃO têm parent_expense_id (são o pai)
-      if (e.is_recurring && !e.parent_expense_id) return false
       // Excluir compras parent de cartão (apenas parcelas contam)
       if (e.is_credit_card && !e.is_installment) return false
       return true
@@ -91,8 +88,6 @@ export default function Dashboard() {
   const filterRealIncomes = (incs: typeof incomes) => {
     return incs.filter(i => {
       if (i.description.endsWith('(Excluída)')) return false
-      // Excluir templates de recorrência
-      if (i.is_recurring && !i.parent_income_id) return false
       return true
     })
   }
