@@ -1,13 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { useExpenses } from '@/hooks/useExpenses'
 import { useInvestments } from '@/hooks/useInvestments'
 import { useIncomes } from '@/hooks/useIncomes'
 import { useFamilyMembers } from '@/hooks/useFamilyMembers'
-import DraggableDashboard from '@/components/DraggableDashboard'
 import ExpensesList from '@/components/ExpensesList'
 import InvestmentsList from '@/components/InvestmentsList'
 import IncomesList from '@/components/IncomesList'
@@ -19,7 +18,6 @@ import CategoryManager from '@/components/CategoryManager'
 import InvestmentTypeManager from '@/components/InvestmentTypeManager'
 import IncomeCategoryManager from '@/components/IncomeCategoryManager'
 import MonthNavigator from '@/components/MonthNavigator'
-import PeriodFilter, { DateRange } from '@/components/PeriodFilter'
 import FutureLaunches from '@/components/FutureLaunches'
 import CreditCardManager from '@/components/CreditCardManager'
 import CreditCardPurchasesList from '@/components/CreditCardPurchasesList'
@@ -27,7 +25,8 @@ import ThemeSettings from '@/components/ThemeSettings'
 import IncomeReport from '@/components/IncomeReport'
 import About from '@/components/About'
 import FamilyMemberManager from '@/components/FamilyMemberManager'
-import { format, startOfMonth, endOfMonth } from 'date-fns'
+import { formatCurrency } from '@/lib/utils'
+import { format, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns'
 
 export default function Dashboard() {
   const { user, loading: authLoading } = useAuth()
@@ -37,29 +36,20 @@ export default function Dashboard() {
   const { incomes, loading: incomesLoading, refetch: refetchIncomes } = useIncomes(user?.id)
   const { members } = useFamilyMembers(user?.id)
   const [activeTab, setActiveTab] = useState<'overview' | 'incomes' | 'expenses' | 'investments' | 'future' | 'creditcard' | 'settings' | 'about'>('overview')
-  
-  // Estados para modais de acesso rápido
+
+  // Modais de acesso rápido
   const [showQuickExpenseModal, setShowQuickExpenseModal] = useState(false)
   const [showQuickIncomeModal, setShowQuickIncomeModal] = useState(false)
-  
-  // Estado para navegação de mês
-  const [currentMonth, setCurrentMonth] = useState<Date | null>(null)
-  
-  // Estado para filtro de período
-  const [currentPeriod, setCurrentPeriod] = useState<DateRange | null>(null)
 
-  // Estado para filtro de membro da família
+  // Filtro de mês global (pai)
+  const [currentMonth, setCurrentMonth] = useState<Date | null>(null)
+
+  // Filtro de membro
   const [selectedMember, setSelectedMember] = useState<string>('')
 
-  // Inicializar datas após montagem para evitar hidratação
+  // Inicializar data após montagem
   useEffect(() => {
-    const now = new Date()
-    setCurrentMonth(now)
-    setCurrentPeriod({
-      startDate: format(startOfMonth(now), 'yyyy-MM-dd'),
-      endDate: format(endOfMonth(now), 'yyyy-MM-dd'),
-      label: 'Mês Atual',
-    })
+    setCurrentMonth(new Date())
   }, [])
 
   useEffect(() => {
@@ -68,35 +58,85 @@ export default function Dashboard() {
     }
   }, [user, authLoading, router])
 
-  // Atualizar período quando o mês mudar
-  useEffect(() => {
-    if (currentMonth) {
-      setCurrentPeriod({
-        startDate: format(startOfMonth(currentMonth), 'yyyy-MM-dd'),
-        endDate: format(endOfMonth(currentMonth), 'yyyy-MM-dd'),
-        label: format(currentMonth, 'MMMM yyyy'),
-      })
-    }
-  }, [currentMonth])
-
   const handleRefresh = () => {
     refetchExpenses()
     refetchInvestments()
     refetchIncomes()
   }
 
-  // Filtrar dados por membro selecionado
-  const filteredExpenses = selectedMember 
-    ? expenses.filter(e => e.member_id === selectedMember)
-    : expenses
+  // Período derivado do mês selecionado
+  const currentPeriod = useMemo(() => {
+    if (!currentMonth) return null
+    return {
+      startDate: format(startOfMonth(currentMonth), 'yyyy-MM-dd'),
+      endDate: format(endOfMonth(currentMonth), 'yyyy-MM-dd'),
+    }
+  }, [currentMonth])
 
-  const filteredIncomes = selectedMember 
-    ? incomes.filter(i => i.member_id === selectedMember)
-    : incomes
+  // Saldo anual: receitas do ano - despesas do ano (sem investimentos)
+  const yearBalance = useMemo(() => {
+    if (!currentMonth) return { totalIncomes: 0, totalExpenses: 0, balance: 0 }
 
-  const filteredInvestments = selectedMember 
-    ? investments.filter(i => i.member_id === selectedMember)
-    : investments
+    const yearStart = format(startOfYear(currentMonth), 'yyyy-MM-dd')
+    const yearEnd = format(endOfYear(currentMonth), 'yyyy-MM-dd')
+
+    let yearIncomes = incomes.filter(i =>
+      i.income_date >= yearStart && i.income_date <= yearEnd
+    )
+    let yearExpenses = expenses.filter(e =>
+      e.expense_date >= yearStart && e.expense_date <= yearEnd
+    )
+
+    // Filtrar por membro se selecionado
+    if (selectedMember) {
+      yearIncomes = yearIncomes.filter(i => i.member_id === selectedMember)
+      yearExpenses = yearExpenses.filter(e => e.member_id === selectedMember)
+    }
+
+    // Excluir receitas marcadas como excluídas
+    yearIncomes = yearIncomes.filter(i => !i.description.endsWith('(Excluída)'))
+
+    // Não considerar compras parent de cartão (apenas parcelas)
+    yearExpenses = yearExpenses.filter(e => !e.is_credit_card || e.is_installment)
+
+    const totalIncomes = yearIncomes.reduce((sum, i) => sum + Number(i.amount), 0)
+    const totalExpenses = yearExpenses.reduce((sum, e) => sum + Number(e.amount), 0)
+
+    return {
+      totalIncomes,
+      totalExpenses,
+      balance: totalIncomes - totalExpenses,
+    }
+  }, [incomes, expenses, currentMonth, selectedMember])
+
+  // Saldo do mês selecionado
+  const monthBalance = useMemo(() => {
+    if (!currentPeriod) return { totalIncomes: 0, totalExpenses: 0, balance: 0 }
+
+    let monthIncomes = incomes.filter(i =>
+      i.income_date >= currentPeriod.startDate && i.income_date <= currentPeriod.endDate
+    )
+    let monthExpenses = expenses.filter(e =>
+      e.expense_date >= currentPeriod.startDate && e.expense_date <= currentPeriod.endDate
+    )
+
+    if (selectedMember) {
+      monthIncomes = monthIncomes.filter(i => i.member_id === selectedMember)
+      monthExpenses = monthExpenses.filter(e => e.member_id === selectedMember)
+    }
+
+    monthIncomes = monthIncomes.filter(i => !i.description.endsWith('(Excluída)'))
+    monthExpenses = monthExpenses.filter(e => !e.is_credit_card || e.is_installment)
+
+    const totalIncomes = monthIncomes.reduce((sum, i) => sum + Number(i.amount), 0)
+    const totalExpenses = monthExpenses.reduce((sum, e) => sum + Number(e.amount), 0)
+
+    return {
+      totalIncomes,
+      totalExpenses,
+      balance: totalIncomes - totalExpenses,
+    }
+  }, [incomes, expenses, currentPeriod, selectedMember])
 
   if (authLoading || !user || !currentMonth || !currentPeriod) {
     return (
@@ -120,7 +160,6 @@ export default function Dashboard() {
     { id: 'about', label: 'Sobre', icon: '📱' },
   ]
 
-  // Tabs simplificadas para mobile (apenas 4)
   const mobileTabs = [
     { id: 'overview', label: 'Dashboard', icon: '📊' },
     { id: 'expenses', label: 'Despesas', icon: '💸' },
@@ -128,12 +167,24 @@ export default function Dashboard() {
     { id: 'creditcard', label: 'Cartões', icon: '💳' },
   ]
 
+  const selectedMemberName = selectedMember
+    ? members.find(m => m.id === selectedMember)?.name || ''
+    : ''
+
   return (
     <div className="min-h-screen pb-20 md:pb-0">
       <Navigation />
-      
+
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-8">
-        {/* Desktop Tabs - Hidden on Mobile */}
+        {/* Filtro de Mês Global */}
+        <div className="mb-6">
+          <MonthNavigator
+            currentMonth={currentMonth}
+            onMonthChange={setCurrentMonth}
+          />
+        </div>
+
+        {/* Desktop Tabs */}
         <div className="hidden md:flex mb-8 gap-2 overflow-x-auto scrollbar-hide pb-2">
           {tabs.map((tab) => (
             <button
@@ -155,31 +206,19 @@ export default function Dashboard() {
         <div className="animate-fade-in">
           {activeTab === 'overview' && (
             <div className="space-y-4 sm:space-y-6">
-              <MonthNavigator 
-                currentMonth={currentMonth}
-                onMonthChange={setCurrentMonth}
-              />
-              
-              <PeriodFilter
-                currentPeriod={currentPeriod}
-                onPeriodChange={setCurrentPeriod}
-              />
-
-              {/* Filtro de Membro da Família */}
+              {/* Filtro de Membro */}
               <div className="glass-card p-4 rounded-2xl">
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4 flex-wrap">
                   <div className="flex items-center gap-2">
                     <span className="text-base">👥</span>
-                    <label className="text-sm font-medium text-apple-gray-700">
-                      Filtrar por Membro:
-                    </label>
+                    <label className="text-sm font-medium text-apple-gray-700">Membro:</label>
                   </div>
                   <select
                     value={selectedMember}
                     onChange={(e) => setSelectedMember(e.target.value)}
                     className="px-3 py-2 border border-apple-gray-200 rounded-lg focus:ring-2 focus:ring-apple-blue focus:border-apple-blue text-sm"
                   >
-                    <option value="">Todos os membros</option>
+                    <option value="">Todos</option>
                     {members.map((member) => (
                       <option key={member.id} value={member.id}>
                         {member.name} {member.relationship && `(${member.relationship})`}
@@ -197,66 +236,86 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Botões de Acesso Rápido - Apenas Mobile */}
+              {/* Botões de Acesso Rápido - Mobile */}
               <div className="md:hidden">
                 <div className="glass-card p-4 rounded-2xl">
-                  <h3 className="text-sm font-medium text-apple-gray-700 mb-3 flex items-center gap-2">
-                    <span>⚡</span>
-                    Acesso Rápido
-                  </h3>
                   <div className="grid grid-cols-2 gap-3">
                     <button
                       onClick={() => setShowQuickExpenseModal(true)}
                       className="flex items-center gap-3 p-4 bg-gradient-to-r from-red-50 to-pink-50 hover:from-red-100 hover:to-pink-100 rounded-xl border border-red-200 transition-all duration-200 active:scale-95"
                     >
-                      <div className="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center text-white text-lg">
-                        💸
-                      </div>
+                      <div className="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center text-white text-lg">💸</div>
                       <div className="text-left">
                         <p className="font-semibold text-red-700 text-sm">Nova Despesa</p>
-                        <p className="text-xs text-red-600">Adicionar gasto</p>
                       </div>
                     </button>
-
                     <button
                       onClick={() => setShowQuickIncomeModal(true)}
                       className="flex items-center gap-3 p-4 bg-gradient-to-r from-green-50 to-emerald-50 hover:from-green-100 hover:to-emerald-100 rounded-xl border border-green-200 transition-all duration-200 active:scale-95"
                     >
-                      <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-white text-lg">
-                        💰
-                      </div>
+                      <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-white text-lg">💰</div>
                       <div className="text-left">
                         <p className="font-semibold text-green-700 text-sm">Nova Receita</p>
-                        <p className="text-xs text-green-600">Adicionar entrada</p>
                       </div>
                     </button>
                   </div>
                 </div>
               </div>
-              
-              <DraggableDashboard
-                expenses={filteredExpenses}
-                investments={filteredInvestments}
-                incomes={filteredIncomes}
-                loading={expensesLoading || investmentsLoading || incomesLoading}
-                onRefresh={handleRefresh}
-                startDate={currentPeriod.startDate}
-                endDate={currentPeriod.endDate}
-                userId={user.id}
-              />
+
+              {/* Saldo do Ano */}
+              <div className="glass-card p-6 rounded-2xl">
+                <h3 className="text-lg font-semibold fintech-text-primary mb-4">
+                  💰 Saldo do Ano {currentMonth.getFullYear()}
+                  {selectedMemberName && <span className="text-sm font-normal text-apple-gray-500 ml-2">({selectedMemberName})</span>}
+                </h3>
+                <div className={`text-4xl font-bold mb-4 ${yearBalance.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {yearBalance.balance >= 0 ? '+' : ''}{formatCurrency(yearBalance.balance)}
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-xl">
+                    <p className="text-xs text-green-600 font-medium">Receitas no Ano</p>
+                    <p className="text-lg font-bold text-green-700">+{formatCurrency(yearBalance.totalIncomes)}</p>
+                  </div>
+                  <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-xl">
+                    <p className="text-xs text-red-600 font-medium">Despesas no Ano</p>
+                    <p className="text-lg font-bold text-red-700">-{formatCurrency(yearBalance.totalExpenses)}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Saldo do Mês */}
+              <div className="glass-card p-6 rounded-2xl">
+                <h3 className="text-lg font-semibold fintech-text-primary mb-4">
+                  📅 Saldo do Mês
+                  {selectedMemberName && <span className="text-sm font-normal text-apple-gray-500 ml-2">({selectedMemberName})</span>}
+                </h3>
+                <div className={`text-3xl font-bold mb-4 ${monthBalance.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {monthBalance.balance >= 0 ? '+' : ''}{formatCurrency(monthBalance.balance)}
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-xl">
+                    <p className="text-xs text-green-600 font-medium">Receitas no Mês</p>
+                    <p className="text-lg font-bold text-green-700">+{formatCurrency(monthBalance.totalIncomes)}</p>
+                  </div>
+                  <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-xl">
+                    <p className="text-xs text-red-600 font-medium">Despesas no Mês</p>
+                    <p className="text-lg font-bold text-red-700">-{formatCurrency(monthBalance.totalExpenses)}</p>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
           {activeTab === 'incomes' && (
-            <IncomesList 
-              userId={user.id} 
+            <IncomesList
+              userId={user.id}
               startDate={currentPeriod.startDate}
               endDate={currentPeriod.endDate}
             />
           )}
 
           {activeTab === 'expenses' && (
-            <ExpensesList 
+            <ExpensesList
               userId={user.id}
               startDate={currentPeriod.startDate}
               endDate={currentPeriod.endDate}
@@ -264,7 +323,7 @@ export default function Dashboard() {
           )}
 
           {activeTab === 'investments' && (
-            <InvestmentsList 
+            <InvestmentsList
               userId={user.id}
               startDate={currentPeriod.startDate}
               endDate={currentPeriod.endDate}
@@ -288,11 +347,7 @@ export default function Dashboard() {
           {activeTab === 'settings' && (
             <div className="space-y-4 sm:space-y-6">
               <FamilyMemberManager userId={user.id} />
-              <IncomeReport 
-                incomes={incomes}
-                investments={investments}
-                userId={user.id}
-              />
+              <IncomeReport incomes={incomes} investments={investments} userId={user.id} />
               <ThemeSettings />
               <CreditCardManager userId={user.id} />
               <IncomeCategoryManager userId={user.id} />
@@ -301,81 +356,49 @@ export default function Dashboard() {
             </div>
           )}
 
-          {activeTab === 'about' && (
-            <About />
-          )}
+          {activeTab === 'about' && <About />}
         </div>
       </main>
 
-      {/* Modais de Acesso Rápido */}
-      {/* Modal de Nova Despesa */}
+      {/* Modal Nova Despesa */}
       {showQuickExpenseModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-fintech-dark-surface rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-white dark:bg-fintech-dark-surface p-4 border-b border-gray-200 dark:border-gray-700 rounded-t-2xl">
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                  💸 Nova Despesa
-                </h2>
-                <button
-                  onClick={() => setShowQuickExpenseModal(false)}
-                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">💸 Nova Despesa</h2>
+                <button onClick={() => setShowQuickExpenseModal(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
               </div>
             </div>
             <div className="p-4">
-              <ExpenseForm
-                userId={user.id}
-                onSuccess={() => {
-                  setShowQuickExpenseModal(false)
-                  handleRefresh()
-                }}
-                onRefresh={handleRefresh}
-              />
+              <ExpenseForm userId={user.id} onSuccess={() => { setShowQuickExpenseModal(false); handleRefresh() }} onRefresh={handleRefresh} />
             </div>
           </div>
         </div>
       )}
 
-      {/* Modal de Nova Receita */}
+      {/* Modal Nova Receita */}
       {showQuickIncomeModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-fintech-dark-surface rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-white dark:bg-fintech-dark-surface p-4 border-b border-gray-200 dark:border-gray-700 rounded-t-2xl">
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                  💰 Nova Receita
-                </h2>
-                <button
-                  onClick={() => setShowQuickIncomeModal(false)}
-                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">💰 Nova Receita</h2>
+                <button onClick={() => setShowQuickIncomeModal(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
               </div>
             </div>
             <div className="p-4">
-              <IncomeForm
-                userId={user.id}
-                onSuccess={() => {
-                  setShowQuickIncomeModal(false)
-                  handleRefresh()
-                }}
-                onRefresh={handleRefresh}
-              />
+              <IncomeForm userId={user.id} onSuccess={() => { setShowQuickIncomeModal(false); handleRefresh() }} onRefresh={handleRefresh} />
             </div>
           </div>
         </div>
       )}
 
-      {/* Mobile Bottom Navigation */}
-      <MobileBottomNav 
+      <MobileBottomNav
         tabs={mobileTabs}
         activeTab={activeTab}
         onTabChange={(tabId) => setActiveTab(tabId as any)}
