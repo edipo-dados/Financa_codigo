@@ -131,8 +131,9 @@ export default function ExpensesList({ userId, startDate, endDate }: Props) {
       // Se é período futuro, mostrar apenas projeções
       return futureExpenses
     } else if (effectiveStartDate && effectiveEndDate) {
-      // Filtrar despesas pelo período selecionado
+      // Filtrar despesas pelo período selecionado (excluindo ocorrências marcadas como excluídas)
       const periodExpenses = displayExpenses.filter(expense => {
+        if (expense.description.endsWith('(Excluída)')) return false
         return expense.expense_date >= effectiveStartDate && expense.expense_date <= effectiveEndDate
       })
       
@@ -230,8 +231,8 @@ export default function ExpensesList({ userId, startDate, endDate }: Props) {
       
       return [...periodExpenses, ...generatedExpenses]
     } else {
-      // Quando não há período específico, mostrar todas as despesas
-      return displayExpenses
+      // Quando não há período específico, mostrar todas as despesas (exceto excluídas)
+      return displayExpenses.filter(e => !e.description.endsWith('(Excluída)'))
     }
   }, [displayExpenses, futureExpenses, isFuturePeriod, startDate, endDate, expenses, userId, filters.dateFrom, filters.dateTo])
 
@@ -241,6 +242,7 @@ export default function ExpensesList({ userId, startDate, endDate }: Props) {
     
     if (startDate && endDate) {
       currentExpenses = expenses.filter(expense => {
+        if (expense.description.endsWith('(Excluída)')) return false
         return expense.expense_date >= startDate && expense.expense_date <= endDate
       })
       
@@ -472,24 +474,33 @@ export default function ExpensesList({ userId, startDate, endDate }: Props) {
     }
   }
 
-  const handleDeleteRecurrence = async (expense: Expense) => {
+  const handleDeleteRecurrence = async (expense: any) => {
     const confirmMsg = `Deseja excluir TODA a recorrência "${expense.description}"?\n\nIsso excluirá este item e impedirá a criação de futuras ocorrências.`
     
     if (!confirm(confirmMsg)) return
     
     try {
-      // Excluir todas as ocorrências futuras desta recorrência
+      // Determinar o ID real da recorrência pai
+      let parentId = expense.id
+      if ((expense as any).parentRecurringId) {
+        parentId = (expense as any).parentRecurringId
+      } else if (expense.id.startsWith('recurring-')) {
+        const parts = expense.id.split('-')
+        parentId = parts.slice(1, 6).join('-')
+      }
+      
+      // Excluir todas as ocorrências filhas desta recorrência
       const { error: deleteError } = await supabase
         .from('expenses')
         .delete()
-        .eq('parent_expense_id', expense.id)
+        .eq('parent_expense_id', parentId)
       
       if (deleteError) {
         console.error('Erro ao excluir ocorrências futuras:', deleteError)
       }
       
       // Excluir o item principal
-      await deleteExpense(expense.id)
+      await deleteExpense(parentId)
       refetch()
     } catch (error) {
       console.error('Erro ao excluir recorrência:', error)
@@ -498,6 +509,44 @@ export default function ExpensesList({ userId, startDate, endDate }: Props) {
   }
 
   const handleDelete = async (expense: any) => {
+    // Se é uma ocorrência virtual de recorrência, criar registro marcador no banco
+    if (expense.isRecurringOccurrence) {
+      if (!confirm('Deseja realmente excluir esta ocorrência?')) return
+      
+      const parentExpense = expenses.find(e => e.id === expense.parentRecurringId)
+      if (!parentExpense) {
+        alert('Erro: despesa recorrente original não encontrada')
+        return
+      }
+      
+      const deletedOccurrence = {
+        user_id: userId,
+        category_id: parentExpense.category_id,
+        member_id: parentExpense.member_id,
+        amount: 0,
+        description: `${parentExpense.description} (Excluída)`,
+        expense_date: expense.expense_date,
+        payment_method: parentExpense.payment_method,
+        is_recurring: false,
+        is_paid: true,
+        is_credit_card: false,
+        is_installment: false,
+        parent_expense_id: parentExpense.id
+      }
+      
+      const { error } = await supabase
+        .from('expenses')
+        .insert(deletedOccurrence as any)
+      
+      if (error) {
+        console.error('Erro ao registrar exclusão da ocorrência:', error)
+        alert('Erro ao excluir: ' + error.message)
+      } else {
+        refetch()
+      }
+      return
+    }
+    
     // Se for parcela de cartão, oferecer opção de excluir a compra completa
     if (expense.is_installment && expense.parent_expense_id) {
       const confirmMsg = `Esta é a parcela ${expense.installment_number}/${expense.installments}.\n\nDeseja excluir TODA a compra (todas as ${expense.installments} parcelas)?`

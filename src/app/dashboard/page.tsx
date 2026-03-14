@@ -96,7 +96,8 @@ export default function Dashboard() {
     // Excluir receitas marcadas como excluídas
     yearIncomes = yearIncomes.filter(i => !i.description.endsWith('(Excluída)'))
 
-    // Não considerar compras parent de cartão (apenas parcelas)
+    // Não considerar compras parent de cartão (apenas parcelas) e excluir despesas marcadas
+    yearExpenses = yearExpenses.filter(e => !e.description.endsWith('(Excluída)'))
     yearExpenses = yearExpenses.filter(e => !e.is_credit_card || e.is_installment)
 
     const totalIncomes = yearIncomes.reduce((sum, i) => sum + Number(i.amount), 0)
@@ -126,6 +127,7 @@ export default function Dashboard() {
     }
 
     monthIncomes = monthIncomes.filter(i => !i.description.endsWith('(Excluída)'))
+    monthExpenses = monthExpenses.filter(e => !e.description.endsWith('(Excluída)'))
     monthExpenses = monthExpenses.filter(e => !e.is_credit_card || e.is_installment)
 
     const totalIncomes = monthIncomes.reduce((sum, i) => sum + Number(i.amount), 0)
