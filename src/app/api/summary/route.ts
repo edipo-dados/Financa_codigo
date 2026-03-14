@@ -46,13 +46,13 @@ export async function GET(request: NextRequest) {
     // Buscar receitas
     let incomesQuery = supabase
       .from('incomes')
-      .select('amount, is_paid')
+      .select('amount, is_paid, description')
       .eq('user_id', userId)
 
     if (startDate) incomesQuery = incomesQuery.gte('income_date', startDate)
     if (endDate) incomesQuery = incomesQuery.lte('income_date', endDate)
 
-    const { data: incomes, error: incomesError } = await incomesQuery
+    const { data: rawIncomes, error: incomesError } = await incomesQuery
 
     if (incomesError) {
       return NextResponse.json(
@@ -61,16 +61,23 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // Filtrar receitas: excluir marcadores de exclusão
+    const incomes = rawIncomes?.filter(i => {
+      if (i.description?.endsWith('(Excluída)')) return false
+      if (Number(i.amount) === 0) return false
+      return true
+    }) || []
+
     // Buscar despesas
     let expensesQuery = supabase
       .from('expenses')
-      .select('amount, is_paid')
+      .select('amount, is_paid, description, is_credit_card, is_installment')
       .eq('user_id', userId)
 
     if (startDate) expensesQuery = expensesQuery.gte('expense_date', startDate)
     if (endDate) expensesQuery = expensesQuery.lte('expense_date', endDate)
 
-    const { data: expenses, error: expensesError } = await expensesQuery
+    const { data: rawExpenses, error: expensesError } = await expensesQuery
 
     if (expensesError) {
       return NextResponse.json(
@@ -79,14 +86,22 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Calcular totais
-    const totalIncomes = incomes?.reduce((sum, i) => sum + Number(i.amount), 0) || 0
-    const paidIncomes = incomes?.filter(i => i.is_paid).reduce((sum, i) => sum + Number(i.amount), 0) || 0
-    const unpaidIncomes = incomes?.filter(i => !i.is_paid).reduce((sum, i) => sum + Number(i.amount), 0) || 0
+    // Filtrar despesas: excluir marcadores de exclusão e compras parent de cartão
+    const expenses = rawExpenses?.filter(e => {
+      if (e.description?.endsWith('(Excluída)')) return false
+      if (Number(e.amount) === 0) return false
+      if (e.is_credit_card && !e.is_installment) return false
+      return true
+    }) || []
 
-    const totalExpenses = expenses?.reduce((sum, e) => sum + Number(e.amount), 0) || 0
-    const paidExpenses = expenses?.filter(e => e.is_paid).reduce((sum, e) => sum + Number(e.amount), 0) || 0
-    const unpaidExpenses = expenses?.filter(e => !e.is_paid).reduce((sum, e) => sum + Number(e.amount), 0) || 0
+    // Calcular totais
+    const totalIncomes = incomes.reduce((sum, i) => sum + Number(i.amount), 0)
+    const paidIncomes = incomes.filter(i => i.is_paid).reduce((sum, i) => sum + Number(i.amount), 0)
+    const unpaidIncomes = incomes.filter(i => !i.is_paid).reduce((sum, i) => sum + Number(i.amount), 0)
+
+    const totalExpenses = expenses.reduce((sum, e) => sum + Number(e.amount), 0)
+    const paidExpenses = expenses.filter(e => e.is_paid).reduce((sum, e) => sum + Number(e.amount), 0)
+    const unpaidExpenses = expenses.filter(e => !e.is_paid).reduce((sum, e) => sum + Number(e.amount), 0)
 
     const balance = totalIncomes - totalExpenses
     const realBalance = paidIncomes - paidExpenses
@@ -102,13 +117,13 @@ export async function GET(request: NextRequest) {
         total: totalIncomes,
         paid: paidIncomes,
         unpaid: unpaidIncomes,
-        count: incomes?.length || 0
+        count: incomes.length
       },
       expenses: {
         total: totalExpenses,
         paid: paidExpenses,
         unpaid: unpaidExpenses,
-        count: expenses?.length || 0
+        count: expenses.length
       },
       balance: {
         total: balance,
