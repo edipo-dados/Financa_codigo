@@ -243,6 +243,8 @@ export default function ExpensesList({ userId, startDate, endDate }: Props) {
     if (startDate && endDate) {
       currentExpenses = expenses.filter(expense => {
         if (expense.description.endsWith('(Excluída)')) return false
+        // Excluir compras parent de cartão (apenas parcelas contam)
+        if (expense.is_credit_card && !expense.is_installment) return false
         return expense.expense_date >= startDate && expense.expense_date <= endDate
       })
     }

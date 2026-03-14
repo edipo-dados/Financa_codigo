@@ -86,6 +86,7 @@ export default function Dashboard() {
     })
     let yearExpenses = expenses.filter(e => {
       if (e.description.endsWith('(Excluída)')) return false
+      if (e.is_credit_card && !e.is_installment) return false
       return e.expense_date >= yearStart && e.expense_date <= monthEnd
     })
 
@@ -110,6 +111,7 @@ export default function Dashboard() {
     })
     let monthExpenses = expenses.filter(e => {
       if (e.description.endsWith('(Excluída)')) return false
+      if (e.is_credit_card && !e.is_installment) return false
       return e.expense_date >= currentPeriod.startDate && e.expense_date <= currentPeriod.endDate
     })
 
