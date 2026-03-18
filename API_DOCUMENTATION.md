@@ -487,6 +487,61 @@ curl "https://financa-codigo.vercel.app/api/incomes/uuid-da-receita"
 
 ---
 
+## � Membros da Família
+
+### Listar Membros
+
+**Endpoint:** `GET /api/members`
+
+**Query Parameters:**
+- `user_id` (obrigatório) - ID do usuário
+- `is_active` (opcional) - Filtrar por status ativo (true/false)
+
+**Exemplo de Request:**
+```bash
+# Listar todos os membros
+curl "https://financa-codigo.vercel.app/api/members?user_id=uuid"
+
+# Listar apenas membros ativos
+curl "https://financa-codigo.vercel.app/api/members?user_id=uuid&is_active=true"
+```
+
+**Exemplo de Response:**
+```json
+{
+  "success": true,
+  "count": 2,
+  "data": [
+    {
+      "id": "uuid",
+      "user_id": "uuid",
+      "name": "Édipo",
+      "email": null,
+      "phone": null,
+      "relationship": "Titular",
+      "color": "#3b82f6",
+      "is_active": true,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    },
+    {
+      "id": "uuid",
+      "user_id": "uuid",
+      "name": "Mayara",
+      "email": null,
+      "phone": null,
+      "relationship": "Esposa",
+      "color": "#ec4899",
+      "is_active": true,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  ]
+}
+```
+
+---
+
 ## 📊 Resumo Financeiro
 
 ### Buscar Resumo
@@ -497,6 +552,11 @@ curl "https://financa-codigo.vercel.app/api/incomes/uuid-da-receita"
 - `user_id` (obrigatório) - ID do usuário
 - `start_date` (opcional) - Data inicial (YYYY-MM-DD)
 - `end_date` (opcional) - Data final (YYYY-MM-DD)
+
+**Filtros aplicados automaticamente:**
+- Exclui registros marcados como excluídos (descrição terminando em "(Excluída)")
+- Exclui registros com valor 0
+- Exclui compras parent de cartão de crédito (apenas parcelas são contabilizadas)
 
 **Exemplo de Request:**
 ```bash
@@ -1034,6 +1094,30 @@ response = requests.get(
 summary = response.json()
 print(f"Saldo Real: R$ {summary['balance']['real']}")
 print(f"Saldo Projetado: R$ {summary['balance']['projected']}")
+```
+
+### Exemplo 5: Listar Membros e Filtrar Despesas por Membro
+
+```python
+import requests
+
+BASE = "https://financa-codigo.vercel.app/api"
+USER_ID = "uuid-do-usuario"
+
+# 1. Buscar membros ativos
+members = requests.get(f"{BASE}/members", params={"user_id": USER_ID, "is_active": "true"}).json()["data"]
+
+# 2. Para cada membro, buscar resumo do mês
+for member in members:
+    expenses = requests.get(f"{BASE}/expenses", params={
+        "user_id": USER_ID,
+        "start_date": "2026-03-01",
+        "end_date": "2026-03-31"
+    }).json()["data"]
+    
+    member_expenses = [e for e in expenses if e.get("member_id") == member["id"]]
+    total = sum(e["amount"] for e in member_expenses)
+    print(f"{member['name']}: R$ {total:.2f}")
 ```
 
 ---
