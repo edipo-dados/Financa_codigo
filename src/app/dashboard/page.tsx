@@ -164,6 +164,7 @@ export default function Dashboard() {
     { id: 'expenses', label: 'Despesas', icon: '💸' },
     { id: 'incomes', label: 'Receitas', icon: '💰' },
     { id: 'creditcard', label: 'Cartões', icon: '💳' },
+    { id: 'settings', label: 'Config', icon: '⚙️' },
   ]
 
   const selectedMemberName = selectedMember
