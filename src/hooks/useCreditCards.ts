@@ -12,6 +12,11 @@ export function useCreditCards(userId: string) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    if (!userId || userId === 'none') {
+      setLoading(false)
+      return
+    }
+
     fetchCreditCards()
     
     // Subscription para atualizações em tempo real

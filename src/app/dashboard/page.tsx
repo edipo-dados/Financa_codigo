@@ -7,6 +7,7 @@ import { useExpenses } from '@/hooks/useExpenses'
 import { useInvestments } from '@/hooks/useInvestments'
 import { useIncomes } from '@/hooks/useIncomes'
 import { useFamilyMembers } from '@/hooks/useFamilyMembers'
+import { useCreditCards } from '@/hooks/useCreditCards'
 import ExpensesList from '@/components/ExpensesList'
 import InvestmentsList from '@/components/InvestmentsList'
 import IncomesList from '@/components/IncomesList'
@@ -24,8 +25,10 @@ import CreditCardPurchasesList from '@/components/CreditCardPurchasesList'
 import ThemeSettings from '@/components/ThemeSettings'
 import IncomeReport from '@/components/IncomeReport'
 import About from '@/components/About'
+import AIChatAssistant from '@/components/AIChatAssistant'
 import FamilyMemberManager from '@/components/FamilyMemberManager'
 import { formatCurrency } from '@/lib/utils'
+import { supabase } from '@/lib/supabase'
 import { format, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns'
 
 export default function Dashboard() {
@@ -35,6 +38,7 @@ export default function Dashboard() {
   const { investments, loading: investmentsLoading, refetch: refetchInvestments } = useInvestments(user?.id)
   const { incomes, loading: incomesLoading, refetch: refetchIncomes } = useIncomes(user?.id)
   const { members } = useFamilyMembers(user?.id)
+  const { creditCards } = useCreditCards(user?.id || 'none')
   const [activeTab, setActiveTab] = useState<'overview' | 'incomes' | 'expenses' | 'investments' | 'future' | 'creditcard' | 'settings' | 'about'>('overview')
 
   // Modais de acesso rápido
@@ -46,6 +50,29 @@ export default function Dashboard() {
 
   // Filtro de membro
   const [selectedMember, setSelectedMember] = useState<string>('')
+
+  // Dados para o chat AI
+  const [aiCategories, setAiCategories] = useState<{ expense: any[], income: any[], investmentTypes: any[] }>({
+    expense: [], income: [], investmentTypes: []
+  })
+
+  // Buscar categorias para o chat AI
+  useEffect(() => {
+    if (!user?.id) return
+    const fetchCategories = async () => {
+      const [expCat, incCat, invTypes] = await Promise.all([
+        (supabase as any).from('expense_categories').select('*').eq('user_id', user.id),
+        (supabase as any).from('income_categories').select('*').eq('user_id', user.id),
+        (supabase as any).from('investment_types').select('*').eq('user_id', user.id)
+      ])
+      setAiCategories({
+        expense: expCat.data || [],
+        income: incCat.data || [],
+        investmentTypes: invTypes.data || []
+      })
+    }
+    fetchCategories()
+  }, [user?.id])
 
   // Inicializar data após montagem
   useEffect(() => {
@@ -429,6 +456,18 @@ export default function Dashboard() {
         tabs={mobileTabs}
         activeTab={activeTab}
         onTabChange={(tabId) => setActiveTab(tabId as any)}
+      />
+
+      {/* Chat AI Assistente */}
+      <AIChatAssistant
+        userId={user.id}
+        onRefresh={handleRefresh}
+        onNavigate={(tab: string) => setActiveTab(tab as any)}
+        creditCards={creditCards}
+        expenseCategories={aiCategories.expense}
+        incomeCategories={aiCategories.income}
+        investmentTypes={aiCategories.investmentTypes}
+        members={members}
       />
     </div>
   )
