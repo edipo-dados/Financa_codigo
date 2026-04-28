@@ -11,6 +11,7 @@ import EditRecurrenceModal from './EditRecurrenceModal'
 import EditValueModal from './EditValueModal'
 import EditInvestmentModal from './EditInvestmentModal'
 import ActionsDropdown from './ActionsDropdown'
+import WithdrawInvestmentModal from './WithdrawInvestmentModal'
 import { Investment } from '@/types'
 
 interface Props {
@@ -26,6 +27,7 @@ export default function InvestmentsList({ userId, startDate, endDate }: Props) {
   const [editingRecurrence, setEditingRecurrence] = useState<Investment | null>(null)
   const [editingValue, setEditingValue] = useState<Investment | null>(null)
   const [editingInvestment, setEditingInvestment] = useState<Investment | null>(null)
+  const [withdrawingInvestment, setWithdrawingInvestment] = useState<Investment | null>(null)
   const [futureInvestments, setFutureInvestments] = useState<any[]>([])
   
   // Estados dos filtros
@@ -534,6 +536,14 @@ export default function InvestmentsList({ userId, startDate, endDate }: Props) {
                             color: 'text-apple-green hover:text-apple-green/80',
                             onClick: () => setEditingValue(investment),
                             title: 'Editar valor desta ocorrência'
+                          },
+                          {
+                            id: 'withdraw',
+                            label: 'Retirar',
+                            icon: '💸',
+                            color: 'text-emerald-600 hover:text-emerald-700',
+                            onClick: () => setWithdrawingInvestment(investment),
+                            title: 'Retirar valor do investimento'
                           }
                         ]),
                         ...(investment.is_recurring && !investment.isRecurringOccurrence ? [
@@ -649,6 +659,20 @@ export default function InvestmentsList({ userId, startDate, endDate }: Props) {
           onSuccess={() => {
             refetch()
             setEditingInvestment(null)
+          }}
+        />
+      )}
+
+      {/* Modal de Retirada de Investimento */}
+      {withdrawingInvestment && (
+        <WithdrawInvestmentModal
+          isOpen={!!withdrawingInvestment}
+          onClose={() => setWithdrawingInvestment(null)}
+          investment={withdrawingInvestment}
+          userId={userId}
+          onSuccess={() => {
+            refetch()
+            setWithdrawingInvestment(null)
           }}
         />
       )}
