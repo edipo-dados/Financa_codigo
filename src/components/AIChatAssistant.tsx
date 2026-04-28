@@ -717,7 +717,6 @@ export default function AIChatAssistant({
                 ref={fileInputRef}
                 type="file"
                 accept="image/*"
-                capture="environment"
                 onChange={handleImageSelect}
                 className="hidden"
               />
