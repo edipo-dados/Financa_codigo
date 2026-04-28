@@ -27,12 +27,12 @@ export default function WithdrawInvestmentModal({ isOpen, onClose, investment, u
 
     const fetchOrCreateCategory = async () => {
       // Buscar categoria existente
-      const { data: existing } = await supabase
+      const { data: existing } = await (supabase as any)
         .from('income_categories')
         .select('id')
         .eq('user_id', userId)
         .ilike('name', 'Retirada de Investimento')
-        .maybeSingle() as any
+        .maybeSingle()
 
       if (existing?.id) {
         setIncomeCategoryId(existing.id)
@@ -40,7 +40,7 @@ export default function WithdrawInvestmentModal({ isOpen, onClose, investment, u
       }
 
       // Criar categoria se não existir
-      const { data: created } = await supabase
+      const { data: created } = await (supabase as any)
         .from('income_categories')
         .insert({
           user_id: userId,
@@ -48,7 +48,7 @@ export default function WithdrawInvestmentModal({ isOpen, onClose, investment, u
           color: '#10b981'
         })
         .select('id')
-        .single() as any
+        .single()
 
       if (created?.id) {
         setIncomeCategoryId(created.id)
@@ -80,7 +80,7 @@ export default function WithdrawInvestmentModal({ isOpen, onClose, investment, u
 
     try {
       // 1. Registrar a transação de retirada no investimento
-      const { error: txError } = await supabase
+      const { error: txError } = await (supabase as any)
         .from('investment_transactions')
         .insert({
           investment_id: investment.id,
@@ -94,7 +94,7 @@ export default function WithdrawInvestmentModal({ isOpen, onClose, investment, u
 
       // 2. Atualizar o current_amount do investimento
       const newAmount = maxAmount - withdrawAmount
-      const { error: updateError } = await supabase
+      const { error: updateError } = await (supabase as any)
         .from('investments')
         .update({
           current_amount: newAmount,
@@ -105,7 +105,7 @@ export default function WithdrawInvestmentModal({ isOpen, onClose, investment, u
       if (updateError) throw updateError
 
       // 3. Criar receita com o valor retirado
-      const { error: incomeError } = await supabase
+      const { error: incomeError } = await (supabase as any)
         .from('incomes')
         .insert({
           user_id: userId,
@@ -115,7 +115,7 @@ export default function WithdrawInvestmentModal({ isOpen, onClose, investment, u
           description: `Retirada de investimento: ${investment.name}`,
           income_date: withdrawDate,
           is_recurring: false,
-          is_paid: true // Já está disponível no saldo
+          is_paid: true
         })
 
       if (incomeError) throw incomeError
