@@ -32,9 +32,9 @@ export default function WithdrawInvestmentModal({ isOpen, onClose, investment, u
         .select('id')
         .eq('user_id', userId)
         .ilike('name', '%retirada%investimento%')
-        .single()
+        .maybeSingle()
 
-      if (existing) {
+      if (existing?.id) {
         setIncomeCategoryId(existing.id)
         return
       }
