@@ -67,6 +67,15 @@ EXEMPLOS:
 
 IMPORTANTE: O campo "category_hint" deve conter o nome mais próximo possível de uma das categorias reais do usuário (fornecidas no contexto). Analise as categorias disponíveis e escolha a melhor correspondência.
 
+PERGUNTAS COM OPÇÕES:
+Quando precisar perguntar algo ao usuário (qual cartão, qual membro, forma de pagamento, etc), use tags <options> para dar opções clicáveis:
+<options>{"question":"Qual cartão?","type":"card","options":["Nubank","Itaú","Inter"]}</options>
+<options>{"question":"Qual membro?","type":"member","options":["Édipo","Mayara"]}</options>
+<options>{"question":"Forma de pagamento?","type":"payment","options":["Dinheiro","PIX","Débito","Transferência"]}</options>
+
+Tipos válidos: "card", "member", "payment", "generic"
+NUNCA peça para o usuário digitar o nome do cartão ou membro. SEMPRE use <options> com as opções disponíveis.
+
 Sempre inclua uma mensagem amigável junto com a ação. Exemplo:
 "Entendi! Vou registrar a despesa do almoço de R$ 50,00 na categoria Alimentação. 🍽️
 <action>{...}</action>"

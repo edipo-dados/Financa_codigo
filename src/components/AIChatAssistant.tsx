@@ -15,6 +15,7 @@ interface Message {
   selectedMemberId?: string
   selectedCardId?: string
   selectedCategoryId?: string
+  options?: { question: string; type: string; options: string[] }
 }
 
 interface Props {
@@ -68,7 +69,13 @@ export default function AIChatAssistant({
     try { return JSON.parse(match[1]) } catch { return null }
   }
 
-  const cleanMessage = (text: string) => text.replace(/<action>.*?<\/action>/gs, '').trim()
+  const parseOptions = (text: string) => {
+    const match = text.match(/<options>(.*?)<\/options>/s)
+    if (!match) return null
+    try { return JSON.parse(match[1]) } catch { return null }
+  }
+
+  const cleanMessage = (text: string) => text.replace(/<action>.*?<\/action>/gs, '').replace(/<options>.*?<\/options>/gs, '').trim()
 
   const findBestMatch = (hint: string, items: any[], field: string = 'name') => {
     if (!hint || !items.length) return null
@@ -245,6 +252,7 @@ export default function AIChatAssistant({
       if (data.error) throw new Error(data.error)
 
       const action = parseAction(data.response)
+      const options = parseOptions(data.response)
       const cleanContent = cleanMessage(data.response)
       
       // Pré-selecionar cartão se a IA identificou
@@ -266,7 +274,8 @@ export default function AIChatAssistant({
         id: (Date.now() + 1).toString(), role: 'assistant', content: cleanContent,
         action, actionStatus: action ? 'pending' : undefined,
         selectedCardId: preSelectedCardId,
-        selectedCategoryId: preSelectedCategoryId
+        selectedCategoryId: preSelectedCategoryId,
+        options: options || undefined
       }])
     } catch (error: any) {
       setMessages(prev => [...prev, {
@@ -346,6 +355,75 @@ export default function AIChatAssistant({
                     : 'bg-gray-100 dark:bg-gray-800 fintech-text-primary rounded-bl-sm'
                 }`}>
                   <p className="whitespace-pre-wrap text-sm leading-relaxed">{msg.content}</p>
+
+                  {/* Opções interativas (botões para responder) */}
+                  {msg.options && !msg.action && (
+                    <div className="mt-3 space-y-2">
+                      <div className="flex gap-2 flex-wrap">
+                        {msg.options.options.map((opt, i) => (
+                          <button
+                            key={i}
+                            onClick={() => {
+                              // Enviar a opção selecionada como mensagem do usuário
+                              const userMsg: Message = { id: Date.now().toString(), role: 'user', content: opt }
+                              setMessages(prev => [...prev, userMsg])
+                              setInput('')
+                              setLoading(true)
+                              
+                              fetch('/api/ai-chat', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                  messages: [...messages.filter(m => !m.content.startsWith('Olá!')), msg, userMsg].map(m => ({
+                                    role: m.role, content: m.content
+                                  })),
+                                  context: { creditCards, expenseCategories, incomeCategories, investmentTypes, members }
+                                })
+                              })
+                              .then(res => res.json())
+                              .then(data => {
+                                if (data.error) throw new Error(data.error)
+                                const action = parseAction(data.response)
+                                const options = parseOptions(data.response)
+                                const cleanContent = cleanMessage(data.response)
+                                
+                                let preSelectedCardId: string | undefined
+                                if (action?.type === 'credit_card_expense' && action.data.card_hint) {
+                                  const matched = findBestMatch(action.data.card_hint, creditCards)
+                                  if (matched) preSelectedCardId = matched.id
+                                }
+                                let preSelectedCategoryId: string | undefined
+                                if (action?.data?.category_hint) {
+                                  const categories = (action.type === 'income') ? incomeCategories : expenseCategories
+                                  const matched = findBestMatch(action.data.category_hint, categories)
+                                  if (matched) preSelectedCategoryId = matched.id
+                                }
+                                
+                                setMessages(prev => [...prev, {
+                                  id: (Date.now() + 1).toString(), role: 'assistant', content: cleanContent,
+                                  action, actionStatus: action ? 'pending' : undefined,
+                                  selectedCardId: preSelectedCardId,
+                                  selectedCategoryId: preSelectedCategoryId,
+                                  options: options || undefined
+                                }])
+                              })
+                              .catch(err => {
+                                setMessages(prev => [...prev, {
+                                  id: (Date.now() + 1).toString(), role: 'assistant',
+                                  content: `❌ ${err.message}. Tente novamente.`
+                                }])
+                              })
+                              .finally(() => setLoading(false))
+                            }}
+                            disabled={loading}
+                            className="px-4 py-2.5 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-sm font-medium rounded-xl border border-blue-200 dark:border-blue-700 hover:bg-blue-100 dark:hover:bg-blue-900/50 active:scale-95 transition-all"
+                          >
+                            {msg.options?.type === 'card' ? '💳 ' : msg.options?.type === 'member' ? '👤 ' : ''}{opt}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Ação pendente - resumo + seletores + botões */}
                   {msg.action && msg.actionStatus === 'pending' && (
