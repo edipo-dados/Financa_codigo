@@ -20,6 +20,133 @@ interface Props {
   endDate?: string
 }
 
+// Componente de Portfólio Completo - mostra TODOS os investimentos em lista
+function PortfolioSection({ investments, members, onWithdraw, onEdit, onDelete }: {
+  investments: Investment[]
+  members: any[]
+  onWithdraw: (inv: Investment) => void
+  onEdit: (inv: Investment) => void
+  onDelete: (id: string) => void
+}) {
+  const [filter, setFilter] = useState<'all' | 'recurring' | 'single'>('all')
+  const [search, setSearch] = useState('')
+
+  const realInvestments = investments.filter(inv => !(inv as any).isRecurringOccurrence)
+
+  const filtered = realInvestments.filter(inv => {
+    if (filter === 'recurring' && !inv.is_recurring) return false
+    if (filter === 'single' && inv.is_recurring) return false
+    if (search && !inv.name.toLowerCase().includes(search.toLowerCase())) return false
+    return true
+  })
+
+  const totalInvested = realInvestments.reduce((sum, inv) => sum + Number(inv.initial_amount), 0)
+  const totalCurrent = realInvestments.reduce((sum, inv) => sum + Number(inv.current_amount), 0)
+
+  if (realInvestments.length === 0) return null
+
+  return (
+    <div className="glass-card rounded-2xl overflow-hidden">
+      {/* Header */}
+      <div className="p-4 border-b border-apple-gray-100">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-lg font-semibold text-apple-gray-700">💼 Portfólio Completo</h3>
+          <div className="text-right">
+            <p className="text-xs text-apple-gray-500">Valor Atual Total</p>
+            <p className={`text-lg font-bold ${totalCurrent >= totalInvested ? 'text-green-600' : 'text-red-600'}`}>
+              {formatCurrency(totalCurrent)}
+            </p>
+          </div>
+        </div>
+        {/* Filtros */}
+        <div className="flex gap-2 flex-wrap">
+          <input
+            type="text"
+            placeholder="Buscar investimento..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="flex-1 min-w-[150px] px-3 py-1.5 text-sm border border-apple-gray-200 rounded-lg focus:ring-1 focus:ring-apple-blue focus:border-apple-blue"
+          />
+          <div className="flex gap-1">
+            {(['all', 'single', 'recurring'] as const).map(f => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className={`px-3 py-1.5 text-xs rounded-lg font-medium transition-colors ${
+                  filter === f
+                    ? 'bg-apple-blue text-white'
+                    : 'bg-apple-gray-100 text-apple-gray-600 hover:bg-apple-gray-200'
+                }`}
+              >
+                {f === 'all' ? 'Todos' : f === 'single' ? 'Pontuais' : '🔄 Recorrentes'}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Lista */}
+      <div className="divide-y divide-apple-gray-100">
+        {filtered.length === 0 ? (
+          <div className="p-6 text-center text-apple-gray-400 text-sm">
+            Nenhum investimento encontrado
+          </div>
+        ) : (
+          filtered.map(inv => {
+            const returnVal = Number(inv.current_amount) - Number(inv.initial_amount)
+            const returnPct = Number(inv.initial_amount) > 0
+              ? (returnVal / Number(inv.initial_amount)) * 100
+              : 0
+            const memberName = members.find(m => m.id === inv.member_id)?.name
+
+            return (
+              <div key={inv.id} className="flex items-center justify-between p-4 hover:bg-apple-gray-50/50 transition-colors">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-medium text-apple-gray-700 text-sm">{inv.name}</span>
+                    {inv.is_recurring && (
+                      <span className="text-xs px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded-full">🔄</span>
+                    )}
+                    {inv.investment_type && (
+                      <span className="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded-full">
+                        {inv.investment_type.name}
+                      </span>
+                    )}
+                    {memberName && (
+                      <span className="text-xs px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded-full">
+                        👤 {memberName}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 mt-1">
+                    <span className="text-xs text-apple-gray-500">
+                      Investido: <span className="font-medium">{formatCurrency(Number(inv.initial_amount))}</span>
+                    </span>
+                    <span className="text-xs text-apple-gray-500">
+                      Atual: <span className="font-medium">{formatCurrency(Number(inv.current_amount))}</span>
+                    </span>
+                    <span className={`text-xs font-medium ${returnVal >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {returnVal >= 0 ? '↑' : '↓'} {Math.abs(returnPct).toFixed(1)}%
+                    </span>
+                  </div>
+                </div>
+                {/* Botão de Retirada */}
+                <button
+                  onClick={() => onWithdraw(inv)}
+                  className="ml-3 flex-shrink-0 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-medium rounded-lg transition-colors border border-emerald-200"
+                  title="Retirar valor deste investimento"
+                >
+                  💸 Retirar
+                </button>
+              </div>
+            )
+          })
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function InvestmentsList({ userId, startDate, endDate }: Props) {
   const { investments, loading, deleteInvestment, refetch } = useInvestments(userId)
   const { members } = useFamilyMembers(userId)
@@ -439,20 +566,34 @@ export default function InvestmentsList({ userId, startDate, endDate }: Props) {
             <p className="text-apple-gray-400 text-sm">Carregando investimentos...</p>
           </div>
         </div>
-      ) : filteredInvestments.length === 0 ? (
-        <div className="glass-card p-12 rounded-3xl text-center">
-          <div className="w-20 h-20 bg-apple-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <span className="text-4xl">📈</span>
-          </div>
-          <h3 className="text-lg font-semibold text-apple-gray-700 mb-2">
-            {investments.length === 0 ? 'Nenhum investimento cadastrado' : 'Nenhum investimento encontrado'}
-          </h3>
-          <p className="text-apple-gray-400 text-sm">
-            {investments.length === 0 ? 'Comece a construir seu patrimônio' : 'Tente ajustar os filtros para encontrar seus investimentos'}
-          </p>
-        </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <>
+          {/* SEÇÃO: Portfólio Completo - TODOS os investimentos */}
+          <PortfolioSection
+            investments={investments}
+            members={members}
+            onWithdraw={(inv) => setWithdrawingInvestment(inv)}
+            onEdit={(inv) => setEditingInvestment(inv)}
+            onDelete={(id) => handleDelete(id)}
+          />
+
+          {/* SEÇÃO: Lançamentos do Período */}
+          {filteredInvestments.length === 0 ? (
+            <div className="glass-card p-12 rounded-3xl text-center">
+              <div className="w-20 h-20 bg-apple-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-4xl">📈</span>
+              </div>
+              <h3 className="text-lg font-semibold text-apple-gray-700 mb-2">
+                Nenhum lançamento no período selecionado
+              </h3>
+              <p className="text-apple-gray-400 text-sm">
+                Selecione outro período ou adicione um novo investimento
+              </p>
+            </div>
+          ) : (
+            <>
+              <h3 className="text-lg font-semibold text-apple-gray-700 mt-2">📅 Lançamentos do Período</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredInvestments.map((investment) => {
             const returns = calculateReturn(
               Number(investment.initial_amount),
@@ -617,6 +758,9 @@ export default function InvestmentsList({ userId, startDate, endDate }: Props) {
             )
           })}
         </div>
+            </>
+          )}
+        </>
       )}
 
       {/* Modal de Edição de Recorrência */}
