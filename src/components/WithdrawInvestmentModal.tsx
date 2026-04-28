@@ -31,8 +31,8 @@ export default function WithdrawInvestmentModal({ isOpen, onClose, investment, u
         .from('income_categories')
         .select('id')
         .eq('user_id', userId)
-        .ilike('name', '%retirada%investimento%')
-        .maybeSingle()
+        .ilike('name', 'Retirada de Investimento')
+        .maybeSingle() as any
 
       if (existing?.id) {
         setIncomeCategoryId(existing.id)
@@ -40,7 +40,7 @@ export default function WithdrawInvestmentModal({ isOpen, onClose, investment, u
       }
 
       // Criar categoria se não existir
-      const { data: created, error: createError } = await supabase
+      const { data: created } = await supabase
         .from('income_categories')
         .insert({
           user_id: userId,
@@ -48,9 +48,9 @@ export default function WithdrawInvestmentModal({ isOpen, onClose, investment, u
           color: '#10b981'
         })
         .select('id')
-        .single()
+        .single() as any
 
-      if (!createError && created) {
+      if (created?.id) {
         setIncomeCategoryId(created.id)
       }
     }
