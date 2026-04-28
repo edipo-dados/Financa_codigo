@@ -27,46 +27,22 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Background decorative elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-apple-blue/5 dark:bg-fintech-dark-accent/10 rounded-full blur-3xl" />
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-apple-purple/5 dark:bg-fintech-dark-accent/5 rounded-full blur-3xl" />
-      </div>
-
-      <div className="w-full max-w-md relative z-10 animate-slide-up">
+    <main className="min-h-screen flex items-center justify-center p-4 bg-gray-50 dark:bg-fintech-dark-bg">
+      <div className="w-full max-w-md animate-slide-up">
         <div className="text-center mb-8">
           <div className="inline-flex flex-col items-center justify-center mb-6">
-            {/* Logo EAS - Opção 2 Minimalista Elegante */}
-            <svg width="120" height="120" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
-              <defs>
-                <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" style={{stopColor: '#38bdf8', stopOpacity: 1}} />
-                  <stop offset="100%" style={{stopColor: '#60a5fa', stopOpacity: 1}} />
-                </linearGradient>
-              </defs>
-              
-              {/* Círculo externo */}
-              <circle cx="40" cy="40" r="35" fill="none" stroke="url(#logoGrad)" strokeWidth="2" opacity="0.4"/>
-              <circle cx="40" cy="40" r="30" fill="url(#logoGrad)" opacity="0.12"/>
-              
-              {/* Letras EAS ultra clean */}
-              <g fill="url(#logoGrad)" fontFamily="Arial, sans-serif" fontWeight="700">
-                <text x="22" y="50" fontSize="28">E</text>
-                <text x="37" y="50" fontSize="28">A</text>
-                <text x="52" y="50" fontSize="28">S</text>
-              </g>
-              
-              {/* Linha decorativa */}
-              <line x1="20" y1="55" x2="60" y2="55" stroke="url(#logoGrad)" strokeWidth="2" strokeLinecap="round"/>
-            </svg>
-            <div className="mt-4">
-              <div className="text-sm fintech-text-muted font-semibold tracking-widest">TECHNOLOGY</div>
+            {/* Logo EAS */}
+            <div className="w-20 h-20 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg mb-4">
+              <span className="text-white font-bold text-2xl tracking-tight">EAS</span>
+            </div>
+            <div>
+              <div className="text-xs fintech-text-muted font-semibold tracking-[0.2em] uppercase">Technology</div>
             </div>
           </div>
-          <h1 className="text-4xl font-semibold fintech-text-primary mb-2">
+          <h1 className="text-3xl font-bold fintech-text-primary mb-1">
             Controle Financeiro
           </h1>
+          <p className="text-sm fintech-text-muted">Gerencie suas finanças de forma inteligente</p>
         </div>
         <AuthForm />
       </div>

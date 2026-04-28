@@ -212,18 +212,18 @@ export default function Dashboard() {
         </div>
 
         {/* Desktop Tabs */}
-        <div className="hidden md:flex mb-8 gap-2 overflow-x-auto scrollbar-hide pb-2">
+        <div className="hidden md:flex mb-6 gap-1 bg-gray-100 dark:bg-fintech-dark-elevated p-1 rounded-xl overflow-x-auto scrollbar-hide">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium text-sm whitespace-nowrap transition-all duration-200 ${
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium text-sm whitespace-nowrap transition-all duration-200 ${
                 activeTab === tab.id
-                  ? 'bg-apple-blue text-white shadow-apple-lg scale-[1.02]'
-                  : 'bg-white/50 fintech-text-secondary hover:bg-white hover:shadow-apple dark:bg-fintech-dark-elevated dark:hover:bg-fintech-dark-border'
+                  ? 'bg-white dark:bg-fintech-dark-surface text-blue-600 dark:text-fintech-dark-accent shadow-sm'
+                  : 'text-gray-500 dark:text-fintech-text-muted hover:text-gray-700 dark:hover:text-fintech-text-secondary'
               }`}
             >
-              <span>{tab.icon}</span>
+              <span className="text-base">{tab.icon}</span>
               {tab.label}
             </button>
           ))}
