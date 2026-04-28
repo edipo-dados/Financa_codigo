@@ -58,11 +58,20 @@ Para EXCLUSÃO:
 
 Para LANÇAMENTO EM LOTE (múltiplos itens de uma imagem ou lista):
 Quando a imagem ou texto contiver MÚLTIPLOS lançamentos, use o tipo "batch":
-<action>{"type":"batch","data":{"items":[{"type":"expense","description":"item 1","amount":50.00,"expense_date":"2025-12-18","payment_method":"credit_card","category_hint":"alimentação","card_hint":"nubank"},{"type":"expense","description":"item 2","amount":30.00,"expense_date":"2025-12-18","payment_method":"pix","category_hint":"transporte"},{"type":"income","description":"salário","amount":5000.00,"income_date":"2025-12-18","category_hint":"salário"}]}}</action>
+<action>{"type":"batch","data":{"items":[{"type":"expense","description":"item 1","amount":50.00,"expense_date":"2025-12-18","payment_method":"credit_card","category_hint":"alimentação","card_hint":"nubank","installments":1},{"type":"expense","description":"item 2","amount":30.00,"expense_date":"2025-12-18","payment_method":"pix","category_hint":"transporte"}]}}</action>
 Cada item no array "items" deve ter: type (expense|income|investment), e os campos correspondentes ao tipo.
 Para despesas: description, amount, expense_date, payment_method, category_hint, card_hint (se cartão), installments (se parcelado)
 Para receitas: description, amount, income_date, category_hint
 Para investimentos: name, initial_amount, investment_date, type_hint
+
+IDENTIFICAÇÃO DE PARCELAMENTOS EM IMAGENS:
+Ao analisar imagens de faturas ou extratos, preste atenção em:
+- Textos como "1/10", "2/12", "Parcela 3 de 6", "3x", "10x" indicam parcelamento
+- Se aparecer "Parcela X de Y", o valor mostrado é o valor DA PARCELA, não o total. Calcule: total = valor_parcela * total_parcelas
+- Se for fatura de cartão de crédito, identifique o nome do cartão e use payment_method "credit_card"
+- Para cada compra parcelada, use o campo "installments" com o número total de parcelas e "amount" com o VALOR TOTAL (não da parcela)
+- Se a imagem mostrar apenas parcelas individuais de uma mesma compra, agrupe como uma única compra com o total
+- Identifique a data da compra original se disponível, senão use a data da fatura
 
 Para CONSULTA (sem ação):
 Responda normalmente sem tags <action>.

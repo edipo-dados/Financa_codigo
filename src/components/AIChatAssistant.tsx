@@ -126,7 +126,9 @@ export default function AIChatAssistant({
   const getBatchItemLabel = (item: any) => {
     const icon = item.type === 'expense' ? '💸' : item.type === 'income' ? '💰' : '📈'
     const amount = item.amount || item.total_amount || item.initial_amount
-    return `${icon} ${item.description || item.name} — ${formatCurrency(amount)}`
+    const installments = item.installments && item.installments > 1 ? ` (${item.installments}x)` : ''
+    const card = item.payment_method === 'credit_card' && item.card_hint ? ` 💳${item.card_hint}` : ''
+    return `${icon} ${item.description || item.name} — ${formatCurrency(amount)}${installments}${card}`
   }
 
   const handleViewRecord = (tab: string) => {
