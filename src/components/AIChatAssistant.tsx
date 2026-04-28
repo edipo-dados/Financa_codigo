@@ -436,31 +436,6 @@ export default function AIChatAssistant({
                         </div>
                       </div>
                       
-                      {/* Seletor de Categoria */}
-                      {msg.action.type !== 'delete' && msg.action.type !== 'investment' && (
-                        <div>
-                          <label className="block text-xs font-medium fintech-text-muted mb-1">🏷️ Categoria</label>
-                          <div className="flex gap-1.5 flex-wrap">
-                            {(msg.action.type === 'income' ? incomeCategories : expenseCategories).map((cat: any) => (
-                              <button
-                                key={cat.id}
-                                onClick={() => setMessages(prev => prev.map(p =>
-                                  p.id === msg.id ? { ...p, selectedCategoryId: cat.id } : p
-                                ))}
-                                className={`px-3 py-1.5 text-xs rounded-lg font-medium transition-all border ${
-                                  msg.selectedCategoryId === cat.id
-                                    ? 'text-white border-transparent'
-                                    : 'bg-gray-50 dark:bg-gray-800 fintech-text-secondary border-gray-200 dark:border-gray-600 hover:border-blue-400'
-                                }`}
-                                style={msg.selectedCategoryId === cat.id ? { backgroundColor: cat.color, borderColor: cat.color } : {}}
-                              >
-                                {cat.name}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
                       {/* Seletor de Membro */}
                       {msg.action.type !== 'delete' && members.length > 0 && (
                         <div>
@@ -513,7 +488,10 @@ export default function AIChatAssistant({
                       <div className="flex gap-2 pt-1">
                         <button
                           onClick={() => executeAction(msg.action, msg.id)}
-                          disabled={msg.action.type === 'credit_card_expense' && !msg.selectedCardId}
+                          disabled={
+                            (msg.action.type === 'credit_card_expense' && !msg.selectedCardId) ||
+                            (msg.action.type !== 'delete' && members.length > 0 && !msg.selectedMemberId)
+                          }
                           className="flex-1 px-4 py-3 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-bold rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                         >
                           ✅ Confirmar Registro
