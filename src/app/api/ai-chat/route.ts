@@ -135,8 +135,25 @@ export async function POST(request: NextRequest) {
       ]
     })
 
-    const lastMessage = messages[messages.length - 1].content
-    const result = await chat.sendMessage(lastMessage)
+    const lastMessage = messages[messages.length - 1]
+    
+    // Montar parts da última mensagem (pode ter texto + imagem)
+    const parts: any[] = []
+    
+    if (lastMessage.image) {
+      // Adicionar imagem como inline data
+      parts.push({
+        inlineData: {
+          mimeType: lastMessage.image.mimeType || 'image/jpeg',
+          data: lastMessage.image.data // base64 sem prefixo
+        }
+      })
+      parts.push({ text: lastMessage.content || 'Analise esta imagem de comprovante/nota fiscal e extraia: valor, descrição, data e forma de pagamento. Registre como despesa ou receita conforme o caso.' })
+    } else {
+      parts.push({ text: lastMessage.content })
+    }
+    
+    const result = await chat.sendMessage(parts)
     const response = result.response.text()
 
     return NextResponse.json({ response })
