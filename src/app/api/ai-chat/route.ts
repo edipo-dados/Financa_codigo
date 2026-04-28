@@ -56,6 +56,14 @@ Para INVESTIMENTO:
 Para EXCLUSÃO:
 <action>{"type":"delete","data":{"search_type":"expense|income|investment","search_term":"descrição para buscar","approximate_amount":100.00}}</action>
 
+Para LANÇAMENTO EM LOTE (múltiplos itens de uma imagem ou lista):
+Quando a imagem ou texto contiver MÚLTIPLOS lançamentos, use o tipo "batch":
+<action>{"type":"batch","data":{"items":[{"type":"expense","description":"item 1","amount":50.00,"expense_date":"2025-12-18","payment_method":"credit_card","category_hint":"alimentação","card_hint":"nubank"},{"type":"expense","description":"item 2","amount":30.00,"expense_date":"2025-12-18","payment_method":"pix","category_hint":"transporte"},{"type":"income","description":"salário","amount":5000.00,"income_date":"2025-12-18","category_hint":"salário"}]}}</action>
+Cada item no array "items" deve ter: type (expense|income|investment), e os campos correspondentes ao tipo.
+Para despesas: description, amount, expense_date, payment_method, category_hint, card_hint (se cartão), installments (se parcelado)
+Para receitas: description, amount, income_date, category_hint
+Para investimentos: name, initial_amount, investment_date, type_hint
+
 Para CONSULTA (sem ação):
 Responda normalmente sem tags <action>.
 

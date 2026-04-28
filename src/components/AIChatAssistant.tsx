@@ -118,8 +118,15 @@ export default function AIChatAssistant({
       case 'income': return `💰 ${action.data.description} — ${formatCurrency(action.data.amount)}`
       case 'investment': return `📈 ${action.data.name} — ${formatCurrency(action.data.initial_amount)}`
       case 'delete': return `🗑️ Excluir: ${action.data.search_term}`
+      case 'batch': return `📋 ${action.data.items.length} lançamentos em lote`
       default: return 'Ação'
     }
+  }
+
+  const getBatchItemLabel = (item: any) => {
+    const icon = item.type === 'expense' ? '💸' : item.type === 'income' ? '💰' : '📈'
+    const amount = item.amount || item.total_amount || item.initial_amount
+    return `${icon} ${item.description || item.name} — ${formatCurrency(amount)}`
   }
 
   const handleViewRecord = (tab: string) => {
@@ -262,6 +269,96 @@ export default function AIChatAssistant({
           const { error } = await (supabase as any).from(table).delete().eq('id', items[0].id)
           if (error) throw error
         } else { throw new Error('Item não encontrado') }
+
+      } else if (action.type === 'batch') {
+        const items = action.data.items || []
+        let successCount = 0
+        let errorCount = 0
+        
+        for (const item of items) {
+          try {
+            if (item.type === 'expense') {
+              const category = findBestMatch(item.category_hint, expenseCategories)
+              if (item.payment_method === 'credit_card' && item.card_hint) {
+                // Compra no cartão
+                const card = findBestMatch(item.card_hint, creditCards)
+                if (card) {
+                  const { data: parentData } = await (supabase as any).from('expenses').insert({
+                    user_id: userId, amount: item.amount, description: item.description,
+                    expense_date: item.expense_date || today, category_id: category?.id || null,
+                    member_id: selectedMemberId, payment_method: 'credit_card', is_recurring: false,
+                    is_credit_card: true, credit_card_id: card.id, is_installment: false,
+                    is_paid: false, installments: item.installments || 1, installment_number: null,
+                    total_amount: item.amount, purchase_date: item.expense_date || today,
+                    parent_expense_id: null, recurrence_frequency: null, recurrence_start_date: null,
+                    recurrence_end_type: null, recurrence_end_date: null, recurrence_count: null
+                  }).select().single()
+                  
+                  if (parentData) {
+                    const installmentsData = createInstallmentsData(
+                      item.amount, item.installments || 1, item.expense_date || today,
+                      card.closing_day, item.description, card.due_day
+                    )
+                    for (const inst of installmentsData) {
+                      await (supabase as any).from('expenses').insert({
+                        user_id: userId, amount: inst.amount, description: inst.description,
+                        expense_date: inst.expense_date, category_id: category?.id || null,
+                        member_id: selectedMemberId, payment_method: 'credit_card', is_recurring: false,
+                        is_credit_card: true, credit_card_id: card.id, is_installment: true,
+                        is_paid: false, installments: item.installments || 1,
+                        installment_number: inst.installment_number, total_amount: item.amount,
+                        purchase_date: item.expense_date || today, parent_expense_id: parentData.id,
+                        recurrence_frequency: null, recurrence_start_date: null,
+                        recurrence_end_type: null, recurrence_end_date: null, recurrence_count: null
+                      })
+                    }
+                  }
+                }
+              } else {
+                // Despesa normal
+                await (supabase as any).from('expenses').insert({
+                  user_id: userId, amount: item.amount, description: item.description,
+                  expense_date: item.expense_date || today, category_id: category?.id || null,
+                  member_id: selectedMemberId, payment_method: item.payment_method || 'cash',
+                  is_recurring: false, is_credit_card: false, credit_card_id: null,
+                  is_installment: false, is_paid: true, installments: null, installment_number: null,
+                  total_amount: null, purchase_date: null, parent_expense_id: null,
+                  recurrence_frequency: null, recurrence_start_date: null,
+                  recurrence_end_type: null, recurrence_end_date: null, recurrence_count: null
+                })
+              }
+              successCount++
+            } else if (item.type === 'income') {
+              const category = findBestMatch(item.category_hint, incomeCategories)
+              await (supabase as any).from('incomes').insert({
+                user_id: userId, amount: item.amount, description: item.description,
+                income_date: item.income_date || today, category_id: category?.id || null,
+                member_id: selectedMemberId, source: null, is_recurring: false, is_paid: true,
+                recurrence_frequency: null, recurrence_start_date: null,
+                recurrence_end_type: null, recurrence_end_date: null, recurrence_count: null,
+                parent_income_id: null
+              })
+              successCount++
+            } else if (item.type === 'investment') {
+              const invType = findBestMatch(item.type_hint, investmentTypes)
+              await (supabase as any).from('investments').insert({
+                user_id: userId, name: item.name || item.description, investment_type_id: invType?.id || null,
+                member_id: selectedMemberId, institution: item.institution || null,
+                initial_amount: item.initial_amount || item.amount, current_amount: item.initial_amount || item.amount,
+                investment_date: item.investment_date || today, expected_return: null,
+                is_recurring: false, recurrence_frequency: null, recurrence_start_date: null,
+                recurrence_end_type: null, recurrence_end_date: null, recurrence_count: null,
+                parent_investment_id: null
+              })
+              successCount++
+            }
+          } catch (err) {
+            console.error('Erro no item batch:', item, err)
+            errorCount++
+          }
+        }
+        
+        if (errorCount > 0 && successCount === 0) throw new Error(`Falha ao registrar ${errorCount} itens`)
       }
 
       setMessages(prev => prev.map(m =>
@@ -500,7 +597,26 @@ export default function AIChatAssistant({
                           {msg.action.type === 'income' && '💰 Nova Receita'}
                           {msg.action.type === 'investment' && '📈 Novo Investimento'}
                           {msg.action.type === 'delete' && '🗑️ Exclusão'}
+                          {msg.action.type === 'batch' && `📋 ${msg.action.data.items?.length || 0} Lançamentos`}
                         </p>
+                        
+                        {/* Lista de itens do batch */}
+                        {msg.action.type === 'batch' ? (
+                          <div className="space-y-1.5 max-h-[200px] overflow-y-auto">
+                            {msg.action.data.items?.map((item: any, idx: number) => (
+                              <div key={idx} className="flex justify-between items-center text-xs py-1 border-b border-blue-100 dark:border-blue-800 last:border-0">
+                                <span className="fintech-text-primary truncate flex-1 mr-2">{getBatchItemLabel(item)}</span>
+                                <span className="text-xs text-gray-500">{item.category_hint}</span>
+                              </div>
+                            ))}
+                            <div className="flex justify-between pt-2 border-t border-blue-300 dark:border-blue-700 font-bold text-xs">
+                              <span className="text-blue-800 dark:text-blue-300">Total:</span>
+                              <span className="text-blue-800 dark:text-blue-300">
+                                {formatCurrency(msg.action.data.items?.reduce((sum: number, item: any) => sum + (item.amount || item.total_amount || item.initial_amount || 0), 0) || 0)}
+                              </span>
+                            </div>
+                          </div>
+                        ) : (
                         <div className="space-y-1 text-xs">
                           {/* Descrição/Nome */}
                           <div className="flex justify-between">
@@ -575,6 +691,7 @@ export default function AIChatAssistant({
                             </div>
                           )}
                         </div>
+                        )}
                       </div>
                       
                       {/* Seletor de Membro */}
