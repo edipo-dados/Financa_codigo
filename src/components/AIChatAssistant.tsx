@@ -12,6 +12,9 @@ interface Message {
   action?: any
   actionStatus?: 'pending' | 'confirmed' | 'cancelled' | 'executed'
   actionTab?: string
+  selectedMemberId?: string
+  selectedCardId?: string
+  selectedCategoryId?: string
 }
 
 interface Props {
@@ -104,14 +107,19 @@ export default function AIChatAssistant({
     try {
       const today = new Date().toISOString().split('T')[0]
       const tab = getActionTab(action.type)
+      
+      // Pegar membro e cartão selecionados da mensagem
+      const msg = messages.find(m => m.id === messageId)
+      const selectedMemberId = msg?.selectedMemberId || null
+      const selectedCardId = msg?.selectedCardId || null
+      const selectedCategoryId = msg?.selectedCategoryId || null
 
       if (action.type === 'expense') {
         const d = action.data
-        const category = findBestMatch(d.category_hint, expenseCategories)
         const { error } = await (supabase as any).from('expenses').insert({
           user_id: userId, amount: d.amount, description: d.description,
-          expense_date: d.expense_date || today, category_id: category?.id || null,
-          member_id: null, payment_method: d.payment_method || 'cash',
+          expense_date: d.expense_date || today, category_id: selectedCategoryId,
+          member_id: selectedMemberId, payment_method: d.payment_method || 'cash',
           is_recurring: false, is_credit_card: false, credit_card_id: null,
           is_installment: false, is_paid: d.payment_method !== 'credit_card',
           installments: null, installment_number: null, total_amount: null,
@@ -123,15 +131,17 @@ export default function AIChatAssistant({
 
       } else if (action.type === 'credit_card_expense') {
         const d = action.data
-        const card = findBestMatch(d.card_hint, creditCards)
-        const category = findBestMatch(d.category_hint, expenseCategories)
-        if (!card) throw new Error('Nenhum cartão encontrado')
+        // Usar cartão selecionado pelo usuário, ou tentar match por hint
+        const card = selectedCardId 
+          ? creditCards.find(c => c.id === selectedCardId)
+          : findBestMatch(d.card_hint, creditCards)
+        if (!card) throw new Error('Selecione um cartão de crédito')
 
         const { data: parentData, error: parentError } = await (supabase as any)
           .from('expenses').insert({
             user_id: userId, amount: d.total_amount, description: d.description,
-            expense_date: d.purchase_date || today, category_id: category?.id || null,
-            member_id: null, payment_method: 'credit_card', is_recurring: false,
+            expense_date: d.purchase_date || today, category_id: selectedCategoryId,
+            member_id: selectedMemberId, payment_method: 'credit_card', is_recurring: false,
             is_credit_card: true, credit_card_id: card.id, is_installment: false,
             is_paid: false, installments: d.installments || 1, installment_number: null,
             total_amount: d.total_amount, purchase_date: d.purchase_date || today,
@@ -148,8 +158,8 @@ export default function AIChatAssistant({
         for (const inst of installmentsData) {
           await (supabase as any).from('expenses').insert({
             user_id: userId, amount: inst.amount, description: inst.description,
-            expense_date: inst.expense_date, category_id: category?.id || null,
-            member_id: null, payment_method: 'credit_card', is_recurring: false,
+            expense_date: inst.expense_date, category_id: selectedCategoryId,
+            member_id: selectedMemberId, payment_method: 'credit_card', is_recurring: false,
             is_credit_card: true, credit_card_id: card.id, is_installment: true,
             is_paid: false, installments: d.installments || 1,
             installment_number: inst.installment_number, total_amount: d.total_amount,
@@ -161,11 +171,10 @@ export default function AIChatAssistant({
 
       } else if (action.type === 'income') {
         const d = action.data
-        const category = findBestMatch(d.category_hint, incomeCategories)
         const { error } = await (supabase as any).from('incomes').insert({
           user_id: userId, amount: d.amount, description: d.description,
-          income_date: d.income_date || today, category_id: category?.id || null,
-          member_id: null, source: d.source || null, is_recurring: false,
+          income_date: d.income_date || today, category_id: selectedCategoryId,
+          member_id: selectedMemberId, source: d.source || null, is_recurring: false,
           is_paid: d.is_paid !== false, recurrence_frequency: null,
           recurrence_start_date: null, recurrence_end_type: null,
           recurrence_end_date: null, recurrence_count: null, parent_income_id: null
@@ -177,7 +186,7 @@ export default function AIChatAssistant({
         const invType = findBestMatch(d.type_hint, investmentTypes)
         const { error } = await (supabase as any).from('investments').insert({
           user_id: userId, name: d.name, investment_type_id: invType?.id || null,
-          member_id: null, institution: d.institution || null,
+          member_id: selectedMemberId, institution: d.institution || null,
           initial_amount: d.initial_amount, current_amount: d.initial_amount,
           investment_date: d.investment_date || today, expected_return: null,
           is_recurring: false, recurrence_frequency: null, recurrence_start_date: null,
@@ -237,9 +246,27 @@ export default function AIChatAssistant({
 
       const action = parseAction(data.response)
       const cleanContent = cleanMessage(data.response)
+      
+      // Pré-selecionar cartão se a IA identificou
+      let preSelectedCardId: string | undefined
+      if (action?.type === 'credit_card_expense' && action.data.card_hint) {
+        const matched = findBestMatch(action.data.card_hint, creditCards)
+        if (matched) preSelectedCardId = matched.id
+      }
+      
+      // Pré-selecionar categoria se a IA identificou
+      let preSelectedCategoryId: string | undefined
+      if (action?.data?.category_hint) {
+        const categories = (action.type === 'income') ? incomeCategories : expenseCategories
+        const matched = findBestMatch(action.data.category_hint, categories)
+        if (matched) preSelectedCategoryId = matched.id
+      }
+      
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(), role: 'assistant', content: cleanContent,
-        action, actionStatus: action ? 'pending' : undefined
+        action, actionStatus: action ? 'pending' : undefined,
+        selectedCardId: preSelectedCardId,
+        selectedCategoryId: preSelectedCategoryId
       }])
     } catch (error: any) {
       setMessages(prev => [...prev, {
@@ -320,24 +347,184 @@ export default function AIChatAssistant({
                 }`}>
                   <p className="whitespace-pre-wrap text-sm leading-relaxed">{msg.content}</p>
 
-                  {/* Ação pendente - botões de confirmar/cancelar */}
+                  {/* Ação pendente - resumo + seletores + botões */}
                   {msg.action && msg.actionStatus === 'pending' && (
-                    <div className="mt-3 p-3 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-600 shadow-sm">
-                      <p className="text-xs font-semibold fintech-text-primary mb-3">{getActionLabel(msg.action)}</p>
-                      <div className="flex gap-2">
+                    <div className="mt-3 p-3 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-600 shadow-sm space-y-3">
+                      
+                      {/* Resumo detalhado */}
+                      <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                        <p className="text-xs font-bold text-blue-800 dark:text-blue-300 mb-2">
+                          {msg.action.type === 'expense' && '💸 Nova Despesa'}
+                          {msg.action.type === 'credit_card_expense' && '💳 Compra no Cartão'}
+                          {msg.action.type === 'income' && '💰 Nova Receita'}
+                          {msg.action.type === 'investment' && '📈 Novo Investimento'}
+                          {msg.action.type === 'delete' && '🗑️ Exclusão'}
+                        </p>
+                        <div className="space-y-1 text-xs">
+                          {/* Descrição/Nome */}
+                          <div className="flex justify-between">
+                            <span className="text-gray-500 dark:text-gray-400">Descrição:</span>
+                            <span className="font-medium fintech-text-primary">{msg.action.data.description || msg.action.data.name || msg.action.data.search_term}</span>
+                          </div>
+                          {/* Valor */}
+                          {(msg.action.data.amount || msg.action.data.total_amount || msg.action.data.initial_amount) && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-500 dark:text-gray-400">Valor:</span>
+                              <span className="font-bold text-blue-700 dark:text-blue-300">
+                                {formatCurrency(msg.action.data.amount || msg.action.data.total_amount || msg.action.data.initial_amount)}
+                              </span>
+                            </div>
+                          )}
+                          {/* Parcelas */}
+                          {msg.action.type === 'credit_card_expense' && msg.action.data.installments > 1 && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-500 dark:text-gray-400">Parcelas:</span>
+                              <span className="font-medium fintech-text-primary">
+                                {msg.action.data.installments}x de {formatCurrency(msg.action.data.total_amount / msg.action.data.installments)}
+                              </span>
+                            </div>
+                          )}
+                          {/* Data */}
+                          {(msg.action.data.expense_date || msg.action.data.income_date || msg.action.data.purchase_date || msg.action.data.investment_date) && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-500 dark:text-gray-400">Data:</span>
+                              <span className="font-medium fintech-text-primary">
+                                {new Date((msg.action.data.expense_date || msg.action.data.income_date || msg.action.data.purchase_date || msg.action.data.investment_date) + 'T12:00:00').toLocaleDateString('pt-BR')}
+                              </span>
+                            </div>
+                          )}
+                          {/* Forma de pagamento */}
+                          {msg.action.type === 'expense' && msg.action.data.payment_method && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-500 dark:text-gray-400">Pagamento:</span>
+                              <span className="font-medium fintech-text-primary">
+                                {msg.action.data.payment_method === 'cash' ? 'Dinheiro' :
+                                 msg.action.data.payment_method === 'debit' ? 'Débito' :
+                                 msg.action.data.payment_method === 'pix' ? 'PIX' :
+                                 msg.action.data.payment_method === 'transfer' ? 'Transferência' :
+                                 msg.action.data.payment_method}
+                              </span>
+                            </div>
+                          )}
+                          {/* Categoria selecionada */}
+                          {msg.selectedCategoryId && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-500 dark:text-gray-400">Categoria:</span>
+                              <span className="font-medium fintech-text-primary">
+                                🏷️ {[...expenseCategories, ...incomeCategories].find((c: any) => c.id === msg.selectedCategoryId)?.name}
+                              </span>
+                            </div>
+                          )}
+                          {/* Membro selecionado */}
+                          {msg.selectedMemberId && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-500 dark:text-gray-400">Membro:</span>
+                              <span className="font-medium fintech-text-primary">
+                                👤 {members.find((m: any) => m.id === msg.selectedMemberId)?.name}
+                              </span>
+                            </div>
+                          )}
+                          {/* Cartão selecionado */}
+                          {msg.selectedCardId && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-500 dark:text-gray-400">Cartão:</span>
+                              <span className="font-medium fintech-text-primary">
+                                💳 {creditCards.find((c: any) => c.id === msg.selectedCardId)?.name}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* Seletor de Categoria */}
+                      {msg.action.type !== 'delete' && msg.action.type !== 'investment' && (
+                        <div>
+                          <label className="block text-xs font-medium fintech-text-muted mb-1">🏷️ Categoria</label>
+                          <div className="flex gap-1.5 flex-wrap">
+                            {(msg.action.type === 'income' ? incomeCategories : expenseCategories).map((cat: any) => (
+                              <button
+                                key={cat.id}
+                                onClick={() => setMessages(prev => prev.map(p =>
+                                  p.id === msg.id ? { ...p, selectedCategoryId: cat.id } : p
+                                ))}
+                                className={`px-3 py-1.5 text-xs rounded-lg font-medium transition-all border ${
+                                  msg.selectedCategoryId === cat.id
+                                    ? 'text-white border-transparent'
+                                    : 'bg-gray-50 dark:bg-gray-800 fintech-text-secondary border-gray-200 dark:border-gray-600 hover:border-blue-400'
+                                }`}
+                                style={msg.selectedCategoryId === cat.id ? { backgroundColor: cat.color, borderColor: cat.color } : {}}
+                              >
+                                {cat.name}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Seletor de Membro */}
+                      {msg.action.type !== 'delete' && members.length > 0 && (
+                        <div>
+                          <label className="block text-xs font-medium fintech-text-muted mb-1">👤 Membro</label>
+                          <div className="flex gap-1.5 flex-wrap">
+                            {members.map((m: any) => (
+                              <button
+                                key={m.id}
+                                onClick={() => setMessages(prev => prev.map(p =>
+                                  p.id === msg.id ? { ...p, selectedMemberId: p.selectedMemberId === m.id ? undefined : m.id } : p
+                                ))}
+                                className={`px-3 py-1.5 text-xs rounded-lg font-medium transition-all border ${
+                                  msg.selectedMemberId === m.id
+                                    ? 'bg-blue-600 text-white border-blue-600'
+                                    : 'bg-gray-50 dark:bg-gray-800 fintech-text-secondary border-gray-200 dark:border-gray-600 hover:border-blue-400'
+                                }`}
+                              >
+                                {m.name}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Seletor de Cartão - só para compras no cartão */}
+                      {msg.action.type === 'credit_card_expense' && creditCards.length > 0 && (
+                        <div>
+                          <label className="block text-xs font-medium fintech-text-muted mb-1">💳 Cartão</label>
+                          <div className="flex gap-1.5 flex-wrap">
+                            {creditCards.map((c: any) => (
+                              <button
+                                key={c.id}
+                                onClick={() => setMessages(prev => prev.map(p =>
+                                  p.id === msg.id ? { ...p, selectedCardId: c.id } : p
+                                ))}
+                                className={`px-3 py-1.5 text-xs rounded-lg font-medium transition-all border ${
+                                  msg.selectedCardId === c.id
+                                    ? 'text-white border-transparent'
+                                    : 'bg-gray-50 dark:bg-gray-800 fintech-text-secondary border-gray-200 dark:border-gray-600 hover:border-blue-400'
+                                }`}
+                                style={msg.selectedCardId === c.id ? { backgroundColor: c.color, borderColor: c.color } : {}}
+                              >
+                                {c.name}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex gap-2 pt-1">
                         <button
                           onClick={() => executeAction(msg.action, msg.id)}
-                          className="flex-1 px-4 py-2.5 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-xl transition-colors"
+                          disabled={msg.action.type === 'credit_card_expense' && !msg.selectedCardId}
+                          className="flex-1 px-4 py-3 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-bold rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                         >
-                          ✅ Confirmar
+                          ✅ Confirmar Registro
                         </button>
                         <button
                           onClick={() => setMessages(prev => prev.map(m =>
                             m.id === msg.id ? { ...m, actionStatus: 'cancelled' } : m
                           ))}
-                          className="flex-1 px-4 py-2.5 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 fintech-text-primary text-sm font-semibold rounded-xl transition-colors"
+                          className="px-4 py-3 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 fintech-text-primary text-sm font-semibold rounded-xl transition-colors"
                         >
-                          Cancelar
+                          ✕
                         </button>
                       </div>
                     </div>
