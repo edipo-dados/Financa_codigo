@@ -70,12 +70,27 @@ export default function AIChatAssistant({
   }
 
   const parseOptions = (text: string) => {
+    // Tentar com tag <options>
     const match = text.match(/<options>(.*?)<\/options>/s)
-    if (!match) return null
-    try { return JSON.parse(match[1]) } catch { return null }
+    if (match) {
+      try { return JSON.parse(match[1]) } catch {}
+    }
+    // Tentar encontrar JSON de options solto no texto
+    const jsonMatch = text.match(/\{[^{}]*"question"[^{}]*"type"[^{}]*"options"\s*:\s*\[.*?\]\s*\}/s)
+    if (jsonMatch) {
+      try { return JSON.parse(jsonMatch[0]) } catch {}
+    }
+    return null
   }
 
-  const cleanMessage = (text: string) => text.replace(/<action>.*?<\/action>/gs, '').replace(/<options>.*?<\/options>/gs, '').trim()
+  const cleanMessage = (text: string) => {
+    return text
+      .replace(/<action>.*?<\/action>/gs, '')
+      .replace(/<options>.*?<\/options>/gs, '')
+      .replace(/```json[\s\S]*?```/gs, '')
+      .replace(/\{[^{}]*"question"[^{}]*"options"[^{}]*\}/gs, '')
+      .trim()
+  }
 
   const findBestMatch = (hint: string, items: any[], field: string = 'name') => {
     if (!hint || !items.length) return null
