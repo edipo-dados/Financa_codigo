@@ -173,6 +173,21 @@ export default function Dashboard() {
     return { totalInvested, totalCurrent, profit: totalCurrent - totalInvested, totalWithdrawn, netInvested, count: filtered.length }
   }, [investments, selectedMember])
 
+  // Últimas transações para contexto da IA (30 mais recentes)
+  const recentExpenses = useMemo(() => {
+    return [...expenses]
+      .filter(e => !e.description.endsWith('(Excluída)') && !(e.is_credit_card && !e.is_installment))
+      .sort((a, b) => b.expense_date.localeCompare(a.expense_date))
+      .slice(0, 30)
+  }, [expenses])
+
+  const recentIncomes = useMemo(() => {
+    return [...incomes]
+      .filter(i => !i.description.endsWith('(Excluída)'))
+      .sort((a, b) => b.income_date.localeCompare(a.income_date))
+      .slice(0, 20)
+  }, [incomes])
+
   if (authLoading || !user || !currentMonth || !currentPeriod) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -483,6 +498,8 @@ export default function Dashboard() {
         incomeCategories={aiCategories.income}
         investmentTypes={aiCategories.investmentTypes}
         members={members}
+        recentExpenses={recentExpenses}
+        recentIncomes={recentIncomes}
       />
     </div>
   )

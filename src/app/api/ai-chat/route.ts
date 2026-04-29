@@ -133,6 +133,18 @@ export async function POST(request: NextRequest) {
       if (context.members?.length > 0) {
         contextInfo += `\nMembros da família: ${context.members.map((m: any) => m.name).join(', ')}`
       }
+      if (context.recentExpenses?.length > 0) {
+        contextInfo += `\n\nÚLTIMAS DESPESAS (use para ajudar o usuário a identificar, editar ou excluir):`
+        context.recentExpenses.forEach((e: any) => {
+          contextInfo += `\n- "${e.description}" | R$${Number(e.amount).toFixed(2)} | ${e.expense_date} | ${e.is_paid ? 'Paga' : 'A pagar'} | ${e.member?.name || 'Sem membro'} | ${e.category?.name || 'Sem categoria'}${e.is_credit_card ? ' | Cartão' : ''}`
+        })
+      }
+      if (context.recentIncomes?.length > 0) {
+        contextInfo += `\n\nÚLTIMAS RECEITAS:`
+        context.recentIncomes.forEach((i: any) => {
+          contextInfo += `\n- "${i.description}" | R$${Number(i.amount).toFixed(2)} | ${i.income_date} | ${i.is_paid ? 'Recebida' : 'A receber'} | ${i.member?.name || 'Sem membro'}`
+        })
+      }
       contextInfo += `\nData de hoje: ${new Date().toISOString().split('T')[0]}`
     }
 

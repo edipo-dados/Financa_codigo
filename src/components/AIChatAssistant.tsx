@@ -27,10 +27,12 @@ interface Props {
   incomeCategories: any[]
   investmentTypes: any[]
   members: any[]
+  recentExpenses?: any[]
+  recentIncomes?: any[]
 }
 
 export default function AIChatAssistant({
-  userId, onRefresh, onNavigate, creditCards, expenseCategories, incomeCategories, investmentTypes, members
+  userId, onRefresh, onNavigate, creditCards, expenseCategories, incomeCategories, investmentTypes, members, recentExpenses, recentIncomes
 }: Props) {
   const [isOpen, setIsOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([
@@ -401,7 +403,7 @@ export default function AIChatAssistant({
           messages: [...messages.filter(m => !m.content.startsWith('Olá!')).map(m => ({
             role: m.role, content: m.content
           })), apiMessage],
-          context: { creditCards, expenseCategories, incomeCategories, investmentTypes, members }
+          context: { creditCards, expenseCategories, incomeCategories, investmentTypes, members, recentExpenses, recentIncomes }
         })
       })
       const data = await res.json()
@@ -539,7 +541,7 @@ export default function AIChatAssistant({
                                   messages: [...messages.filter(m => !m.content.startsWith('Olá!')), msg, userMsg].map(m => ({
                                     role: m.role, content: m.content
                                   })),
-                                  context: { creditCards, expenseCategories, incomeCategories, investmentTypes, members }
+                                  context: { creditCards, expenseCategories, incomeCategories, investmentTypes, members, recentExpenses, recentIncomes }
                                 })
                               })
                               .then(res => res.json())
