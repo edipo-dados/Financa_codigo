@@ -56,6 +56,16 @@ Para INVESTIMENTO:
 Para EXCLUSÃO:
 <action>{"type":"delete","data":{"search_type":"expense|income|investment","search_term":"descrição para buscar","approximate_amount":100.00}}</action>
 
+Para BUSCA/CONSULTA de transações:
+Quando o usuário perguntar se fez alguma compra, quanto gastou em algo, ou pedir para buscar uma transação, use:
+<action>{"type":"search","data":{"search_term":"termo de busca","search_type":"expense|income|all","max_results":10}}</action>
+Exemplos de quando usar search:
+- "comprei algo na petlove?" → search com search_term "petlove"
+- "quanto gastei no ifood?" → search com search_term "ifood"
+- "me mostra as despesas de farmácia" → search com search_term "farmácia"
+- "quais foram minhas últimas compras?" → search com search_term "" (vazio = todas)
+- "recebi algum freelance?" → search com search_term "freelance" e search_type "income"
+
 Para LANÇAMENTO EM LOTE (múltiplos itens de uma imagem ou lista):
 Quando a imagem ou texto contiver MÚLTIPLOS lançamentos, use o tipo "batch":
 <action>{"type":"batch","data":{"items":[{"type":"expense","description":"item 1","amount":50.00,"expense_date":"2025-12-18","payment_method":"credit_card","category_hint":"alimentação","card_hint":"nubank","installments":1},{"type":"expense","description":"item 2","amount":30.00,"expense_date":"2025-12-18","payment_method":"pix","category_hint":"transporte"}]}}</action>

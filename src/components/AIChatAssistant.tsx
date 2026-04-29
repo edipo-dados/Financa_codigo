@@ -412,6 +412,82 @@ export default function AIChatAssistant({
       const action = parseAction(data.response)
       const options = parseOptions(data.response)
       const cleanContent = cleanMessage(data.response)
+
+      // Se é uma busca, executar direto e mostrar resultados no chat
+      if (action?.type === 'search') {
+        const d = action.data
+        let searchResults = ''
+        
+        if (d.search_type === 'income') {
+          const { data: items } = await (supabase as any).from('incomes')
+            .select('*, category:income_categories(*), member:family_members(*)')
+            .eq('user_id', userId)
+            .ilike('description', `%${d.search_term}%`)
+            .order('income_date', { ascending: false })
+            .limit(d.max_results || 10)
+          
+          if (items?.length > 0) {
+            searchResults = `\n\n📋 **Encontrei ${items.length} receita(s):**\n`
+            items.forEach((i: any) => {
+              searchResults += `\n• **${i.description}** — R$ ${Number(i.amount).toFixed(2)} — ${i.income_date} — ${i.is_paid ? '✅ Recebida' : '⏳ A receber'}${i.member?.name ? ` — ${i.member.name}` : ''}`
+            })
+          } else {
+            searchResults = '\n\n🔍 Não encontrei nenhuma receita com esse termo.'
+          }
+        } else {
+          // Buscar despesas (default ou "all")
+          const { data: expItems } = await (supabase as any).from('expenses')
+            .select('*, category:expense_categories(*), member:family_members(*), credit_card:credit_cards(*)')
+            .eq('user_id', userId)
+            .ilike('description', `%${d.search_term}%`)
+            .order('expense_date', { ascending: false })
+            .limit(d.max_results || 10)
+          
+          const filtered = (expItems || []).filter((e: any) => !e.description.endsWith('(Excluída)') && !(e.is_credit_card && !e.is_installment))
+          
+          if (d.search_type === 'all') {
+            // Buscar receitas também
+            const { data: incItems } = await (supabase as any).from('incomes')
+              .select('*, category:income_categories(*), member:family_members(*)')
+              .eq('user_id', userId)
+              .ilike('description', `%${d.search_term}%`)
+              .order('income_date', { ascending: false })
+              .limit(d.max_results || 10)
+            
+            if (filtered.length > 0) {
+              searchResults += `\n\n💸 **${filtered.length} despesa(s):**\n`
+              filtered.forEach((e: any) => {
+                searchResults += `\n• **${e.description}** — R$ ${Number(e.amount).toFixed(2)} — ${e.expense_date} — ${e.is_paid ? '✅ Paga' : '⏳ A pagar'}${e.member?.name ? ` — ${e.member.name}` : ''}${e.credit_card?.name ? ` — 💳 ${e.credit_card.name}` : ''}`
+              })
+            }
+            if (incItems?.length > 0) {
+              searchResults += `\n\n💰 **${incItems.length} receita(s):**\n`
+              incItems.forEach((i: any) => {
+                searchResults += `\n• **${i.description}** — R$ ${Number(i.amount).toFixed(2)} — ${i.income_date} — ${i.is_paid ? '✅ Recebida' : '⏳ A receber'}${i.member?.name ? ` — ${i.member.name}` : ''}`
+              })
+            }
+            if (filtered.length === 0 && (!incItems || incItems.length === 0)) {
+              searchResults = '\n\n🔍 Não encontrei nenhuma transação com esse termo.'
+            }
+          } else {
+            if (filtered.length > 0) {
+              const total = filtered.reduce((s: number, e: any) => s + Number(e.amount), 0)
+              searchResults = `\n\n📋 **Encontrei ${filtered.length} despesa(s)** (Total: R$ ${total.toFixed(2)}):\n`
+              filtered.forEach((e: any) => {
+                searchResults += `\n• **${e.description}** — R$ ${Number(e.amount).toFixed(2)} — ${e.expense_date} — ${e.is_paid ? '✅ Paga' : '⏳ A pagar'}${e.member?.name ? ` — ${e.member.name}` : ''}${e.credit_card?.name ? ` — 💳 ${e.credit_card.name}` : ''}`
+              })
+            } else {
+              searchResults = '\n\n🔍 Não encontrei nenhuma despesa com esse termo.'
+            }
+          }
+        }
+        
+        setMessages(prev => [...prev, {
+          id: (Date.now() + 1).toString(), role: 'assistant', content: cleanContent + searchResults
+        }])
+        setLoading(false)
+        return
+      }
       
       // Pré-selecionar cartão se a IA identificou
       let preSelectedCardId: string | undefined
