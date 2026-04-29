@@ -59,11 +59,16 @@ Para EXCLUSÃO:
 
 Para BUSCA/CONSULTA de transações:
 Quando o usuário perguntar se fez alguma compra, quanto gastou em algo, ou pedir para buscar uma transação, use:
-<action>{"type":"search","data":{"search_term":"termo de busca","search_type":"expense|income|all","max_results":10}}</action>
+<action>{"type":"search","data":{"search_term":"termo de busca","search_type":"expense|income|all","max_results":20}}</action>
+O search_term pode ser o nome de uma loja, produto, OU o nome de uma categoria (ex: "hobbie", "saúde", "alimentação").
+O sistema busca tanto na descrição quanto no nome da categoria automaticamente.
+Parcelas de uma mesma compra são agrupadas em uma única linha.
 Exemplos de quando usar search:
 - "comprei algo na petlove?" → search com search_term "petlove"
 - "quanto gastei no ifood?" → search com search_term "ifood"
 - "me mostra as despesas de farmácia" → search com search_term "farmácia"
+- "minhas compras com hobbie" → search com search_term "hobbie"
+- "gastos com saúde" → search com search_term "saúde"
 - "quais foram minhas últimas compras?" → search com search_term "" (vazio = todas)
 - "recebi algum freelance?" → search com search_term "freelance" e search_type "income"
 

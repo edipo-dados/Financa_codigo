@@ -433,69 +433,127 @@ export default function AIChatAssistant({
       // Se é uma busca, executar direto e mostrar resultados no chat
       if (action?.type === 'search') {
         const d = action.data
+        const term = d.search_term || ''
         let searchResults = ''
-        
-        if (d.search_type === 'income') {
-          const { data: items } = await (supabase as any).from('incomes')
+
+        const searchExpenses = async () => {
+          // Buscar por descrição
+          const { data: byDesc } = await (supabase as any).from('expenses')
+            .select('*, category:expense_categories(*), member:family_members(*), credit_card:credit_cards(*)')
+            .eq('user_id', userId)
+            .ilike('description', `%${term}%`)
+            .order('expense_date', { ascending: false })
+            .limit(50)
+
+          // Buscar por nome da categoria
+          const { data: byCategory } = await (supabase as any).from('expenses')
+            .select('*, category:expense_categories!inner(*), member:family_members(*), credit_card:credit_cards(*)')
+            .eq('user_id', userId)
+            .ilike('category.name', `%${term}%`)
+            .order('expense_date', { ascending: false })
+            .limit(50)
+
+          // Combinar e deduplicar
+          const allItems = [...(byDesc || []), ...(byCategory || [])]
+          const seen = new Set<string>()
+          const unique = allItems.filter(e => {
+            if (seen.has(e.id)) return false
+            seen.add(e.id)
+            return true
+          })
+
+          // Filtrar: excluir marcadores e parents de cartão
+          const filtered = unique.filter((e: any) =>
+            !e.description.endsWith('(Excluída)') && !(e.is_credit_card && !e.is_installment)
+          )
+
+          // Agrupar parcelas: mostrar 1 linha por compra (parent_expense_id)
+          const grouped: any[] = []
+          const parentsSeen = new Set<string>()
+
+          filtered.forEach((e: any) => {
+            if (e.is_installment && e.parent_expense_id) {
+              if (!parentsSeen.has(e.parent_expense_id)) {
+                parentsSeen.add(e.parent_expense_id)
+                // Contar parcelas desta compra
+                const siblings = filtered.filter((s: any) => s.parent_expense_id === e.parent_expense_id)
+                const paidCount = siblings.filter((s: any) => s.is_paid).length
+                const totalAmount = Number(e.total_amount || e.amount * (e.installments || 1))
+                const baseName = e.description.replace(/ - Parcela \d+\/\d+/, '')
+                grouped.push({
+                  ...e,
+                  _display: `**${baseName}** — R$ ${totalAmount.toFixed(2)} em ${e.installments || siblings.length}x (${paidCount} pagas) — ${e.member?.name || ''}${e.credit_card?.name ? ` — 💳 ${e.credit_card.name}` : ''}`
+                })
+              }
+            } else {
+              grouped.push({
+                ...e,
+                _display: `**${e.description}** — R$ ${Number(e.amount).toFixed(2)} — ${e.expense_date} — ${e.is_paid ? '✅ Paga' : '⏳ A pagar'}${e.member?.name ? ` — ${e.member.name}` : ''}${e.credit_card?.name ? ` — 💳 ${e.credit_card.name}` : ''}`
+              })
+            }
+          })
+
+          return grouped
+        }
+
+        const searchIncomes = async () => {
+          const { data: byDesc } = await (supabase as any).from('incomes')
             .select('*, category:income_categories(*), member:family_members(*)')
             .eq('user_id', userId)
-            .ilike('description', `%${d.search_term}%`)
+            .ilike('description', `%${term}%`)
             .order('income_date', { ascending: false })
-            .limit(d.max_results || 10)
-          
-          if (items?.length > 0) {
-            searchResults = `\n\n📋 **Encontrei ${items.length} receita(s):**\n`
-            items.forEach((i: any) => {
+            .limit(30)
+
+          const { data: byCategory } = await (supabase as any).from('incomes')
+            .select('*, category:income_categories!inner(*), member:family_members(*)')
+            .eq('user_id', userId)
+            .ilike('category.name', `%${term}%`)
+            .order('income_date', { ascending: false })
+            .limit(30)
+
+          const allItems = [...(byDesc || []), ...(byCategory || [])]
+          const seen = new Set<string>()
+          return allItems.filter(i => {
+            if (seen.has(i.id)) return false
+            seen.add(i.id)
+            return !i.description.endsWith('(Excluída)')
+          })
+        }
+
+        if (d.search_type === 'income') {
+          const items = await searchIncomes()
+          if (items.length > 0) {
+            const total = items.reduce((s: number, i: any) => s + Number(i.amount), 0)
+            searchResults = `\n\n📋 **Encontrei ${items.length} receita(s)** (Total: R$ ${total.toFixed(2)}):\n`
+            items.slice(0, 20).forEach((i: any) => {
               searchResults += `\n• **${i.description}** — R$ ${Number(i.amount).toFixed(2)} — ${i.income_date} — ${i.is_paid ? '✅ Recebida' : '⏳ A receber'}${i.member?.name ? ` — ${i.member.name}` : ''}`
             })
           } else {
             searchResults = '\n\n🔍 Não encontrei nenhuma receita com esse termo.'
           }
+        } else if (d.search_type === 'all') {
+          const expItems = await searchExpenses()
+          const incItems = await searchIncomes()
+          if (expItems.length > 0) {
+            searchResults += `\n\n💸 **${expItems.length} despesa(s):**\n`
+            expItems.slice(0, 15).forEach((e: any) => { searchResults += `\n• ${e._display}` })
+          }
+          if (incItems.length > 0) {
+            searchResults += `\n\n💰 **${incItems.length} receita(s):**\n`
+            incItems.slice(0, 15).forEach((i: any) => {
+              searchResults += `\n• **${i.description}** — R$ ${Number(i.amount).toFixed(2)} — ${i.income_date}${i.member?.name ? ` — ${i.member.name}` : ''}`
+            })
+          }
+          if (expItems.length === 0 && incItems.length === 0) {
+            searchResults = '\n\n🔍 Não encontrei nenhuma transação com esse termo.'
+          }
         } else {
-          // Buscar despesas (default ou "all")
-          const { data: expItems } = await (supabase as any).from('expenses')
-            .select('*, category:expense_categories(*), member:family_members(*), credit_card:credit_cards(*)')
-            .eq('user_id', userId)
-            .ilike('description', `%${d.search_term}%`)
-            .order('expense_date', { ascending: false })
-            .limit(d.max_results || 10)
-          
-          const filtered = (expItems || []).filter((e: any) => !e.description.endsWith('(Excluída)') && !(e.is_credit_card && !e.is_installment))
-          
-          if (d.search_type === 'all') {
-            // Buscar receitas também
-            const { data: incItems } = await (supabase as any).from('incomes')
-              .select('*, category:income_categories(*), member:family_members(*)')
-              .eq('user_id', userId)
-              .ilike('description', `%${d.search_term}%`)
-              .order('income_date', { ascending: false })
-              .limit(d.max_results || 10)
-            
-            if (filtered.length > 0) {
-              searchResults += `\n\n💸 **${filtered.length} despesa(s):**\n`
-              filtered.forEach((e: any) => {
-                searchResults += `\n• **${e.description}** — R$ ${Number(e.amount).toFixed(2)} — ${e.expense_date} — ${e.is_paid ? '✅ Paga' : '⏳ A pagar'}${e.member?.name ? ` — ${e.member.name}` : ''}${e.credit_card?.name ? ` — 💳 ${e.credit_card.name}` : ''}`
-              })
-            }
-            if (incItems?.length > 0) {
-              searchResults += `\n\n💰 **${incItems.length} receita(s):**\n`
-              incItems.forEach((i: any) => {
-                searchResults += `\n• **${i.description}** — R$ ${Number(i.amount).toFixed(2)} — ${i.income_date} — ${i.is_paid ? '✅ Recebida' : '⏳ A receber'}${i.member?.name ? ` — ${i.member.name}` : ''}`
-              })
-            }
-            if (filtered.length === 0 && (!incItems || incItems.length === 0)) {
-              searchResults = '\n\n🔍 Não encontrei nenhuma transação com esse termo.'
-            }
+          const items = await searchExpenses()
+          if (items.length > 0) {
+            searchResults = `\n\n📋 **Encontrei ${items.length} compra(s):**\n`
+            items.slice(0, 20).forEach((e: any) => { searchResults += `\n• ${e._display}` })
           } else {
-            if (filtered.length > 0) {
-              const total = filtered.reduce((s: number, e: any) => s + Number(e.amount), 0)
-              searchResults = `\n\n📋 **Encontrei ${filtered.length} despesa(s)** (Total: R$ ${total.toFixed(2)}):\n`
-              filtered.forEach((e: any) => {
-                searchResults += `\n• **${e.description}** — R$ ${Number(e.amount).toFixed(2)} — ${e.expense_date} — ${e.is_paid ? '✅ Paga' : '⏳ A pagar'}${e.member?.name ? ` — ${e.member.name}` : ''}${e.credit_card?.name ? ` — 💳 ${e.credit_card.name}` : ''}`
-              })
-            } else {
-              searchResults = '\n\n🔍 Não encontrei nenhuma despesa com esse termo.'
-            }
+            searchResults = '\n\n🔍 Não encontrei nenhuma despesa com esse termo.'
           }
         }
         
