@@ -161,7 +161,16 @@ export default function Dashboard() {
     }
     const totalInvested = filtered.reduce((sum, i) => sum + Number(i.initial_amount), 0)
     const totalCurrent = filtered.reduce((sum, i) => sum + Number(i.current_amount), 0)
-    return { totalInvested, totalCurrent, profit: totalCurrent - totalInvested, count: filtered.length }
+    // Somar todos os resgates (withdrawals)
+    const totalWithdrawn = filtered.reduce((sum, inv) => {
+      const withdrawals = (inv.transactions || [])
+        .filter(t => t.transaction_type === 'withdrawal')
+        .reduce((s, t) => s + Number(t.amount), 0)
+      return sum + withdrawals
+    }, 0)
+    // Líquido investido = investido - resgatado
+    const netInvested = totalInvested - totalWithdrawn
+    return { totalInvested, totalCurrent, profit: totalCurrent - totalInvested, totalWithdrawn, netInvested, count: filtered.length }
   }, [investments, selectedMember])
 
   if (authLoading || !user || !currentMonth || !currentPeriod) {
@@ -295,12 +304,13 @@ export default function Dashboard() {
                   💰 Saldo Acumulado {currentMonth.getFullYear()} (Jan - {format(currentMonth, 'MMM')})
                   {selectedMemberName && <span className="text-sm font-normal text-apple-gray-500 ml-2">({selectedMemberName})</span>}
                 </h3>
-                <div className={`text-4xl font-bold mb-1 ${(yearBalance.balance - investmentSummary.totalInvested) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {(yearBalance.balance - investmentSummary.totalInvested) >= 0 ? '+' : ''}{formatCurrency(yearBalance.balance - investmentSummary.totalInvested)}
+                <div className={`text-4xl font-bold mb-1 ${(yearBalance.balance - investmentSummary.netInvested) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {(yearBalance.balance - investmentSummary.netInvested) >= 0 ? '+' : ''}{formatCurrency(yearBalance.balance - investmentSummary.netInvested)}
                 </div>
-                {investmentSummary.totalInvested > 0 && (
+                {investmentSummary.netInvested > 0 && (
                   <p className="text-xs text-apple-gray-400 mb-4">
-                    Saldo sem investimentos: {formatCurrency(yearBalance.balance)} · Investido: {formatCurrency(investmentSummary.totalInvested)}
+                    Saldo sem investimentos: {formatCurrency(yearBalance.balance)} · Investido líquido: {formatCurrency(investmentSummary.netInvested)}
+                    {investmentSummary.totalWithdrawn > 0 && ` · Resgatado: ${formatCurrency(investmentSummary.totalWithdrawn)}`}
                   </p>
                 )}
                 <div className="grid grid-cols-2 gap-4">
@@ -346,13 +356,16 @@ export default function Dashboard() {
                       {selectedMemberName && <span className="text-xs text-apple-gray-400">({selectedMemberName})</span>}
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-semibold fintech-text-primary">{formatCurrency(investmentSummary.totalInvested)}</p>
+                      <p className="text-sm font-semibold fintech-text-primary">{formatCurrency(investmentSummary.netInvested)}</p>
                       <p className="text-xs text-apple-gray-400">
                         Atual: {formatCurrency(investmentSummary.totalCurrent)}
                         {investmentSummary.profit !== 0 && (
                           <span className={investmentSummary.profit >= 0 ? ' text-green-500' : ' text-red-500'}>
                             {' '}({investmentSummary.profit >= 0 ? '+' : ''}{formatCurrency(investmentSummary.profit)})
                           </span>
+                        )}
+                        {investmentSummary.totalWithdrawn > 0 && (
+                          <span> · Resgatado: {formatCurrency(investmentSummary.totalWithdrawn)}</span>
                         )}
                       </p>
                     </div>
