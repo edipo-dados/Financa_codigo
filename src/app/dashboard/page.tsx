@@ -153,7 +153,7 @@ export default function Dashboard() {
     return { totalIncomes, totalExpenses, balance: totalIncomes - totalExpenses }
   }, [incomes, expenses, currentPeriod, selectedMember])
 
-  // Investimentos (card separado)
+  // Investimentos (para descontar do saldo)
   const investmentSummary = useMemo(() => {
     let filtered = investments
     if (selectedMember) {
@@ -295,9 +295,14 @@ export default function Dashboard() {
                   💰 Saldo Acumulado {currentMonth.getFullYear()} (Jan - {format(currentMonth, 'MMM')})
                   {selectedMemberName && <span className="text-sm font-normal text-apple-gray-500 ml-2">({selectedMemberName})</span>}
                 </h3>
-                <div className={`text-4xl font-bold mb-4 ${yearBalance.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {yearBalance.balance >= 0 ? '+' : ''}{formatCurrency(yearBalance.balance)}
+                <div className={`text-4xl font-bold mb-1 ${(yearBalance.balance - investmentSummary.totalInvested) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {(yearBalance.balance - investmentSummary.totalInvested) >= 0 ? '+' : ''}{formatCurrency(yearBalance.balance - investmentSummary.totalInvested)}
                 </div>
+                {investmentSummary.totalInvested > 0 && (
+                  <p className="text-xs text-apple-gray-400 mb-4">
+                    Saldo sem investimentos: {formatCurrency(yearBalance.balance)} · Investido: {formatCurrency(investmentSummary.totalInvested)}
+                  </p>
+                )}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-xl">
                     <p className="text-xs text-green-600 font-medium">Receitas Acumuladas</p>
@@ -331,30 +336,27 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Investimentos */}
+              {/* Investimentos - info discreta */}
               {investmentSummary.count > 0 && (
-                <div className="glass-card p-6 rounded-2xl">
-                  <h3 className="text-lg font-semibold fintech-text-primary mb-4">
-                    📈 Investimentos
-                    {selectedMemberName && <span className="text-sm font-normal text-apple-gray-500 ml-2">({selectedMemberName})</span>}
-                  </h3>
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
-                      <p className="text-xs text-blue-600 font-medium">Valor Investido</p>
-                      <p className="text-lg font-bold text-blue-700">{formatCurrency(investmentSummary.totalInvested)}</p>
+                <div className="glass-card p-4 rounded-2xl">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">📈</span>
+                      <span className="text-sm font-medium fintech-text-secondary">Investimentos</span>
+                      {selectedMemberName && <span className="text-xs text-apple-gray-400">({selectedMemberName})</span>}
                     </div>
-                    <div className="p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl">
-                      <p className="text-xs text-indigo-600 font-medium">Valor Atual</p>
-                      <p className="text-lg font-bold text-indigo-700">{formatCurrency(investmentSummary.totalCurrent)}</p>
-                    </div>
-                    <div className={`p-3 rounded-xl ${investmentSummary.profit >= 0 ? 'bg-green-50 dark:bg-green-900/20' : 'bg-red-50 dark:bg-red-900/20'}`}>
-                      <p className={`text-xs font-medium ${investmentSummary.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>Rendimento</p>
-                      <p className={`text-lg font-bold ${investmentSummary.profit >= 0 ? 'text-green-700' : 'text-red-700'}`}>
-                        {investmentSummary.profit >= 0 ? '+' : ''}{formatCurrency(investmentSummary.profit)}
+                    <div className="text-right">
+                      <p className="text-sm font-semibold fintech-text-primary">{formatCurrency(investmentSummary.totalInvested)}</p>
+                      <p className="text-xs text-apple-gray-400">
+                        Atual: {formatCurrency(investmentSummary.totalCurrent)}
+                        {investmentSummary.profit !== 0 && (
+                          <span className={investmentSummary.profit >= 0 ? ' text-green-500' : ' text-red-500'}>
+                            {' '}({investmentSummary.profit >= 0 ? '+' : ''}{formatCurrency(investmentSummary.profit)})
+                          </span>
+                        )}
                       </p>
                     </div>
                   </div>
-                  <p className="text-xs text-apple-gray-400 mt-3">{investmentSummary.count} investimento(s) — não contabilizados como despesa</p>
                 </div>
               )}
             </div>
