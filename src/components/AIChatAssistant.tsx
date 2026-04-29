@@ -409,9 +409,26 @@ export default function AIChatAssistant({
       const data = await res.json()
       if (data.error) throw new Error(data.error)
 
-      const action = parseAction(data.response)
+      let action = parseAction(data.response)
       const options = parseOptions(data.response)
       const cleanContent = cleanMessage(data.response)
+
+      // Detectar se o usuário está fazendo uma consulta (não uma exclusão/registro)
+      const userLower = messageText.toLowerCase()
+      const isQuery = /\b(mostre|mostra|comprei|gastei|tem algum|quais|lista|busca|procura|quanto|pesquis|encontr|achei|fiz algum|teve|houve)\b/.test(userLower)
+      
+      // Se a IA retornou delete mas o usuário está consultando, converter para search
+      if (action && action.type === 'delete' && isQuery) {
+        action = { type: 'search', data: { search_term: action.data.search_term, search_type: action.data.search_type || 'expense', max_results: 15 } }
+      }
+      // Se a IA não retornou search mas o usuário está claramente consultando, forçar busca
+      if (!action && isQuery && !options) {
+        // Extrair possível termo de busca da mensagem
+        const termMatch = userLower.match(/(?:na|no|de|do|em|sobre|da)\s+(.+?)(?:\?|$|,|\.)/)
+        if (termMatch) {
+          action = { type: 'search', data: { search_term: termMatch[1].trim(), search_type: 'expense', max_results: 15 } }
+        }
+      }
 
       // Se é uma busca, executar direto e mostrar resultados no chat
       if (action?.type === 'search') {
