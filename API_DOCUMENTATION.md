@@ -1,4 +1,4 @@
-# 📚 Documentação da API - Sistema Financeiro
+# 📚 Documentação da API - EAS Controle Financeiro v2.0
 
 API REST para integração com aplicações de IA e outros sistemas externos.
 
@@ -991,6 +991,61 @@ curl -X DELETE "https://financa-codigo.vercel.app/api/credit-card-purchases/uuid
   "message": "Compra e parcelas excluídas com sucesso"
 }
 ```
+
+---
+
+## 🤖 Chat IA (EAS Finance AI)
+
+### Enviar Mensagem
+
+**Endpoint:** `POST /api/ai-chat`
+
+**Body (JSON):**
+```json
+{
+  "messages": [
+    { "role": "user", "content": "paguei 50 de almoço no pix" }
+  ],
+  "context": {
+    "creditCards": [],
+    "expenseCategories": [{"id": "uuid", "name": "Alimentação"}],
+    "incomeCategories": [],
+    "investmentTypes": [],
+    "members": [{"id": "uuid", "name": "Édipo"}],
+    "recentExpenses": [],
+    "recentIncomes": []
+  }
+}
+```
+
+**Campos:**
+- `messages` - Array de mensagens no formato `{role, content}`. Pode incluir `image: {data, mimeType}` para análise de comprovantes
+- `context` - Dados do usuário para contextualizar a IA (cartões, categorias, membros, últimas transações)
+
+**Funcionalidades da IA:**
+- Registrar despesas, receitas e investimentos por texto
+- Analisar comprovantes e notas fiscais por foto
+- Buscar transações por nome, loja ou categoria
+- Lançamento em lote a partir de imagens de fatura
+- Exclusão de transações por comando
+
+**Exemplo de Response:**
+```json
+{
+  "response": "Entendi! Vou registrar a despesa do almoço de R$ 50,00 no PIX. 🍽️\n<action>{\"type\":\"expense\",\"data\":{\"description\":\"Almoço\",\"amount\":50.00,\"payment_method\":\"pix\",\"expense_date\":\"2026-04-28\",\"category_hint\":\"Alimentação\"}}</action>"
+}
+```
+
+**Tipos de ação retornados:**
+- `expense` — despesa comum
+- `credit_card_expense` — compra no cartão de crédito
+- `income` — receita
+- `investment` — investimento
+- `delete` — exclusão de transação
+- `search` — busca de transações (por descrição e categoria)
+- `batch` — lançamento em lote (múltiplos itens)
+
+**Requer:** `GEMINI_API_KEY` configurada nas variáveis de ambiente.
 
 ---
 

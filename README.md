@@ -1,103 +1,82 @@
-# 💰 EAS Controle Financeiro
+# 💰 EAS Controle Financeiro v2.0
 
-Sistema completo de gestão financeira pessoal desenvolvido com Next.js 15, React 19 e Supabase.
+Sistema inteligente de gestão financeira pessoal e familiar com assistente de IA integrado. Desenvolvido com Next.js 16, React 19, Supabase e Google Gemini AI.
+
+## 🤖 Novidades da v2.0
+
+- **Assistente IA** — registre transações por texto ou foto, busque compras por nome/categoria
+- **Saldo inteligente** — acumulado do ano descontando investimentos, consistente com soma mensal
+- **Busca de transações** — pergunte à IA sobre compras, gastos por categoria ou loja
+- **Resgates de investimentos** — controle de aportes, resgates e rendimento líquido
+- **API de membros** — novo endpoint para integração externa
+- **API de resumo corrigida** — exclui duplicações de cartão e marcadores
 
 ## ✨ Funcionalidades
 
-### 💸 Gestão Financeira
-- Despesas (comuns e recorrentes)
-- Receitas (comuns e recorrentes)
-- Investimentos (únicos e recorrentes)
-- Cartões de crédito com parcelas automáticas
+### 🤖 Assistente IA (EAS Finance AI)
+- Registrar despesas, receitas e investimentos por linguagem natural
+- Analisar comprovantes e notas fiscais por foto
+- Buscar compras por nome, loja ou categoria
+- Lançamento em lote a partir de imagens de fatura
+- Classificação automática de categorias
+- Exclusão de transações por comando
+
+### 📊 Dashboard
+- Saldo acumulado do ano (Jan até mês selecionado, descontando investimentos)
+- Saldo mensal (receitas - despesas)
+- Filtro global de mês para todas as abas
+- Filtro por membro da família
+- Card discreto de investimentos (líquido, atual, rendimento, resgates)
+
+### 💸 Despesas
+- Despesas comuns e recorrentes
+- Múltiplas formas de pagamento (PIX, cartão, débito, dinheiro, transferência)
+- Seleção múltipla para pagamento em lote
+- Filtros por membro, categoria, status e busca textual
+- Ocorrências virtuais de recorrência com exclusão individual
+
+### 💰 Receitas
+- Receitas comuns e recorrentes
 - Categorização personalizada
+- Controle de recebimentos (pago/a receber)
+- Edição e exclusão de ocorrências virtuais
+
+### 📈 Investimentos
+- Controle de aportes e valor atual
+- Resgates com histórico de transações
+- Tipos personalizáveis
+- Rendimento calculado automaticamente
+- Descontado do saldo no dashboard (líquido = investido - resgatado)
+
+### 💳 Cartões de Crédito
+- Múltiplos cartões com cores e limites
+- Compras parceladas com cálculo automático de datas
+- Faturas agrupadas por cartão e mês
+- Pagamento de fatura inteira com um clique
+
+### 👥 Gestão Familiar
+- Membros da família com cores e relacionamento
+- Filtro por membro em todas as telas
+- Relatórios individuais
+
+### 🔌 APIs REST
+- Despesas, receitas, investimentos (CRUD completo)
+- Resumo financeiro com filtros inteligentes
 - Membros da família
-
-### 📊 Visualizações
-- Dashboard configurável com drag & drop
-- Gráficos interativos (Recharts)
-- Resumo financeiro mensal
-- Projeções futuras
-- Relatórios em PDF
-
-### 🎨 Interface
-- Design moderno e responsivo
-- Modo escuro
-- Navegação simplificada no mobile (4 telas)
-- Navegação completa no desktop (8 telas)
-
-### 🔐 Segurança
-- Autenticação via Supabase
-- Row Level Security (RLS)
-- Modo demo disponível
+- Cartões de crédito com faturas
+- Compras parceladas
+- Categorias (despesa e receita)
 
 ## 🚀 Início Rápido
 
-### Pré-requisitos
-- Node.js 18+
-- Conta no Supabase
-- Conta no Vercel (para deploy)
-
-### Instalação
-
 ```bash
-# Clone o repositório
-git clone https://github.com/seu-usuario/financa-codigo.git
-cd financa-codigo
-
-# Instale as dependências
+git clone https://github.com/edipo-dados/Financa_codigo.git
+cd Financa_codigo
 npm install
-
-# Configure as variáveis de ambiente
 cp .env.example .env.local
-# Edite .env.local com suas credenciais do Supabase
-
-# Execute as migrações do banco
-# Acesse o Supabase Dashboard > SQL Editor
-# Execute os arquivos em supabase/migrations/ em ordem
-
-# Inicie o servidor de desenvolvimento
+# Edite .env.local com suas credenciais
 npm run dev
 ```
-
-Acesse [http://localhost:3000](http://localhost:3000)
-
-## 📚 Documentação
-
-- **[ARCHITECTURE.md](ARCHITECTURE.md)** - Arquitetura do sistema
-- **[API_DOCUMENTATION.md](API_DOCUMENTATION.md)** - Documentação das APIs REST
-- **[AUTENTICACAO_API.md](AUTENTICACAO_API.md)** - Guia de autenticação
-- **[MANUAL_DO_USUARIO.md](MANUAL_DO_USUARIO.md)** - Manual do usuário
-- **[SETUP.md](SETUP.md)** - Guia de configuração detalhado
-- **[QUICKSTART.md](QUICKSTART.md)** - Início rápido
-- **[FUNCIONALIDADES_COMPLETAS.md](FUNCIONALIDADES_COMPLETAS.md)** - Lista completa de funcionalidades
-
-## 🛠️ Stack Tecnológica
-
-- **Frontend:** Next.js 15, React 19, TypeScript, Tailwind CSS
-- **Backend:** Supabase (PostgreSQL)
-- **Gráficos:** Recharts
-- **PDF:** jsPDF
-- **Deploy:** Vercel
-
-## 📱 Navegação
-
-### Mobile (4 telas)
-- 📊 Dashboard
-- 💸 Despesas
-- 💰 Receitas
-- 💳 Cartões
-
-### Desktop (8 telas)
-- 📊 Dashboard
-- 💰 Receitas
-- 💸 Despesas
-- 📈 Investimentos
-- 🔮 Futuros
-- 💳 Cartões
-- ⚙️ Configurações
-- 📱 Sobre
-
-## 🔧 Configuração
 
 ### Variáveis de Ambiente
 
@@ -105,95 +84,38 @@ Acesse [http://localhost:3000](http://localhost:3000)
 NEXT_PUBLIC_SUPABASE_URL=sua_url_supabase
 NEXT_PUBLIC_SUPABASE_ANON_KEY=sua_anon_key
 SUPABASE_SERVICE_ROLE_KEY=sua_service_role_key
+GEMINI_API_KEY=sua_chave_gemini
 ```
 
-### Supabase
+## 🛠️ Stack Tecnológica
 
-1. Crie um projeto no [Supabase](https://supabase.com)
-2. Execute as migrações em `supabase/migrations/`
-3. Configure as variáveis de ambiente
-4. Habilite Row Level Security (RLS)
+| Camada | Tecnologia |
+|--------|-----------|
+| Frontend | Next.js 16, React 19, TypeScript, Tailwind CSS |
+| Backend | Supabase (PostgreSQL), API Routes |
+| IA | Google Gemini 2.5 Flash |
+| Deploy | Vercel |
+| PDF | jsPDF + html2canvas |
 
-### Vercel
+## 📱 Navegação
 
-1. Conecte seu repositório GitHub
-2. Configure as variáveis de ambiente
-3. Deploy automático a cada push na `main`
+### Mobile (5 abas)
+📊 Dashboard · 💸 Despesas · 💰 Receitas · 💳 Cartões · ⚙️ Config
 
-## 🎯 Uso
+### Desktop (8 abas)
+📊 Dashboard · 💰 Receitas · 💸 Despesas · 📈 Investimentos · 🔮 Futuros · 💳 Cartões · ⚙️ Config · 📱 Sobre
 
-### Modo Demo
-Acesse sem autenticação para testar o sistema.
+## 📚 Documentação
 
-### Modo Autenticado
-1. Crie uma conta
-2. Configure categorias e cartões
-3. Adicione membros da família (opcional)
-4. Comece a registrar suas finanças
-
-## 📊 APIs REST
-
-O sistema oferece APIs REST completas para integração:
-
-```bash
-# Listar despesas
-GET /api/expenses?user_id=UUID&start_date=2026-01-01
-
-# Criar despesa
-POST /api/expenses
-{
-  "user_id": "UUID",
-  "amount": 150.50,
-  "description": "Supermercado",
-  "expense_date": "2026-03-13",
-  "category_id": "UUID"
-}
-
-# Listar cartões com faturas
-GET /api/credit-cards?user_id=UUID&month=2026-03
-
-# Criar compra parcelada
-POST /api/credit-card-purchases
-{
-  "user_id": "UUID",
-  "credit_card_id": "UUID",
-  "description": "Notebook",
-  "total_amount": 5000.00,
-  "installments": 12,
-  "purchase_date": "2026-03-13"
-}
-```
-
-Ver [API_DOCUMENTATION.md](API_DOCUMENTATION.md) para detalhes completos.
-
-## 🤝 Contribuindo
-
-Contribuições são bem-vindas! Por favor:
-
-1. Fork o projeto
-2. Crie uma branch para sua feature (`git checkout -b feature/AmazingFeature`)
-3. Commit suas mudanças (`git commit -m 'Add some AmazingFeature'`)
-4. Push para a branch (`git push origin feature/AmazingFeature`)
-5. Abra um Pull Request
-
-## 📄 Licença
-
-Este projeto está sob a licença MIT. Ver arquivo [LICENSE](LICENSE) para detalhes.
+- [API_DOCUMENTATION.md](API_DOCUMENTATION.md) — APIs REST completas
+- [ARCHITECTURE.md](ARCHITECTURE.md) — Arquitetura do sistema
+- [AUTENTICACAO_API.md](AUTENTICACAO_API.md) — Guia de autenticação
+- [MANUAL_DO_USUARIO.md](MANUAL_DO_USUARIO.md) — Manual do usuário
 
 ## 👤 Autor
 
-**Édipo de Almeida Santos**
+**Édipo de Almeida Santos** — [@edipo-dados](https://github.com/edipo-dados)
 
-- GitHub: [@edipo-dados](https://github.com/edipo-dados)
-- Email: contato@eastech.com.br
+## 📄 Licença
 
-## 🙏 Agradecimentos
-
-- Next.js Team
-- Supabase Team
-- Vercel Team
-- Comunidade Open Source
-
----
-
-Desenvolvido com 💙 para gestão financeira inteligente
+Proprietário — ver [LICENSE](LICENSE)
