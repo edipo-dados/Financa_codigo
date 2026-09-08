@@ -488,19 +488,22 @@ export default function InvoiceImporter({ userId, onSuccess }: Props) {
     setError('')
   }
 
-  // Total a lançar: para parceladas novas, "amount" é o total da compra (todas as parcelas).
-  const itemsTotal = items
-    .filter(i => i.classification === 'nova_avista' || i.classification === 'nova_parcelada')
-    .reduce((sum, i) => sum + Number(i.amount), 0)
-
-  // Valor que este item representa NA FATURA DO MÊS (para conferir com o total impresso):
+  // Valor que este item representa NA FATURA DESTE MÊS:
   // - à vista: o valor cheio
-  // - parcelada (nova ou existente): apenas o valor de UMA parcela (amount / installments)
+  // - parcelada (nova ou já existente): apenas o valor de UMA parcela (amount / installments),
+  //   pois só a parcela deste mês entra nesta fatura. O total_amount fica só como referência
+  //   da compra inteira (usado depois para gerar todas as parcelas via createInstallmentsData).
   const invoiceMonthValue = (i: ExtractedItem) => {
     const inst = Number(i.installments) || 1
     if (inst > 1) return Number(i.amount) / inst
     return Number(i.amount)
   }
+
+  // "Total a lançar" nesta fatura: soma o valor da parcela deste mês (não o total da compra).
+  const itemsTotal = items
+    .filter(i => i.classification === 'nova_avista' || i.classification === 'nova_parcelada')
+    .reduce((sum, i) => sum + invoiceMonthValue(i), 0)
+
   const allItemsTotal = items.reduce((sum, i) => sum + invoiceMonthValue(i), 0)
   const newItemsCount = items.filter(i => i.classification === 'nova_avista' || i.classification === 'nova_parcelada').length
   const reviewCount = items.filter(i => i.needs_review).length
@@ -751,13 +754,25 @@ export default function InvoiceImporter({ userId, onSuccess }: Props) {
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-1">
+                      {/* Mostra o valor DESTA fatura (parcela do mês). item.amount continua
+                          sendo o total da compra, usado para gerar todas as parcelas. */}
                       <input
                         type="number"
                         step="0.01"
-                        value={item.amount}
-                        onChange={e => updateItem(idx, { amount: parseFloat(e.target.value) || 0 })}
+                        value={Number(invoiceMonthValue(item).toFixed(2))}
+                        onChange={e => {
+                          const parcela = parseFloat(e.target.value) || 0
+                          const inst = Number(item.installments) || 1
+                          // Se parcelado, o valor digitado é a parcela: total = parcela × parcelas
+                          updateItem(idx, { amount: inst > 1 ? parcela * inst : parcela })
+                        }}
                         className="w-24 text-right bg-transparent font-bold text-sm fintech-text-primary border-b border-transparent focus:border-blue-400 outline-none"
                       />
+                      {Number(item.installments) > 1 && (
+                        <span className="text-[10px] fintech-text-muted">
+                          total {formatCurrency(Number(item.amount))}
+                        </span>
+                      )}
                       <div className="flex items-center gap-1">
                         <select
                           value={item.classification}
