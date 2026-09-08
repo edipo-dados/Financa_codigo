@@ -48,6 +48,7 @@ export default function InvoiceImporter({ userId, onSuccess }: Props) {
   // Arquivo pronto para análise. Para PDF, guardamos as páginas rasterizadas como imagens.
   const [file, setFile] = useState<{ pages: { data: string; mimeType: string }[]; name: string; pageCount: number } | null>(null)
   const [processingFile, setProcessingFile] = useState(false)
+  const [analyzeProgress, setAnalyzeProgress] = useState<{ done: number; total: number } | null>(null)
   // Fluxo de senha de PDF (senha só vive em memória, nunca é persistida)
   const [pdfPassword, setPdfPassword] = useState<{ file: File; error: string | null } | null>(null)
   const [passwordInput, setPasswordInput] = useState('')
@@ -171,33 +172,16 @@ export default function InvoiceImporter({ userId, onSuccess }: Props) {
     }
     setError('')
     setStep('analyzing')
+    setAnalyzeProgress({ done: 0, total: file.pages.length })
 
     try {
-      // Agrupar páginas em lotes que cabem no limite de body do serverless (~4,5MB).
-      // Cada lote não deve passar de ~3,5MB de base64.
-      const MAX_BATCH_BASE64 = 3.5 * 1024 * 1024
-      const b64Bytes = (s: string) => Math.ceil((s.length * 3) / 4)
+      // Estratégia: 1 página por request, em paralelo (com limite de concorrência).
+      // Cada chamada ao Gemini fica curta (uma página), evitando o timeout da função,
+      // e o payload de cada request fica bem abaixo do limite do serverless.
+      const pages = file.pages
+      const total = pages.length
 
-      const batches: { data: string; mimeType: string }[][] = []
-      let current: { data: string; mimeType: string }[] = []
-      let currentBytes = 0
-      for (const page of file.pages) {
-        const size = b64Bytes(page.data)
-        if (current.length > 0 && currentBytes + size > MAX_BATCH_BASE64) {
-          batches.push(current)
-          current = []
-          currentBytes = 0
-        }
-        current.push(page)
-        currentBytes += size
-      }
-      if (current.length > 0) batches.push(current)
-
-      // Enviar cada lote e mesclar os itens. invoiceTotal: usar o primeiro não-nulo.
-      let mergedItems: ExtractedItem[] = []
-      let invoiceTotalValue: number | null = null
-
-      for (let i = 0; i < batches.length; i++) {
+      const analyzePage = async (page: { data: string; mimeType: string }, index: number) => {
         const res = await fetch('/api/import-invoice', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -205,16 +189,37 @@ export default function InvoiceImporter({ userId, onSuccess }: Props) {
             userId,
             creditCardId: selectedCard,
             invoiceMonth,
-            files: batches[i],
+            files: [page],
             expenseCategories,
-            batchInfo: { index: i, total: batches.length }
+            batchInfo: { index, total }
           })
         })
         const data = await parseResponse(res)
         if (data.error) throw new Error(data.error)
-        mergedItems = mergedItems.concat(data.items || [])
-        if (invoiceTotalValue == null && data.invoiceTotal != null) {
-          invoiceTotalValue = data.invoiceTotal
+        setAnalyzeProgress(prev => prev ? { ...prev, done: prev.done + 1 } : prev)
+        return data as { items?: ExtractedItem[]; invoiceTotal?: number | null }
+      }
+
+      // Executa com concorrência limitada para não sobrecarregar o navegador/API.
+      const CONCURRENCY = 3
+      const results: { items?: ExtractedItem[]; invoiceTotal?: number | null }[] = new Array(total)
+      let cursor = 0
+      const workers = Array.from({ length: Math.min(CONCURRENCY, total) }, async () => {
+        while (true) {
+          const i = cursor++
+          if (i >= total) break
+          results[i] = await analyzePage(pages[i], i)
+        }
+      })
+      await Promise.all(workers)
+
+      // Mesclar mantendo a ordem das páginas
+      let mergedItems: ExtractedItem[] = []
+      let invoiceTotalValue: number | null = null
+      for (const r of results) {
+        mergedItems = mergedItems.concat(r?.items || [])
+        if (invoiceTotalValue == null && r?.invoiceTotal != null) {
+          invoiceTotalValue = r.invoiceTotal
         }
       }
 
@@ -232,9 +237,11 @@ export default function InvoiceImporter({ userId, onSuccess }: Props) {
 
       setItems(itemsWithCategory)
       setInvoiceTotal(invoiceTotalValue)
+      setAnalyzeProgress(null)
       setStep('preview')
     } catch (err: any) {
       setError(err.message)
+      setAnalyzeProgress(null)
       setStep('config')
     }
   }
@@ -424,7 +431,11 @@ export default function InvoiceImporter({ userId, onSuccess }: Props) {
       {step === 'analyzing' && (
         <div className="py-16 flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-          <p className="fintech-text-secondary text-sm">Processando com IA... isso pode levar alguns segundos</p>
+          <p className="fintech-text-secondary text-sm">
+            {analyzeProgress && analyzeProgress.total > 1
+              ? `Analisando páginas com IA... ${analyzeProgress.done}/${analyzeProgress.total}`
+              : 'Processando com IA... isso pode levar alguns segundos'}
+          </p>
         </div>
       )}
 
