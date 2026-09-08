@@ -70,6 +70,8 @@ export default function InvoiceImporter({ userId, onSuccess }: Props) {
   const processPdf = async (f: File, password?: string) => {
     setProcessingFile(true)
     try {
+      // Mantém boa resolução por página; o envio é feito em lotes (ver handleAnalyze)
+      // para respeitar o limite de body do serverless (~4,5MB na Vercel).
       const pages: PdfPageImage[] = await rasterizePdf(f, password)
       setFile({
         pages: pages.map(p => ({ data: p.data, mimeType: p.mimeType })),
@@ -141,6 +143,27 @@ export default function InvoiceImporter({ userId, onSuccess }: Props) {
     await processPdf(pdfPassword.file, passwordInput)
   }
 
+  // Lê a resposta com segurança: se não vier JSON (ex: erro 413/500 em HTML,
+  // timeout ou payload grande demais), gera uma mensagem clara em vez de
+  // "Unexpected token ... is not valid JSON".
+  const parseResponse = async (res: Response) => {
+    const text = await res.text()
+    try {
+      return JSON.parse(text)
+    } catch {
+      if (res.status === 413) {
+        throw new Error('A fatura ficou grande demais para enviar. Tente um PDF com menos páginas ou uma imagem mais leve.')
+      }
+      if (res.status === 504 || res.status === 408) {
+        throw new Error('A análise demorou demais e expirou. Tente novamente, ou envie menos páginas por vez.')
+      }
+      const snippet = text.trim().slice(0, 120)
+      throw new Error(
+        `Erro ${res.status} ao processar a fatura. ${snippet || 'Resposta inválida do servidor.'}`
+      )
+    }
+  }
+
   const handleAnalyze = async () => {
     if (!selectedCard || !invoiceMonth || !file || file.pages.length === 0) {
       setError('Selecione o cartão, o mês e o arquivo da fatura.')
@@ -150,22 +173,53 @@ export default function InvoiceImporter({ userId, onSuccess }: Props) {
     setStep('analyzing')
 
     try {
-      const res = await fetch('/api/import-invoice', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId,
-          creditCardId: selectedCard,
-          invoiceMonth,
-          files: file.pages,
-          expenseCategories
+      // Agrupar páginas em lotes que cabem no limite de body do serverless (~4,5MB).
+      // Cada lote não deve passar de ~3,5MB de base64.
+      const MAX_BATCH_BASE64 = 3.5 * 1024 * 1024
+      const b64Bytes = (s: string) => Math.ceil((s.length * 3) / 4)
+
+      const batches: { data: string; mimeType: string }[][] = []
+      let current: { data: string; mimeType: string }[] = []
+      let currentBytes = 0
+      for (const page of file.pages) {
+        const size = b64Bytes(page.data)
+        if (current.length > 0 && currentBytes + size > MAX_BATCH_BASE64) {
+          batches.push(current)
+          current = []
+          currentBytes = 0
+        }
+        current.push(page)
+        currentBytes += size
+      }
+      if (current.length > 0) batches.push(current)
+
+      // Enviar cada lote e mesclar os itens. invoiceTotal: usar o primeiro não-nulo.
+      let mergedItems: ExtractedItem[] = []
+      let invoiceTotalValue: number | null = null
+
+      for (let i = 0; i < batches.length; i++) {
+        const res = await fetch('/api/import-invoice', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId,
+            creditCardId: selectedCard,
+            invoiceMonth,
+            files: batches[i],
+            expenseCategories,
+            batchInfo: { index: i, total: batches.length }
+          })
         })
-      })
-      const data = await res.json()
-      if (data.error) throw new Error(data.error)
+        const data = await parseResponse(res)
+        if (data.error) throw new Error(data.error)
+        mergedItems = mergedItems.concat(data.items || [])
+        if (invoiceTotalValue == null && data.invoiceTotal != null) {
+          invoiceTotalValue = data.invoiceTotal
+        }
+      }
 
       // Pré-associar categorias (só quando há hint; senão fica "Sem categoria")
-      const itemsWithCategory = (data.items || []).map((item: ExtractedItem) => {
+      const itemsWithCategory = mergedItems.map((item: ExtractedItem) => {
         const hint = (item.category_hint || '').trim().toLowerCase()
         const matched = hint
           ? expenseCategories.find(c => {
@@ -177,7 +231,7 @@ export default function InvoiceImporter({ userId, onSuccess }: Props) {
       })
 
       setItems(itemsWithCategory)
-      setInvoiceTotal(data.invoiceTotal)
+      setInvoiceTotal(invoiceTotalValue)
       setStep('preview')
     } catch (err: any) {
       setError(err.message)
@@ -198,7 +252,7 @@ export default function InvoiceImporter({ userId, onSuccess }: Props) {
           items
         })
       })
-      const data = await res.json()
+      const data = await parseResponse(res)
       if (data.error) throw new Error(data.error)
       setResult(data)
       setStep('done')

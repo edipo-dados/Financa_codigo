@@ -30,7 +30,8 @@ export async function POST(request: NextRequest) {
       invoiceMonth, // formato "YYYY-MM"
       files, // [{ data: base64, mimeType: string }] - páginas rasterizadas
       file, // compat: { data: base64, mimeType: string } (imagem única)
-      expenseCategories = []
+      expenseCategories = [],
+      batchInfo // { index, total } quando a fatura é enviada em lotes
     } = body
 
     // Normalizar para uma lista de imagens
@@ -177,9 +178,13 @@ RESPONDA APENAS COM JSON VÁLIDO neste formato exato (sem markdown, sem explica�
       }
     }))
 
-    const multiPageNote = imageList.length > 1
-      ? `\n\nOBSERVAÇÃO: As ${imageList.length} imagens anexadas são páginas sequenciais de UMA ÚNICA fatura. Trate-as como um único documento e extraia as compras de todas as páginas, na ordem em que aparecem.`
-      : ''
+    const isBatched = batchInfo && Number(batchInfo.total) > 1
+    let multiPageNote = ''
+    if (isBatched) {
+      multiPageNote = `\n\nOBSERVAÇÃO: Esta é a PARTE ${Number(batchInfo.index) + 1} de ${Number(batchInfo.total)} de UMA ÚNICA fatura, dividida em lotes de páginas. Extraia as compras APENAS das imagens anexadas neste lote, na ordem em que aparecem. O total impresso da fatura pode não estar neste lote; se não aparecer, use "invoice_total": null.`
+    } else if (imageList.length > 1) {
+      multiPageNote = `\n\nOBSERVAÇÃO: As ${imageList.length} imagens anexadas são páginas sequenciais de UMA ÚNICA fatura. Trate-as como um único documento e extraia as compras de todas as páginas, na ordem em que aparecem.`
+    }
 
     const result = await model.generateContent([
       ...imageParts,
