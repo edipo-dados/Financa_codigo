@@ -5,6 +5,7 @@ import { useCreditCards } from '@/hooks/useCreditCards'
 import { useFamilyMembers } from '@/hooks/useFamilyMembers'
 import { supabase } from '@/lib/supabase'
 import { formatCurrency } from '@/lib/utils'
+import { isPdfFile, rasterizePdf, PdfPasswordError, type PdfPageImage } from '@/lib/pdfProcessor'
 
 interface Props {
   userId: string
@@ -43,7 +44,12 @@ export default function InvoiceImporter({ userId, onSuccess }: Props) {
     const now = new Date()
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
   })
-  const [file, setFile] = useState<{ data: string; mimeType: string; name: string } | null>(null)
+  // Arquivo pronto para análise. Para PDF, guardamos as páginas rasterizadas como imagens.
+  const [file, setFile] = useState<{ pages: { data: string; mimeType: string }[]; name: string; pageCount: number } | null>(null)
+  const [processingFile, setProcessingFile] = useState(false)
+  // Fluxo de senha de PDF (senha só vive em memória, nunca é persistida)
+  const [pdfPassword, setPdfPassword] = useState<{ file: File; error: string | null } | null>(null)
+  const [passwordInput, setPasswordInput] = useState('')
   const [expenseCategories, setExpenseCategories] = useState<any[]>([])
   const [items, setItems] = useState<ExtractedItem[]>([])
   const [invoiceTotal, setInvoiceTotal] = useState<number | null>(null)
@@ -59,46 +65,83 @@ export default function InvoiceImporter({ userId, onSuccess }: Props) {
     fetchCategories()
   }, [userId])
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Rasteriza um PDF (com ou sem senha) em imagens base64.
+  const processPdf = async (f: File, password?: string) => {
+    setProcessingFile(true)
+    try {
+      const pages: PdfPageImage[] = await rasterizePdf(f, password)
+      setFile({
+        pages: pages.map(p => ({ data: p.data, mimeType: p.mimeType })),
+        name: f.name,
+        pageCount: pages.length,
+      })
+      // Senha usada apenas em memória, descartada agora
+      setPdfPassword(null)
+      setPasswordInput('')
+      setError('')
+    } catch (err) {
+      if (err instanceof PdfPasswordError) {
+        setFile(null)
+        setPdfPassword({
+          file: f,
+          error: err.wrongPassword ? 'Senha incorreta. Tente novamente.' : null,
+        })
+      } else {
+        console.error('Erro ao processar PDF:', err)
+        setError('Não foi possível ler este PDF. Tente enviar como imagem.')
+        setFile(null)
+        setPdfPassword(null)
+      }
+    } finally {
+      setProcessingFile(false)
+    }
+  }
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]
+    e.target.value = ''
     if (!f) return
     if (f.size > MAX_FILE_SIZE) {
       setError('Arquivo muito grande. Máximo 15MB.')
       return
     }
     setError('')
+    setFile(null)
+    setPdfPassword(null)
+    setPasswordInput('')
+
+    // PDF: rasterizar no cliente (trata senha)
+    if (isPdfFile(f)) {
+      await processPdf(f)
+      return
+    }
+
+    // Imagem: enviar como está (uma única página)
     const reader = new FileReader()
     reader.onload = () => {
       const result = reader.result as string
-      // Extrair mimeType e base64 do data URL: "data:<mimeType>;base64,<data>"
       const matches = result.match(/^data:([^;]+);base64,(.+)$/)
       if (!matches) {
         setError('Não foi possível ler o arquivo. Tente outro formato.')
         return
       }
-      const detectedMime = matches[1]
+      let mimeType = matches[1]
       const base64Data = matches[2]
-
-      // Determinar mimeType correto
-      let mimeType = detectedMime
-      if (f.name.toLowerCase().endsWith('.pdf')) {
-        mimeType = 'application/pdf'
-      } else if (!mimeType || mimeType === 'application/octet-stream') {
-        mimeType = f.type || 'application/pdf'
+      if (!mimeType || mimeType === 'application/octet-stream') {
+        mimeType = f.type || 'image/jpeg'
       }
-
-      setFile({
-        data: base64Data,
-        mimeType,
-        name: f.name
-      })
+      setFile({ pages: [{ data: base64Data, mimeType }], name: f.name, pageCount: 1 })
     }
     reader.readAsDataURL(f)
-    e.target.value = ''
+  }
+
+  const handleSubmitPassword = async () => {
+    if (!pdfPassword || !passwordInput.trim()) return
+    await processPdf(pdfPassword.file, passwordInput)
   }
 
   const handleAnalyze = async () => {
-    if (!selectedCard || !invoiceMonth || !file) {
+    if (!selectedCard || !invoiceMonth || !file || file.pages.length === 0) {
       setError('Selecione o cartão, o mês e o arquivo da fatura.')
       return
     }
@@ -113,7 +156,7 @@ export default function InvoiceImporter({ userId, onSuccess }: Props) {
           userId,
           creditCardId: selectedCard,
           invoiceMonth,
-          file: { data: file.data, mimeType: file.mimeType },
+          files: file.pages,
           expenseCategories
         })
       })
@@ -173,6 +216,8 @@ export default function InvoiceImporter({ userId, onSuccess }: Props) {
   const reset = () => {
     setStep('config')
     setFile(null)
+    setPdfPassword(null)
+    setPasswordInput('')
     setItems([])
     setInvoiceTotal(null)
     setResult(null)
@@ -255,19 +300,61 @@ export default function InvoiceImporter({ userId, onSuccess }: Props) {
             />
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="w-full p-6 border-2 border-dashed border-gray-300 dark:border-fintech-dark-border rounded-xl hover:border-blue-400 transition-colors flex flex-col items-center gap-2"
+              disabled={processingFile}
+              className="w-full p-6 border-2 border-dashed border-gray-300 dark:border-fintech-dark-border rounded-xl hover:border-blue-400 transition-colors flex flex-col items-center gap-2 disabled:opacity-50"
             >
               <span className="text-3xl">{file ? '📎' : '📤'}</span>
               <span className="text-sm fintech-text-secondary">
-                {file ? file.name : 'Toque para enviar PDF ou imagem'}
+                {file
+                  ? `${file.name}${file.pageCount > 1 ? ` — ${file.pageCount} páginas` : ''}`
+                  : 'Toque para enviar PDF ou imagem'}
               </span>
               <span className="text-xs fintech-text-muted">Máximo 15MB</span>
             </button>
+
+            {/* Processando (rasterização do PDF) */}
+            {processingFile && (
+              <div className="mt-2 flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
+                <span className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                <span className="text-xs fintech-text-secondary">Processando PDF...</span>
+              </div>
+            )}
+
+            {/* Campo de senha do PDF (senha usada só em memória, nunca salva) */}
+            {pdfPassword && !processingFile && (
+              <div className="mt-2 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-800">
+                <p className="text-sm font-medium text-amber-800 dark:text-amber-300 mb-1">🔒 PDF protegido por senha</p>
+                <p className="text-xs text-amber-700 dark:text-amber-400 mb-2">
+                  Digite a senha do arquivo (geralmente os primeiros dígitos do seu CPF ou sua data de nascimento).
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    type="password"
+                    value={passwordInput}
+                    onChange={e => setPasswordInput(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleSubmitPassword() } }}
+                    placeholder="Senha do PDF"
+                    autoComplete="off"
+                    className="flex-1 px-3 py-2 text-sm border border-amber-300 dark:border-amber-700 rounded-lg bg-white dark:bg-fintech-dark-surface fintech-text-primary focus:ring-2 focus:ring-amber-500 outline-none"
+                  />
+                  <button
+                    onClick={handleSubmitPassword}
+                    disabled={!passwordInput.trim()}
+                    className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm rounded-lg transition-colors disabled:opacity-40"
+                  >
+                    Abrir
+                  </button>
+                </div>
+                {pdfPassword.error && (
+                  <p className="text-xs text-red-600 dark:text-red-400 mt-1">{pdfPassword.error}</p>
+                )}
+              </div>
+            )}
           </div>
 
           <button
             onClick={handleAnalyze}
-            disabled={!selectedCard || !invoiceMonth || !file}
+            disabled={!selectedCard || !invoiceMonth || !file || processingFile}
             className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             🔍 Analisar Fatura

@@ -28,20 +28,27 @@ export async function POST(request: NextRequest) {
       userId,
       creditCardId,
       invoiceMonth, // formato "YYYY-MM"
-      file, // { data: base64, mimeType: string }
+      files, // [{ data: base64, mimeType: string }] - páginas rasterizadas
+      file, // compat: { data: base64, mimeType: string } (imagem única)
       expenseCategories = []
     } = body
 
+    // Normalizar para uma lista de imagens
+    const imageList: { data: string; mimeType?: string }[] = Array.isArray(files) && files.length > 0
+      ? files
+      : file?.data
+        ? [file]
+        : []
+
     console.log('📄 Import invoice:', {
-      hasFile: !!file,
-      mimeType: file?.mimeType,
-      dataLength: file?.data?.length,
-      dataStart: file?.data?.substring(0, 20)
+      pageCount: imageList.length,
+      mimeTypes: imageList.map(i => i.mimeType),
+      totalDataLength: imageList.reduce((s, i) => s + (i.data?.length || 0), 0)
     })
 
-    if (!userId || !creditCardId || !invoiceMonth || !file?.data) {
+    if (!userId || !creditCardId || !invoiceMonth || imageList.length === 0) {
       return NextResponse.json(
-        { error: 'Campos obrigatórios: userId, creditCardId, invoiceMonth, file' },
+        { error: 'Campos obrigatórios: userId, creditCardId, invoiceMonth, files' },
         { status: 400 }
       )
     }
@@ -131,26 +138,31 @@ RESPONDA APENAS COM JSON VÁLIDO neste formato exato (sem markdown, sem explica�
 
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
 
-    // Validar dados do arquivo
-    if (!file.data || file.data.length < 100) {
+    // Validar dados das imagens
+    const invalid = imageList.some(img => !img.data || img.data.length < 100)
+    if (invalid) {
       return NextResponse.json(
         { error: 'Arquivo inválido ou vazio. Tente enviar novamente.' },
         { status: 422 }
       )
     }
 
-    const mimeType = file.mimeType || 'application/pdf'
-    // Limpar base64 de quebras de linha e espaços que podem corromper o dado
-    const cleanData = file.data.replace(/\s/g, '')
+    // Cada página vira um part inlineData. Prompt indica que são páginas de uma mesma fatura.
+    const imageParts = imageList.map(img => ({
+      inlineData: {
+        mimeType: img.mimeType || 'image/jpeg',
+        // Limpar base64 de quebras de linha e espaços que podem corromper o dado
+        data: img.data.replace(/\s/g, '')
+      }
+    }))
+
+    const multiPageNote = imageList.length > 1
+      ? `\n\nOBSERVAÇÃO: As ${imageList.length} imagens anexadas são páginas sequenciais de UMA ÚNICA fatura. Trate-as como um único documento e extraia as compras de todas as páginas, na ordem em que aparecem.`
+      : ''
 
     const result = await model.generateContent([
-      {
-        inlineData: {
-          mimeType,
-          data: cleanData
-        }
-      },
-      { text: prompt }
+      ...imageParts,
+      { text: prompt + multiPageNote }
     ])
 
     let responseText = result.response.text().trim()
