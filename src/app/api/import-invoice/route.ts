@@ -228,16 +228,11 @@ RESPONDA APENAS COM JSON VÁLIDO neste formato exato (sem markdown, sem explica�
 
     // Parse tolerante (recupera itens mesmo se o JSON vier truncado)
     const parsed = parseInvoiceResponse(responseText)
-    if (parsed.items.length === 0) {
-      return NextResponse.json(
-        { error: 'Não foi possível interpretar a fatura. Tente novamente.' },
-        { status: 422 }
-      )
-    }
 
-    // Pós-processamento defensivo: garantir que nenhuma compra à vista seja
-    // descartada como "já existente". A checagem de duplicidade só vale para
-    // itens realmente parcelados (installments > 1).
+    // Um bloco/página pode legitimamente não conter lançamentos (só cabeçalho,
+    // resumo ou rodapé). Nesse caso retornamos items: [] com 200 — NÃO é erro.
+    // A decisão de "nenhuma compra em toda a fatura" fica com o cliente, após
+    // juntar todos os blocos.
     const rawItems: any[] = Array.isArray(parsed.items) ? parsed.items : []
     const items = rawItems.map((item) => {
       let installments = Number(item.installments) || 1

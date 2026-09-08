@@ -426,6 +426,11 @@ export default function InvoiceImporter({ userId, onSuccess }: Props) {
       // 1) Deduplicação exata (borda entre páginas/blocos)
       mergedItems = dedupeExact(mergedItems)
 
+      // Se, após juntar TODOS os blocos, não veio nenhum lançamento, aí sim é erro.
+      if (mergedItems.length === 0) {
+        throw new Error('Não foi possível ler os lançamentos desta fatura. Verifique se o arquivo é a fatura correta e tente novamente.')
+      }
+
       // 2) Reconciliação automática: a soma dos itens (valor do mês) DEVE bater com
       //    o total impresso da fatura. Se não bater, tenta corrigir automaticamente
       //    (determinístico + passe de IA) ANTES de mostrar a prévia.
