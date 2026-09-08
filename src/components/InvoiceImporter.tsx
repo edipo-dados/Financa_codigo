@@ -216,6 +216,31 @@ export default function InvoiceImporter({ userId, onSuccess }: Props) {
     }
   }
 
+  // Faz o POST e, em caso de timeout (504/408), tenta novamente algumas vezes.
+  // A análise é idempotente (só lê e extrai), então repetir é seguro.
+  const postWithRetry = async (payload: any, retries = 2): Promise<any> => {
+    let lastErr: any
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        const res = await fetch('/api/import-invoice', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        })
+        const data = await parseResponse(res)
+        if (data.error) throw new Error(data.error)
+        return data
+      } catch (err: any) {
+        lastErr = err
+        const isTimeout = /demorou demais|expirou|504|408/i.test(err?.message || '')
+        if (!isTimeout || attempt === retries) throw err
+        // pequena espera antes de tentar de novo
+        await new Promise(r => setTimeout(r, 800 * (attempt + 1)))
+      }
+    }
+    throw lastErr
+  }
+
   const handleAnalyze = async () => {
     const hasContent = file && (file.kind === 'text' ? !!file.text : file.pages.length > 0)
     if (!selectedCard || !invoiceMonth || !file || !hasContent) {
@@ -237,20 +262,14 @@ export default function InvoiceImporter({ userId, onSuccess }: Props) {
         setAnalyzeProgress({ done: 0, total })
 
         const analyzeChunk = async (chunkText: string, index: number) => {
-          const res = await fetch('/api/import-invoice', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              userId,
-              creditCardId: selectedCard,
-              invoiceMonth,
-              text: chunkText,
-              expenseCategories,
-              batchInfo: { index, total }
-            })
+          const data = await postWithRetry({
+            userId,
+            creditCardId: selectedCard,
+            invoiceMonth,
+            text: chunkText,
+            expenseCategories,
+            batchInfo: { index, total }
           })
-          const data = await parseResponse(res)
-          if (data.error) throw new Error(data.error)
           setAnalyzeProgress(prev => prev ? { ...prev, done: prev.done + 1 } : prev)
           return data as { items?: ExtractedItem[]; invoiceTotal?: number | null }
         }
@@ -280,20 +299,14 @@ export default function InvoiceImporter({ userId, onSuccess }: Props) {
         setAnalyzeProgress({ done: 0, total })
 
         const analyzePage = async (page: { data: string; mimeType: string }, index: number) => {
-          const res = await fetch('/api/import-invoice', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              userId,
-              creditCardId: selectedCard,
-              invoiceMonth,
-              files: [page],
-              expenseCategories,
-              batchInfo: { index, total }
-            })
+          const data = await postWithRetry({
+            userId,
+            creditCardId: selectedCard,
+            invoiceMonth,
+            files: [page],
+            expenseCategories,
+            batchInfo: { index, total }
           })
-          const data = await parseResponse(res)
-          if (data.error) throw new Error(data.error)
           setAnalyzeProgress(prev => prev ? { ...prev, done: prev.done + 1 } : prev)
           return data as { items?: ExtractedItem[]; invoiceTotal?: number | null }
         }

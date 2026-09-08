@@ -1,5 +1,16 @@
 {
   "framework": "nextjs",
   "buildCommand": "npm run build",
-  "installCommand": "npm install"
+  "installCommand": "npm install",
+  "functions": {
+    "src/app/api/import-invoice/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/import-invoice/confirm/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/ai-chat/route.ts": {
+      "maxDuration": 60
+    }
+  }
 }
