@@ -147,3 +147,71 @@ export async function rasterizePdf(
 
   return images
 }
+
+
+// Resultado do processamento de um PDF para importação de fatura.
+// - kind 'text': PDF digital com texto selecionável (mais confiável que imagem)
+// - kind 'images': PDF escaneado/sem texto útil -> páginas rasterizadas
+export type PdfImportResult =
+  | { kind: 'text'; text: string; pageCount: number }
+  | { kind: 'images'; pages: PdfPageImage[]; pageCount: number }
+
+// Extrai o texto selecionável de todas as páginas. Retorna null se o PDF
+// praticamente não tiver texto (provável scan/imagem).
+export async function extractPdfText(file: File, password?: string): Promise<{ text: string; pageCount: number } | null> {
+  const arrayBuffer = await file.arrayBuffer()
+  const pdf = await openDocument(arrayBuffer, password)
+  const numPages = pdf.numPages
+
+  const parts: string[] = []
+  for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+    const page = await pdf.getPage(pageNum)
+    const content = await page.getTextContent()
+    // Reconstruir linhas usando a posição vertical dos itens (transform[5] = y).
+    // Itens com y próximo pertencem à mesma linha; ordenamos por x dentro da linha.
+    const items = (content.items as any[]).filter(it => typeof it.str === 'string')
+    const rows: { y: number; items: { x: number; str: string }[] }[] = []
+    for (const it of items) {
+      const x = it.transform?.[4] ?? 0
+      const y = it.transform?.[5] ?? 0
+      let row = rows.find(r => Math.abs(r.y - y) < 3)
+      if (!row) {
+        row = { y, items: [] }
+        rows.push(row)
+      }
+      row.items.push({ x, str: it.str })
+    }
+    rows.sort((a, b) => b.y - a.y) // topo -> base
+    const pageText = rows
+      .map(r => r.items.sort((a, b) => a.x - b.x).map(i => i.str).join(' ').replace(/\s+/g, ' ').trim())
+      .filter(Boolean)
+      .join('\n')
+
+    if (pageText) parts.push(`--- Página ${pageNum} ---\n${pageText}`)
+  }
+
+  await pdf.cleanup()
+  await pdf.destroy()
+
+  const fullText = parts.join('\n\n').trim()
+  // Heurística: pouquíssimo texto => provavelmente é um scan/imagem
+  if (fullText.replace(/[^A-Za-zÀ-ÿ0-9]/g, '').length < 40) {
+    return null
+  }
+  return { text: fullText, pageCount: numPages }
+}
+
+/**
+ * Processa um PDF para importação de fatura escolhendo a melhor estratégia:
+ * 1. Tenta extrair texto selecionável (PDF digital) — mais confiável.
+ * 2. Se não houver texto útil (scan), rasteriza as páginas em imagens.
+ * Suporta senha (usada só em memória). Lança PdfPasswordError se necessário.
+ */
+export async function processPdfForImport(file: File, password?: string): Promise<PdfImportResult> {
+  const textResult = await extractPdfText(file, password)
+  if (textResult) {
+    return { kind: 'text', text: textResult.text, pageCount: textResult.pageCount }
+  }
+  const pages = await rasterizePdf(file, password)
+  return { kind: 'images', pages, pageCount: pages.length }
+}

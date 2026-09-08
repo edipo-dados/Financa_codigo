@@ -5,7 +5,7 @@ import { useCreditCards } from '@/hooks/useCreditCards'
 import { useFamilyMembers } from '@/hooks/useFamilyMembers'
 import { supabase } from '@/lib/supabase'
 import { formatCurrency } from '@/lib/utils'
-import { isPdfFile, rasterizePdf, PdfPasswordError, type PdfPageImage } from '@/lib/pdfProcessor'
+import { isPdfFile, processPdfForImport, PdfPasswordError } from '@/lib/pdfProcessor'
 
 interface Props {
   userId: string
@@ -21,6 +21,8 @@ interface ExtractedItem {
   installments: number
   category_hint: string
   location?: string
+  needs_review?: boolean
+  confidence?: 'high' | 'medium' | 'low'
   category_id?: string | null
 }
 
@@ -45,8 +47,12 @@ export default function InvoiceImporter({ userId, onSuccess }: Props) {
     const now = new Date()
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
   })
-  // Arquivo pronto para análise. Para PDF, guardamos as páginas rasterizadas como imagens.
-  const [file, setFile] = useState<{ pages: { data: string; mimeType: string }[]; name: string; pageCount: number } | null>(null)
+  // Arquivo pronto para análise. Pode ser texto (PDF digital) OU páginas em imagem (scan/senha/imagem).
+  const [file, setFile] = useState<
+    | { kind: 'text'; text: string; name: string; pageCount: number }
+    | { kind: 'images'; pages: { data: string; mimeType: string }[]; name: string; pageCount: number }
+    | null
+  >(null)
   const [processingFile, setProcessingFile] = useState(false)
   const [analyzeProgress, setAnalyzeProgress] = useState<{ done: number; total: number } | null>(null)
   // Fluxo de senha de PDF (senha só vive em memória, nunca é persistida)
@@ -67,18 +73,21 @@ export default function InvoiceImporter({ userId, onSuccess }: Props) {
     fetchCategories()
   }, [userId])
 
-  // Rasteriza um PDF (com ou sem senha) em imagens base64.
+  // Processa um PDF: extrai texto (PDF digital) ou rasteriza (scan/senha).
   const processPdf = async (f: File, password?: string) => {
     setProcessingFile(true)
     try {
-      // Mantém boa resolução por página; o envio é feito em lotes (ver handleAnalyze)
-      // para respeitar o limite de body do serverless (~4,5MB na Vercel).
-      const pages: PdfPageImage[] = await rasterizePdf(f, password)
-      setFile({
-        pages: pages.map(p => ({ data: p.data, mimeType: p.mimeType })),
-        name: f.name,
-        pageCount: pages.length,
-      })
+      const res = await processPdfForImport(f, password)
+      if (res.kind === 'text') {
+        setFile({ kind: 'text', text: res.text, name: f.name, pageCount: res.pageCount })
+      } else {
+        setFile({
+          kind: 'images',
+          pages: res.pages.map(p => ({ data: p.data, mimeType: p.mimeType })),
+          name: f.name,
+          pageCount: res.pageCount,
+        })
+      }
       // Senha usada apenas em memória, descartada agora
       setPdfPassword(null)
       setPasswordInput('')
@@ -134,7 +143,7 @@ export default function InvoiceImporter({ userId, onSuccess }: Props) {
       if (!mimeType || mimeType === 'application/octet-stream') {
         mimeType = f.type || 'image/jpeg'
       }
-      setFile({ pages: [{ data: base64Data, mimeType }], name: f.name, pageCount: 1 })
+      setFile({ kind: 'images', pages: [{ data: base64Data, mimeType }], name: f.name, pageCount: 1 })
     }
     reader.readAsDataURL(f)
   }
@@ -166,22 +175,21 @@ export default function InvoiceImporter({ userId, onSuccess }: Props) {
   }
 
   const handleAnalyze = async () => {
-    if (!selectedCard || !invoiceMonth || !file || file.pages.length === 0) {
+    const hasContent = file && (file.kind === 'text' ? !!file.text : file.pages.length > 0)
+    if (!selectedCard || !invoiceMonth || !file || !hasContent) {
       setError('Selecione o cartão, o mês e o arquivo da fatura.')
       return
     }
     setError('')
     setStep('analyzing')
-    setAnalyzeProgress({ done: 0, total: file.pages.length })
 
     try {
-      // Estratégia: 1 página por request, em paralelo (com limite de concorrência).
-      // Cada chamada ao Gemini fica curta (uma página), evitando o timeout da função,
-      // e o payload de cada request fica bem abaixo do limite do serverless.
-      const pages = file.pages
-      const total = pages.length
+      let mergedItems: ExtractedItem[] = []
+      let invoiceTotalValue: number | null = null
 
-      const analyzePage = async (page: { data: string; mimeType: string }, index: number) => {
+      if (file.kind === 'text') {
+        // PDF digital: uma única chamada com o texto extraído (mais confiável).
+        setAnalyzeProgress({ done: 0, total: 1 })
         const res = await fetch('/api/import-invoice', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -189,37 +197,57 @@ export default function InvoiceImporter({ userId, onSuccess }: Props) {
             userId,
             creditCardId: selectedCard,
             invoiceMonth,
-            files: [page],
+            text: file.text,
             expenseCategories,
-            batchInfo: { index, total }
           })
         })
         const data = await parseResponse(res)
         if (data.error) throw new Error(data.error)
-        setAnalyzeProgress(prev => prev ? { ...prev, done: prev.done + 1 } : prev)
-        return data as { items?: ExtractedItem[]; invoiceTotal?: number | null }
-      }
+        setAnalyzeProgress({ done: 1, total: 1 })
+        mergedItems = data.items || []
+        invoiceTotalValue = data.invoiceTotal ?? null
+      } else {
+        // Scan/imagem: 1 página por request, em paralelo (evita timeout do Gemini).
+        const pages = file.pages
+        const total = pages.length
+        setAnalyzeProgress({ done: 0, total })
 
-      // Executa com concorrência limitada para não sobrecarregar o navegador/API.
-      const CONCURRENCY = 3
-      const results: { items?: ExtractedItem[]; invoiceTotal?: number | null }[] = new Array(total)
-      let cursor = 0
-      const workers = Array.from({ length: Math.min(CONCURRENCY, total) }, async () => {
-        while (true) {
-          const i = cursor++
-          if (i >= total) break
-          results[i] = await analyzePage(pages[i], i)
+        const analyzePage = async (page: { data: string; mimeType: string }, index: number) => {
+          const res = await fetch('/api/import-invoice', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId,
+              creditCardId: selectedCard,
+              invoiceMonth,
+              files: [page],
+              expenseCategories,
+              batchInfo: { index, total }
+            })
+          })
+          const data = await parseResponse(res)
+          if (data.error) throw new Error(data.error)
+          setAnalyzeProgress(prev => prev ? { ...prev, done: prev.done + 1 } : prev)
+          return data as { items?: ExtractedItem[]; invoiceTotal?: number | null }
         }
-      })
-      await Promise.all(workers)
 
-      // Mesclar mantendo a ordem das páginas
-      let mergedItems: ExtractedItem[] = []
-      let invoiceTotalValue: number | null = null
-      for (const r of results) {
-        mergedItems = mergedItems.concat(r?.items || [])
-        if (invoiceTotalValue == null && r?.invoiceTotal != null) {
-          invoiceTotalValue = r.invoiceTotal
+        const CONCURRENCY = 3
+        const results: { items?: ExtractedItem[]; invoiceTotal?: number | null }[] = new Array(total)
+        let cursor = 0
+        const workers = Array.from({ length: Math.min(CONCURRENCY, total) }, async () => {
+          while (true) {
+            const i = cursor++
+            if (i >= total) break
+            results[i] = await analyzePage(pages[i], i)
+          }
+        })
+        await Promise.all(workers)
+
+        for (const r of results) {
+          mergedItems = mergedItems.concat(r?.items || [])
+          if (invoiceTotalValue == null && r?.invoiceTotal != null) {
+            invoiceTotalValue = r.invoiceTotal
+          }
         }
       }
 
@@ -322,6 +350,7 @@ export default function InvoiceImporter({ userId, onSuccess }: Props) {
   }
   const allItemsTotal = items.reduce((sum, i) => sum + invoiceMonthValue(i), 0)
   const newItemsCount = items.filter(i => i.classification === 'nova_avista' || i.classification === 'nova_parcelada').length
+  const reviewCount = items.filter(i => i.needs_review).length
 
   return (
     <div className="glass-card p-6 rounded-2xl">
@@ -496,6 +525,14 @@ export default function InvoiceImporter({ userId, onSuccess }: Props) {
             </div>
           )}
 
+          {reviewCount > 0 && (
+            <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-800">
+              <p className="text-xs text-amber-700 dark:text-amber-400">
+                🔎 {reviewCount} item(ns) marcado(s) como <strong>Revisar</strong>: a IA não teve certeza ao lê-los. Confira nome, valor e parcelamento antes de confirmar.
+              </p>
+            </div>
+          )}
+
           {/* Lista de itens */}
           <div className="space-y-2 max-h-[400px] overflow-y-auto">
             {items.map((item, idx) => {
@@ -514,6 +551,14 @@ export default function InvoiceImporter({ userId, onSuccess }: Props) {
                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cls.color}`}>
                           {cls.icon} {cls.label}
                         </span>
+                        {item.needs_review && (
+                          <span
+                            className="text-xs px-2 py-0.5 rounded-full font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                            title="A IA não teve certeza ao ler este item. Confira o nome, valor e parcelamento antes de confirmar."
+                          >
+                            🔎 Revisar
+                          </span>
+                        )}
                         {item.installments > 1 && (
                           <span className="text-xs fintech-text-muted">
                             {item.installment_number}/{item.installments}

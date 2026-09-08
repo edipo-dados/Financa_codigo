@@ -30,11 +30,13 @@ export async function POST(request: NextRequest) {
       invoiceMonth, // formato "YYYY-MM"
       files, // [{ data: base64, mimeType: string }] - páginas rasterizadas
       file, // compat: { data: base64, mimeType: string } (imagem única)
+      text, // texto selecionável extraído de PDF digital (preferencial)
       expenseCategories = [],
       batchInfo // { index, total } quando a fatura é enviada em lotes
     } = body
 
-    // Normalizar para uma lista de imagens
+    // Fonte da análise: texto (PDF digital) OU imagens (scan/senha)
+    const invoiceText: string = typeof text === 'string' ? text.trim() : ''
     const imageList: { data: string; mimeType?: string }[] = Array.isArray(files) && files.length > 0
       ? files
       : file?.data
@@ -42,14 +44,14 @@ export async function POST(request: NextRequest) {
         : []
 
     console.log('📄 Import invoice:', {
+      mode: invoiceText ? 'text' : 'images',
+      textLength: invoiceText.length,
       pageCount: imageList.length,
-      mimeTypes: imageList.map(i => i.mimeType),
-      totalDataLength: imageList.reduce((s, i) => s + (i.data?.length || 0), 0)
     })
 
-    if (!userId || !creditCardId || !invoiceMonth || imageList.length === 0) {
+    if (!userId || !creditCardId || !invoiceMonth || (!invoiceText && imageList.length === 0)) {
       return NextResponse.json(
-        { error: 'Campos obrigatórios: userId, creditCardId, invoiceMonth, files' },
+        { error: 'Campos obrigatórios: userId, creditCardId, invoiceMonth, e (text OU files)' },
         { status: 400 }
       )
     }
@@ -96,114 +98,126 @@ export async function POST(request: NextRequest) {
         ).join('\n')
       : 'Nenhuma parcela já lançada neste período.'
 
-    const prompt = `Você é um especialista em análise de faturas de cartão de crédito brasileiras.
+    const prompt = `Você é um especialista em análise de faturas de cartão de crédito de QUALQUER banco brasileiro (Nubank, Itaú, Bradesco, Santander, Inter, C6, XP, Caixa, etc). Cada banco organiza a fatura de um jeito diferente — NÃO existe posição fixa para cada informação. Raciocine sobre o SIGNIFICADO de cada texto, não sobre onde ele aparece.
 
 CARTÃO: ${card.name} (fecha dia ${card.closing_day}, vence dia ${card.due_day})
 COMPETÊNCIA DA FATURA: ${invoiceMonth}
 
-PARCELAS JÁ LANÇADAS NO SISTEMA PARA ESTE PERÍODO (use APENAS para classificar parcelas, ver regra de duplicidade abaixo):
+PARCELAS JÁ LANÇADAS NO SISTEMA PARA ESTE PERÍODO (use APENAS para conferir parcelas, ver regra de duplicidade):
 ${existingText}
 
 CATEGORIAS DISPONÍVEIS: ${categoriesText}
 
-COMO LER CADA LANÇAMENTO (MUITO IMPORTANTE):
-Cada lançamento da fatura costuma ter DUAS linhas:
-  - Linha 1 (principal): o NOME DO ESTABELECIMENTO. É isso que vai no campo "description".
-    Exemplos reais: "PADARIA DELLA MARISSO", "ZandrashyComercioSAO PA", "SPLIT HORTIFRUTTSAO PAU".
-  - Linha 2 (menor, abaixo): a CATEGORIA + CIDADE. Isso vai SÓ em "category_hint" (categoria) e "location" (cidade), NUNCA em "description".
-    Exemplos: "supermercado SAO PAULO", "OUTROS SAO PAULO".
+COMO IDENTIFICAR CADA LANÇAMENTO (raciocínio semântico, sem regra de posição):
+Para cada compra, identifique de forma independente, esteja onde estiver no layout:
+1. NOME DO ESTABELECIMENTO/LOJA (quem recebeu o pagamento). Geralmente é o texto em destaque, com nome de empresa reconhecível, sigla, ou padrão tipo "NOME*CODIGO", "NOME LTDA", "EC *NOME". Vai em "description".
+2. DATA da compra.
+3. VALOR da compra.
+4. INDICADOR DE PARCELA, quando existir (ver seção abaixo).
 
 REGRA ABSOLUTA sobre a descrição:
-- "description" DEVE ser sempre o nome do estabelecimento (Linha 1).
-- NUNCA use a linha de categoria+cidade (ex: "SUPERMERCADO SAO PAULO", "OUTROS SAO PAULO") como "description".
-- Se dois lançamentos diferentes ficarem com a MESMA descrição genérica, você está lendo a linha errada. Volte e pegue o nome do estabelecimento de cada um.
-- Exemplo: Linha 1 = "PADARIA DELLA MARISSO", Linha 2 = "supermercado SAO PAULO"
-  => description = "PADARIA DELLA MARISSO", category_hint = "alimentação/supermercado", location = "SAO PAULO".
+- "description" é SEMPRE o nome do estabelecimento/loja.
+- Texto auxiliar — categoria (ex: "supermercado", "restaurante"), cidade/UF (ex: "SAO PAULO SP"), bandeira, "referência" — NUNCA substitui o nome do estabelecimento, mesmo que apareça mais perto do valor ou em destaque.
+- Se você só conseguir ver categoria+cidade e não o nome real da loja, preencha "description" com o que tiver E marque "needs_review": true (não invente).
+- Categoria vai em "category_hint"; cidade vai em "location".
 
-PARCELAMENTO INDICADO NO NOME DO ESTABELECIMENTO (IMPORTANTE):
-Alguns lojistas imprimem o parcelamento DENTRO do próprio nome do estabelecimento, no formato NN/MM no FINAL do texto (ex: "CENTAURO CE34S 01/02" = parcela 1 de 2; "MAGAZINE LUIZA 03/10" = parcela 3 de 10).
-- Reconheça como parcela quando houver "NN/MM" (dois números separados por barra) no fim do nome, com MM entre 2 e 48.
-- Nesse caso o VALOR IMPRESSO na linha costuma ser o valor DA PARCELA.
-- Se for a parcela 1 (ex: "01/02"): classifique como "nova_parcelada", com "installments" = MM, "installment_number" = 1 e "amount" = valor impresso × MM (valor total da compra).
-- Se for parcela maior que 1 (ex: "02/02", "03/10"): classifique como "parcela_existente" (siga a regra de conferência), "amount" = valor impresso (da parcela).
-- Gere SEMPRE UM ÚNICO item para esse lançamento — nunca dois.
-- Ao preencher "description", VOCÊ PODE manter o nome como está; o importante é a classificação e o installments/installment_number corretos.
+DETECÇÃO DE PARCELAMENTO (cobrir formatos de vários bancos):
+A indicação de "isto é uma parcela" aparece de formas diferentes. Procure ATIVAMENTE em QUALQUER parte do texto do lançamento por:
+- Sufixo no nome: "LOJA X 03/10", "LOJA X (3/10)"
+- Coluna/campo dedicado: "3/10", "3 de 10"
+- Texto explícito: "PARC 03/10", "PARCELA 3 DE 10", "1a de 10", "3x de ..."
+- O padrão geral é "número pequeno / número pequeno" (ou com "de"/"x"), onde o total (MM) faz sentido como número de parcelas: entre 2 e 48.
+Regras ao detectar parcela:
+- Parcela 1 (ex: "01/10", "1 de 10"): "classification" = "nova_parcelada", "installments" = MM, "installment_number" = 1, "amount" = VALOR TOTAL. Se o valor impresso for o da parcela, calcule total = parcela × MM. Se o banco já mostrar o total da compra, use o total.
+- Parcela > 1 (ex: "03/10"): "classification" = "parcela_existente" (siga a conferência), "amount" = valor da parcela impresso.
+- Gere SEMPRE UM ÚNICO item por lançamento — nunca dois.
+NÃO confunda com números que NÃO são parcela: código de terminal/loja ("0001", "57290030"), CNPJ parcial, ou datas ("01/2025" tem MM=2025, inválido). Só é parcela se MM entre 2 e 48 e fizer sentido. Na dúvida, trate como à vista e marque "needs_review": true.
+Cartões de débito/pré-pago normalmente NÃO têm parcelamento — não invente parcela nesses casos.
 
-CUIDADO PARA NÃO CONFUNDIR (evitar falso positivo):
-- Códigos de terminal/loja NÃO são parcela. Ex: "0001", "57290030", "CE34S" sozinhos, ou números sem barra.
-- Só trate como parcela quando o padrão for exatamente NN/MM (barra entre dois números pequenos), tipicamente no fim do texto, e MM entre 2 e 48.
-- Números grandes (ex: "01/2025" que é data, ou "57290030") NÃO são parcela.
+CLASSIFICAÇÃO:
+- "nova_avista": compra sem parcelamento. NUNCA marque à vista como já existente.
+- "nova_parcelada": compra parcelada mostrando a 1a parcela.
+- "parcela_existente": SÓ para itens PARCELADOS (parcela > 1) que correspondem a algo na lista de "PARCELAS JÁ LANÇADAS". Não gera novo lançamento.
+- "divergencia": item parcelado (parcela > 1) sem correspondência na lista. Precisa revisão.
+Duplicidade: a checagem de "parcela_existente" só vale para parcelas. Compras à vista são sempre novas, mesmo com descrição parecida.
 
-TAREFA:
-Extraia TODAS as compras/lançamentos do documento, na ordem em que aparecem. NÃO agrupe nem descarte linhas parecidas — é normal haver várias compras diferentes no mesmo mercado no mês, cada uma é um item separado. Mas cada linha de lançamento gera NO MÁXIMO UM item (nunca duplique a mesma linha).
-
-Classifique cada item em um dos tipos:
-- "nova_avista": compra SEM indicação de parcelamento (sem "X/Y", ou "1/1"). SEMPRE trate como nova. NUNCA marque uma compra à vista como já existente.
-- "nova_parcelada": compra parcelada mostrando a PRIMEIRA parcela (ex: "1/6", "1/12").
-- "parcela_existente": SOMENTE para itens que a fatura mostra como PARCELADOS (com "X/Y", X>1) E que correspondem claramente a uma parcela na lista de "PARCELAS JÁ LANÇADAS" acima (mesmo estabelecimento e mesmo valor de parcela). NÃO gera novo lançamento.
-- "divergencia": item PARCELADO (com "X/Y", X>1) que aparenta ser de compra antiga mas NÃO tem correspondência na lista acima. Precisa revisão manual.
-
-REGRA DE DUPLICIDADE (crítica):
-- A checagem de "parcela_existente" só vale para itens PARCELADOS (com "X/Y"). 
-- Para compras À VISTA (sem "X/Y"), NUNCA use "parcela_existente" nem "divergencia" — toda compra à vista da fatura é um item novo ("nova_avista"), mesmo que a descrição seja parecida com outra.
+INCERTEZA (importante):
+- Se NÃO conseguir separar estabelecimento de categoria com confiança, ou não tiver certeza se há parcela, ainda assim INCLUA o item e marque "needs_review": true.
+- Preencha "confidence" com "high", "medium" ou "low".
+- É melhor marcar para revisão do que chutar uma estrutura errada com confiança alta.
 
 OUTRAS REGRAS:
-- Ignore linhas de pagamento de fatura anterior, estornos, juros e anuidade recorrente (a menos que seja claramente uma despesa de compra).
-- Para "nova_parcelada", "amount" = VALOR TOTAL da compra (valor da parcela × número de parcelas); "installments" = total de parcelas.
-- Para "nova_avista" e "parcela_existente", "amount" = valor exibido na linha.
-- Para parcelas, informe "installment_number" (parcela atual) e "installments" (total).
-- Classifique na categoria mais adequada. Se não tiver certeza, use "category_hint": "" (o sistema deixará sem categoria) — mas MESMO ASSIM inclua o item.
-- Informe o valor total impresso na fatura em "invoice_total". A soma dos "amount" de "nova_avista" + parcela atual dos parcelados + "parcela_existente" deve bater com o total da fatura.
+- Extraia TODOS os lançamentos, na ordem. Não agrupe nem descarte linhas parecidas. Cada linha gera NO MÁXIMO UM item.
+- Ignore pagamento de fatura anterior, estornos, juros e anuidade recorrente (a menos que seja claramente uma compra).
+- Informe o total impresso da fatura em "invoice_total" (null se não aparecer).
+
+EXEMPLOS GENÉRICOS DE LAYOUTS DIFERENTES (fictícios, para você generalizar):
+[Banco A] "15/03  PADARIA DO ZE          supermercado SP     45,90"
+  => description "PADARIA DO ZE", category_hint "supermercado", location "SP", à vista, amount 45.90
+[Banco B] "MERCADOLIVRE*COMPRA   Parcela 2/6    R$ 89,90   12 ABR"
+  => description "MERCADOLIVRE*COMPRA", parcela 2 de 6 => parcela_existente, amount 89.90, installments 6, installment_number 2
+[Banco C] "AMAZON BR 01/12   ELETRONICOS   199,00   05/05/2025"
+  => description "AMAZON BR", parcela 1 de 12 => nova_parcelada, amount = 199 × 12 = 2388.00 (se 199 for a parcela), installments 12
+[Banco D] "UBER *TRIP HELP.UBER.C   transporte   RIO DE JANEIRO   23,50"
+  => description "UBER *TRIP", category_hint "transporte", location "RIO DE JANEIRO", à vista
 
 RESPONDA APENAS COM JSON VÁLIDO neste formato exato (sem markdown, sem explicação):
 {
   "invoice_total": 1234.56,
   "items": [
     {
-      "description": "NOME DO ESTABELECIMENTO (linha 1)",
+      "description": "NOME DO ESTABELECIMENTO",
       "amount": 100.00,
       "purchase_date": "2025-12-15",
       "classification": "nova_avista|nova_parcelada|parcela_existente|divergencia",
       "installment_number": 1,
       "installments": 1,
-      "category_hint": "nome da categoria (da linha 2)",
-      "location": "cidade (da linha 2)"
+      "category_hint": "categoria (se identificável)",
+      "location": "cidade/UF (se identificável)",
+      "needs_review": false,
+      "confidence": "high|medium|low"
     }
   ]
 }`
 
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
 
-    // Validar dados das imagens
-    const invalid = imageList.some(img => !img.data || img.data.length < 100)
-    if (invalid) {
-      return NextResponse.json(
-        { error: 'Arquivo inválido ou vazio. Tente enviar novamente.' },
-        { status: 422 }
-      )
-    }
+    let parts: any[]
 
-    // Cada página vira um part inlineData. Prompt indica que são páginas de uma mesma fatura.
-    const imageParts = imageList.map(img => ({
-      inlineData: {
-        mimeType: img.mimeType || 'image/jpeg',
-        // Limpar base64 de quebras de linha e espaços que podem corromper o dado
-        data: img.data.replace(/\s/g, '')
+    if (invoiceText) {
+      // Modo TEXTO (PDF digital): mais confiável que OCR de imagem.
+      parts = [
+        { text: prompt + `\n\nA seguir está o TEXTO EXTRAÍDO da fatura (pode conter marcações "--- Página N ---"). Analise-o integralmente:\n\n"""\n${invoiceText}\n"""` }
+      ]
+    } else {
+      // Modo IMAGEM (scan/senha): validar e enviar cada página como inlineData.
+      const invalid = imageList.some(img => !img.data || img.data.length < 100)
+      if (invalid) {
+        return NextResponse.json(
+          { error: 'Arquivo inválido ou vazio. Tente enviar novamente.' },
+          { status: 422 }
+        )
       }
-    }))
 
-    const isBatched = batchInfo && Number(batchInfo.total) > 1
-    let multiPageNote = ''
-    if (isBatched) {
-      multiPageNote = `\n\nOBSERVAÇÃO: Esta é a PARTE ${Number(batchInfo.index) + 1} de ${Number(batchInfo.total)} de UMA ÚNICA fatura, dividida em lotes de páginas. Extraia as compras APENAS das imagens anexadas neste lote, na ordem em que aparecem. O total impresso da fatura pode não estar neste lote; se não aparecer, use "invoice_total": null.`
-    } else if (imageList.length > 1) {
-      multiPageNote = `\n\nOBSERVAÇÃO: As ${imageList.length} imagens anexadas são páginas sequenciais de UMA ÚNICA fatura. Trate-as como um único documento e extraia as compras de todas as páginas, na ordem em que aparecem.`
+      const imageParts = imageList.map(img => ({
+        inlineData: {
+          mimeType: img.mimeType || 'image/jpeg',
+          data: img.data.replace(/\s/g, '')
+        }
+      }))
+
+      const isBatched = batchInfo && Number(batchInfo.total) > 1
+      let multiPageNote = ''
+      if (isBatched) {
+        multiPageNote = `\n\nOBSERVAÇÃO: Esta é a PARTE ${Number(batchInfo.index) + 1} de ${Number(batchInfo.total)} de UMA ÚNICA fatura, dividida em lotes de páginas. Extraia as compras APENAS das imagens anexadas neste lote, na ordem em que aparecem. O total impresso da fatura pode não estar neste lote; se não aparecer, use "invoice_total": null.`
+      } else if (imageList.length > 1) {
+        multiPageNote = `\n\nOBSERVAÇÃO: As ${imageList.length} imagens anexadas são páginas sequenciais de UMA ÚNICA fatura. Trate-as como um único documento e extraia as compras de todas as páginas, na ordem em que aparecem.`
+      }
+
+      parts = [...imageParts, { text: prompt + multiPageNote }]
     }
 
-    const result = await model.generateContent([
-      ...imageParts,
-      { text: prompt + multiPageNote }
-    ])
+    const result = await model.generateContent(parts)
 
     let responseText = result.response.text().trim()
 
@@ -276,6 +290,9 @@ RESPONDA APENAS COM JSON VÁLIDO neste formato exato (sem markdown, sem explica�
         classification = isParcelado ? 'nova_parcelada' : 'nova_avista'
       }
 
+      const confidence = ['high', 'medium', 'low'].includes(item.confidence) ? item.confidence : 'high'
+      const needsReview = item.needs_review === true || confidence === 'low'
+
       return {
         description: item.description || 'Lançamento',
         amount,
@@ -285,6 +302,8 @@ RESPONDA APENAS COM JSON VÁLIDO neste formato exato (sem markdown, sem explica�
         installments,
         category_hint: item.category_hint || '',
         location: item.location || '',
+        needs_review: needsReview,
+        confidence,
       }
     })
 
