@@ -3,14 +3,12 @@ import jsPDF from 'jspdf'
 export const generateManualPDF = () => {
   const doc = new jsPDF()
   
-  // Configurações do documento
   const pageWidth = doc.internal.pageSize.getWidth()
   const pageHeight = doc.internal.pageSize.getHeight()
   const margin = 20
   const lineHeight = 6
   let currentY = margin
 
-  // Função para adicionar nova página se necessário
   const checkPageBreak = (neededHeight: number = lineHeight) => {
     if (currentY + neededHeight > pageHeight - margin - 15) {
       doc.addPage()
@@ -18,7 +16,6 @@ export const generateManualPDF = () => {
     }
   }
 
-  // Função para adicionar texto com quebra de linha
   const addText = (text: string, fontSize: number = 10, isBold: boolean = false, color: [number, number, number] = [0, 0, 0]) => {
     doc.setFontSize(fontSize)
     doc.setFont('helvetica', isBold ? 'bold' : 'normal')
@@ -32,11 +29,9 @@ export const generateManualPDF = () => {
       currentY += lineHeight
     }
     
-    // Reset color to black
     doc.setTextColor(0, 0, 0)
   }
 
-  // Função para adicionar título principal
   const addMainTitle = (title: string) => {
     checkPageBreak(lineHeight * 3)
     currentY += 8
@@ -50,7 +45,6 @@ export const generateManualPDF = () => {
     currentY += 12
   }
 
-  // Função para adicionar título
   const addTitle = (title: string, fontSize: number = 12) => {
     checkPageBreak(lineHeight * 2)
     currentY += 5
@@ -58,7 +52,6 @@ export const generateManualPDF = () => {
     currentY += 3
   }
 
-  // Função para adicionar subtítulo
   const addSubtitle = (subtitle: string, fontSize: number = 11) => {
     checkPageBreak(lineHeight * 1.5)
     currentY += 3
@@ -66,332 +59,275 @@ export const generateManualPDF = () => {
     currentY += 2
   }
 
-  // Função para adicionar item de lista
   const addListItem = (text: string, level: number = 0) => {
     const indent = margin + (level * 10)
     checkPageBreak()
     doc.setFontSize(10)
     doc.setFont('helvetica', 'normal')
-    doc.text('•', indent, currentY)
+    doc.text('-', indent, currentY)
     
     const lines = doc.splitTextToSize(text, pageWidth - indent - 10)
     for (let i = 0; i < lines.length; i++) {
       if (i > 0) checkPageBreak()
-      doc.text(lines[i], indent + 8, currentY)
+      doc.text(lines[i], indent + 6, currentY)
       if (i < lines.length - 1) currentY += lineHeight
     }
     currentY += lineHeight
   }
 
-  // Cabeçalho do documento
+  // === CAPA ===
   doc.setFillColor(0, 122, 255)
   doc.rect(0, 0, pageWidth, 50, 'F')
   
   doc.setTextColor(255, 255, 255)
   doc.setFontSize(28)
   doc.setFont('helvetica', 'bold')
-  doc.text('Manual do Usuário', pageWidth / 2, 25, { align: 'center' })
+  doc.text('Manual do Usuario', pageWidth / 2, 25, { align: 'center' })
   
   doc.setFontSize(16)
-  doc.text('Controle Financeiro Pessoal', pageWidth / 2, 35, { align: 'center' })
+  doc.text('EAS Controle Financeiro', pageWidth / 2, 35, { align: 'center' })
   
   doc.setFontSize(12)
-  doc.text('Versão 1.0.0 - Guia Completo', pageWidth / 2, 45, { align: 'center' })
+  doc.text('Versao 2.0.0 - Guia Completo', pageWidth / 2, 45, { align: 'center' })
   
   currentY = 70
   doc.setTextColor(0, 0, 0)
 
-  // Índice
-  addMainTitle('📋 Índice')
-  addText('1. Sobre a Aplicação .................................................. 3')
-  addText('2. Primeiros Passos .................................................... 4')
-  addText('3. Dashboard - Visão Geral .......................................... 5')
-  addText('4. Gestão de Receitas ................................................ 7')
-  addText('5. Controle de Despesas ............................................. 9')
-  addText('6. Acompanhamento de Investimentos ................................. 11')
-  addText('7. Gestão de Cartões de Crédito .................................... 13')
-  addText('8. Lançamentos Futuros .............................................. 15')
-  addText('9. Configurações e Personalização .................................. 17')
-  addText('10. Uso Mobile ....................................................... 18')
-  addText('11. Atualizações em Tempo Real ...................................... 19')
-  addText('12. Solução de Problemas ............................................. 20')
+  // === INDICE ===
+  addMainTitle('INDICE')
+  addText('1. Sobre a Aplicacao')
+  addText('2. Assistente IA (EAS Finance AI)')
+  addText('3. Dashboard')
+  addText('4. Gestao de Receitas')
+  addText('5. Controle de Despesas')
+  addText('6. Investimentos')
+  addText('7. Cartoes de Credito')
+  addText('8. Lancamentos Futuros')
+  addText('9. Gestao Familiar')
+  addText('10. APIs REST')
+  addText('11. Configuracoes')
+  addText('12. Uso Mobile')
+  addText('13. Solucao de Problemas')
 
-  // Nova página para o conteúdo
+  // === 1. SOBRE ===
   doc.addPage()
   currentY = margin
 
-  // Conteúdo do manual
-  addMainTitle('📱 1. Sobre a Aplicação')
+  addMainTitle('1. SOBRE A APLICACAO')
   
-  addText('O Controle Financeiro Pessoal é uma aplicação web moderna e intuitiva para gerenciar suas finanças pessoais de forma completa e organizada. Com interface responsiva e atualizações em tempo real, você pode controlar receitas, despesas, investimentos e cartões de crédito em um só lugar.')
+  addText('O EAS Controle Financeiro e um sistema inteligente de gestao financeira pessoal e familiar com assistente de IA integrado. Controle receitas, despesas, investimentos e cartoes de credito com uma interface moderna, responsiva e conversacional.')
   
   currentY += 5
-  addTitle('✨ Principais Características')
-  addListItem('📊 Dashboard Configurável: Widgets personalizáveis com drag & drop')
-  addListItem('💰 Gestão de Receitas: Controle completo de entradas financeiras')
-  addListItem('💸 Controle de Despesas: Organização detalhada de gastos')
-  addListItem('📈 Acompanhamento de Investimentos: Monitore seu patrimônio')
-  addListItem('💳 Gestão de Cartões: Controle de compras parceladas')
-  addListItem('🔮 Projeções Futuras: Visualize lançamentos futuros')
-  addListItem('📱 Mobile First: Interface otimizada para celular')
-  addListItem('⚡ Tempo Real: Atualizações instantâneas sem recarregar página')
+  addTitle('Principais Caracteristicas')
+  addListItem('Assistente IA: registre transacoes por texto ou foto')
+  addListItem('Dashboard inteligente com saldo acumulado')
+  addListItem('Gestao de receitas e despesas com recorrencia')
+  addListItem('Investimentos com controle de resgates')
+  addListItem('Cartoes de credito com parcelas automaticas')
+  addListItem('Gestao familiar com filtro por membro')
+  addListItem('APIs REST para integracao externa')
+  addListItem('Interface responsiva (mobile e desktop)')
+  addListItem('Atualizacoes em tempo real')
 
-  addMainTitle('🚀 2. Primeiros Passos')
+  // === 2. IA ===
+  addMainTitle('2. ASSISTENTE IA (EAS Finance AI)')
   
-  addTitle('Acesso à Aplicação')
-  addListItem('Acesse a aplicação através do navegador')
-  addListItem('Faça login com suas credenciais ou use o modo demo:')
-  addListItem('Email: demo@demo.com', 1)
-  addListItem('Senha: 123456', 1)
-
-  addTitle('Navegação Principal')
-  addText('A aplicação possui 8 seções principais:')
-  addListItem('📊 Visão Geral (Dashboard): Painel principal com widgets configuráveis')
-  addListItem('💰 Receitas: Cadastro e gestão de entradas financeiras')
-  addListItem('💸 Despesas: Registro e controle de gastos')
-  addListItem('📈 Investimentos: Acompanhamento de aplicações')
-  addListItem('🔮 Futuros: Visualização de lançamentos futuros')
-  addListItem('💳 Cartão: Gestão de cartões de crédito')
-  addListItem('⚙️ Configurações: Gerenciamento de categorias e configurações')
-  addListItem('📱 Sobre: Informações da aplicação e este manual')
-
-  addMainTitle('📊 3. Dashboard - Visão Geral')
+  addText('O assistente financeiro com inteligencia artificial permite registrar e consultar transacoes de forma conversacional. Acesse pelo botao de chat no canto inferior direito.')
   
-  addTitle('Widgets Disponíveis')
-  addListItem('📈 Cards de Estatísticas: Resumo financeiro do mês com totais de receitas, despesas e saldo')
-  addListItem('📊 Gráfico de Receitas: Visualização das receitas por categoria em gráfico de pizza interativo')
-  addListItem('📉 Gráfico de Despesas: Análise de gastos por categoria com identificação dos maiores gastos')
-  addListItem('🎯 KPIs Configuráveis: Indicadores personalizáveis para acompanhar metas e objetivos')
-  addListItem('🧠 Análises Inteligentes: Insights automáticos sobre seus gastos com sugestões de economia')
-  addListItem('💳 Widget de Cartões: Resumo das compras no cartão com próximos vencimentos')
-  addListItem('💰 Saldo Atual: Saldo total independente do mês selecionado')
-  addListItem('🔮 Projeções Futuras: Receitas e despesas futuras baseadas em recorrências')
-
-  addTitle('Personalização do Dashboard')
-  addText('O dashboard é completamente personalizável:')
-  addListItem('Clique no botão "⚙️ Configurar Widgets"')
-  addListItem('Use os controles para mostrar/ocultar widgets')
-  addListItem('Arraste e solte widgets para reposicionar')
-  addListItem('Redimensione widgets conforme necessário')
-  addListItem('4 tamanhos disponíveis: Pequeno (1x1), Médio (2x1), Grande (2x2), Extra Grande (3x2)')
-
-  addMainTitle('💰 4. Gestão de Receitas')
+  currentY += 3
+  addTitle('Registrar Transacoes por Texto')
+  addText('Exemplos de comandos:')
+  addListItem('"Paguei 50 de almoco no pix" - registra despesa')
+  addListItem('"Comprei TV de 3000 no Nubank em 10x" - compra parcelada')
+  addListItem('"Recebi salario de 5000" - registra receita')
+  addListItem('"Investi 500 no Tesouro" - registra investimento')
   
-  addTitle('Cadastrar Nova Receita')
-  addText('Para adicionar uma nova receita:')
+  addTitle('Buscar Transacoes')
+  addText('Pergunte sobre suas compras:')
+  addListItem('"Comprei algo na Petlove?" - busca por loja')
+  addListItem('"Gastos com saude" - busca por categoria')
+  addListItem('"Quanto gastei no iFood?" - busca com total')
+  addListItem('"Minhas ultimas compras" - lista recentes')
+  
+  addTitle('Analise de Comprovantes')
+  addText('Envie uma foto de comprovante, nota fiscal ou fatura de cartao. A IA extrai automaticamente: valor, descricao, data e forma de pagamento.')
+  
+  addTitle('Lancamento em Lote')
+  addText('Envie uma imagem de fatura de cartao e a IA identifica multiplas compras, criando todas de uma vez com parcelas e categorias.')
+  
+  addTitle('Exclusao por Comando')
+  addListItem('"Exclui a despesa do almoco" - remove transacao')
+  addListItem('"Apaga a receita do freelance" - remove receita')
+
+  // === 3. DASHBOARD ===
+  addMainTitle('3. DASHBOARD')
+  
+  addTitle('Filtro Global de Mes')
+  addText('O navegador de mes no topo serve para todas as abas do sistema. Ao mudar o mes, receitas, despesas e investimentos sao filtrados automaticamente.')
+  
+  addTitle('Saldo Acumulado do Ano')
+  addText('Mostra o saldo de janeiro ate o mes selecionado:')
+  addListItem('Saldo = Receitas - Despesas - Investimentos liquidos')
+  addListItem('Investimento liquido = valor investido - resgates')
+  addListItem('Linha discreta mostra saldo sem investimentos e valor investido')
+  addListItem('O total do ano bate exatamente com a soma dos meses')
+  
+  addTitle('Saldo do Mes')
+  addText('Receitas menos despesas do mes selecionado. Nao desconta investimentos.')
+  
+  addTitle('Card de Investimentos')
+  addText('Mostra de forma discreta: valor investido liquido, valor atual, rendimento e resgates.')
+  
+  addTitle('Filtro por Membro')
+  addText('Filtre todos os dados do dashboard por membro da familia.')
+
+  // === 4. RECEITAS ===
+  addMainTitle('4. GESTAO DE RECEITAS')
+  
+  addTitle('Cadastrar Receita')
   addListItem('Acesse a aba "Receitas"')
   addListItem('Clique em "+ Nova Receita"')
-  addListItem('Preencha os campos obrigatórios:')
-  addListItem('Valor: Quantia recebida', 1)
-  addListItem('Data: Data do recebimento', 1)
-  addListItem('Descrição: Detalhes da receita', 1)
-  addListItem('Preencha os campos opcionais:')
-  addListItem('Categoria: Tipo de receita para organização', 1)
-  addListItem('Fonte/Origem: De onde veio a receita', 1)
-
-  addTitle('Receitas Recorrentes')
-  addText('Para receitas que se repetem regularmente:')
-  addListItem('Marque a opção "Receita recorrente"')
-  addListItem('Escolha a frequência:')
-  addListItem('Diária: Para receitas diárias', 1)
-  addListItem('Semanal: Para receitas semanais', 1)
-  addListItem('Mensal: Para salários e receitas mensais', 1)
-  addListItem('Anual: Para receitas anuais', 1)
-  addListItem('Defina quando a recorrência deve terminar:')
-  addListItem('Sem fim: Receita continua indefinidamente', 1)
-  addListItem('Após X ocorrências: Para um número específico de repetições', 1)
-  addListItem('Até data específica: Para terminar em uma data determinada', 1)
-
-  addTitle('Gerenciar Receitas')
-  addListItem('Alterar Status: Clique no status para alternar entre "Recebido" e "A Receber"')
-  addListItem('Excluir: Clique em "Excluir" na linha desejada e confirme a exclusão')
-  addListItem('Visualizar: Todas as receitas são listadas em ordem cronológica')
-
-  addMainTitle('💸 5. Controle de Despesas')
+  addListItem('Campos obrigatorios: valor, data, descricao')
+  addListItem('Campos opcionais: categoria, fonte, membro')
   
-  addTitle('Cadastrar Nova Despesa')
-  addText('Para registrar uma nova despesa:')
+  addTitle('Receitas Recorrentes')
+  addListItem('Marque "Receita recorrente"')
+  addListItem('Frequencias: diaria, semanal, mensal, anual')
+  addListItem('Termino: sem fim, apos X ocorrencias, ou ate data')
+  addListItem('Ocorrencias virtuais sao geradas automaticamente')
+  addListItem('Cada ocorrencia pode ser editada ou excluida individualmente')
+  
+  addTitle('Filtros')
+  addListItem('Por membro da familia')
+  addListItem('Por categoria')
+  addListItem('Por status (recebida / a receber)')
+  addListItem('Por busca textual')
+
+  // === 5. DESPESAS ===
+  addMainTitle('5. CONTROLE DE DESPESAS')
+  
+  addTitle('Cadastrar Despesa')
   addListItem('Acesse a aba "Despesas"')
   addListItem('Clique em "+ Nova Despesa"')
-  addListItem('Preencha os dados:')
-  addListItem('Valor: Quantia gasta (obrigatório)', 1)
-  addListItem('Data: Data da despesa (obrigatório)', 1)
-  addListItem('Descrição: Detalhes do gasto (obrigatório)', 1)
-  addListItem('Categoria: Tipo de despesa para organização', 1)
-  addListItem('Forma de Pagamento: Como foi realizado o pagamento', 1)
+  addListItem('Campos obrigatorios: valor, data, descricao')
+  addListItem('Formas de pagamento: dinheiro, debito, PIX, transferencia, cartao de credito')
+  
+  addTitle('Despesas Recorrentes')
+  addText('Mesma logica das receitas recorrentes. Ocorrencias virtuais podem ser excluidas individualmente.')
+  
+  addTitle('Selecao Multipla')
+  addListItem('Clique em "Selecionar" para ativar modo de selecao')
+  addListItem('Marque varias despesas')
+  addListItem('Clique em "Pagar Selecionadas" para marcar todas como pagas')
+  
+  addTitle('Faturas de Cartao')
+  addText('Despesas de cartao sao agrupadas por cartao e mes. E possivel pagar a fatura inteira com um clique.')
 
-  addTitle('Formas de Pagamento')
-  addText('Opções disponíveis para pagamento:')
-  addListItem('Dinheiro: Pagamento em espécie')
-  addListItem('Débito: Cartão de débito')
-  addListItem('PIX: Transferência instantânea')
-  addListItem('Transferência: Transferência bancária')
-  addListItem('Cartão de Crédito: Sistema completo de parcelamento')
-
-  addTitle('Sistema de Cartão de Crédito')
-  addText('Para compras no cartão de crédito:')
-  addListItem('Selecione "Cartão de Crédito" como forma de pagamento')
-  addListItem('Escolha o cartão cadastrado')
-  addListItem('Informe o valor total da compra')
-  addListItem('Defina o número de parcelas (1 a 48)')
-  addListItem('Confirme a data da compra')
-  addListItem('O sistema calculará automaticamente as datas das parcelas baseadas no fechamento do cartão')
-
-  addMainTitle('📈 6. Acompanhamento de Investimentos')
+  // === 6. INVESTIMENTOS ===
+  addMainTitle('6. INVESTIMENTOS')
   
   addTitle('Cadastrar Investimento')
-  addText('Para adicionar um novo investimento:')
-  addListItem('Acesse a aba "Investimentos"')
-  addListItem('Clique em "+ Novo Investimento"')
-  addListItem('Preencha as informações:')
-  addListItem('Nome: Identificação do investimento (ex: Tesouro Selic 2027)', 1)
-  addListItem('Tipo: Categoria do investimento (Renda Fixa, Variável, etc.)', 1)
-  addListItem('Instituição: Corretora ou banco onde está aplicado', 1)
-  addListItem('Valor Investido: Quantia aplicada inicialmente', 1)
-  addListItem('Data de Aplicação: Quando o investimento foi feito', 1)
-  addListItem('Rentabilidade Esperada: Percentual anual esperado (opcional)', 1)
-
-  addTitle('Acompanhamento de Performance')
-  addText('O sistema calcula automaticamente:')
-  addListItem('Retorno Absoluto: Valor em R$ ganho ou perdido')
-  addListItem('Retorno Percentual: Porcentagem de rentabilidade')
-  addListItem('Comparação Visual: Cores indicativas (verde para ganho, vermelho para perda)')
-  addListItem('Histórico: Acompanhamento da evolução do investimento')
-
-  addMainTitle('💳 7. Gestão de Cartões de Crédito')
+  addListItem('Nome, tipo, instituicao, valor investido, data')
+  addListItem('Tipos personalizaveis (Renda Fixa, Variavel, etc.)')
   
-  addTitle('Cadastrar Cartão')
-  addText('Para adicionar um novo cartão:')
-  addListItem('Acesse "Configurações"')
-  addListItem('Vá para a seção "Cartões de Crédito"')
-  addListItem('Clique em "+ Novo Cartão"')
-  addListItem('Configure as informações:')
-  addListItem('Nome: Identificação do cartão (ex: Nubank, Itaú)', 1)
-  addListItem('Dia de Fechamento: Quando a fatura fecha (1-31)', 1)
-  addListItem('Dia de Vencimento: Quando vence o pagamento (1-31)', 1)
-  addListItem('Limite: Valor limite do cartão (opcional)', 1)
-  addListItem('Cor: Para identificação visual nos relatórios', 1)
+  addTitle('Resgates')
+  addListItem('Registre resgates parciais ou totais')
+  addListItem('Historico completo de transacoes')
+  addListItem('Valor atual atualizado automaticamente')
+  
+  addTitle('No Dashboard')
+  addText('Investimentos sao descontados do saldo acumulado. O valor liquido (investido - resgatado) e o que conta.')
 
+  // === 7. CARTOES ===
+  addMainTitle('7. CARTOES DE CREDITO')
+  
+  addTitle('Cadastrar Cartao')
+  addListItem('Nome, dia de fechamento, dia de vencimento, limite, cor')
+  addListItem('Acesse em Configuracoes > Cartoes de Credito')
+  
   addTitle('Compras Parceladas')
-  addText('O sistema gerencia automaticamente:')
-  addListItem('Cálculo de Datas: Baseado no dia de fechamento do cartão')
-  addListItem('Parcelas Individuais: Cada parcela é controlada separadamente')
-  addListItem('Status de Pagamento: Controle individual por parcela')
-  addListItem('Visualização Organizada: Lista específica na aba "Cartão"')
+  addListItem('Informe valor total e numero de parcelas')
+  addListItem('Datas calculadas automaticamente pelo dia de fechamento')
+  addListItem('Cada parcela e controlada separadamente')
+  addListItem('Parcelas nao contam como duplicata no total de despesas')
 
-  addMainTitle('🔮 8. Lançamentos Futuros')
+  // === 8. FUTUROS ===
+  addMainTitle('8. LANCAMENTOS FUTUROS')
   
-  addTitle('Visualização de Projeções')
-  addText('A seção "Futuros" mostra:')
-  addListItem('Receitas Futuras: Baseadas em recorrências configuradas')
-  addListItem('Despesas Futuras: Gastos programados e recorrentes')
-  addListItem('Investimentos Futuros: Aplicações planejadas')
-  addListItem('Análise Histórica: Projeções baseadas em padrões passados')
+  addText('A secao "Futuros" mostra receitas e despesas futuras baseadas em recorrencias e parcelas de cartao. Permite visualizar de 1 a 12 meses a frente.')
 
-  addTitle('Controles Disponíveis')
-  addListItem('Filtro por Período: Visualize de 1 a 12 meses à frente')
-  addListItem('Filtro por Tipo: Todos, receitas, despesas ou investimentos')
-  addListItem('Seleção Múltipla: Para exclusão em lote de lançamentos')
-  addListItem('Modo de Seleção: Interface dedicada para seleções múltiplas')
-
-  addTitle('Gerenciamento de Lançamentos')
-  addListItem('Exclusão Individual: Clique no ícone de lixeira do item')
-  addListItem('Exclusão em Lote: Use o modo de seleção para marcar múltiplos itens')
-  addListItem('Confirmação: Sistema avisa sobre o impacto da exclusão')
-  addListItem('Atualização Automática: Dados sempre atualizados em tempo real')
-
-  addMainTitle('⚙️ 9. Configurações e Personalização')
+  // === 9. FAMILIA ===
+  addMainTitle('9. GESTAO FAMILIAR')
   
-  addTitle('Categorias Personalizáveis')
-  addText('Organize suas finanças com categorias:')
-  addListItem('Categorias de Despesas: Alimentação, Transporte, Lazer, etc.')
-  addListItem('Categorias de Receitas: Salário, Freelance, Investimentos, etc.')
-  addListItem('Tipos de Investimentos: Renda Fixa, Variável, Fundos, etc.')
-  addListItem('Cores Personalizáveis: Para identificação visual nos gráficos')
+  addListItem('Cadastre membros da familia com nome, cor e relacionamento')
+  addListItem('Associe receitas e despesas a membros especificos')
+  addListItem('Filtre o dashboard e listas por membro')
+  addListItem('Relatorios individuais por membro')
 
-  addTitle('Relatórios')
-  addListItem('Informe de Rendimentos: Relatório anual completo')
-  addListItem('Seletor de Ano: Escolha o período desejado')
-  addListItem('Formato Profissional: Otimizado para impressão')
-  addListItem('Dados Organizados: Por categoria e mês')
-
-  addMainTitle('📱 10. Uso Mobile')
+  // === 10. APIs ===
+  addMainTitle('10. APIs REST')
   
-  addTitle('Interface Responsiva')
-  addText('A aplicação é otimizada para dispositivos móveis:')
-  addListItem('Menu Inferior: Navegação otimizada para toque')
-  addListItem('Gestos Touch: Interações naturais e intuitivas')
-  addListItem('Botões Adequados: Tamanho ideal para dedos')
-  addListItem('Todos os Recursos: Disponíveis em qualquer dispositivo')
+  addText('O sistema oferece APIs REST completas para integracao com outros sistemas e aplicacoes de IA:')
+  currentY += 3
+  addListItem('GET/POST /api/expenses - Despesas')
+  addListItem('GET/POST /api/incomes - Receitas')
+  addListItem('GET /api/summary - Resumo financeiro')
+  addListItem('GET /api/members - Membros da familia')
+  addListItem('GET/POST /api/credit-cards - Cartoes de credito')
+  addListItem('GET/POST /api/credit-card-purchases - Compras parceladas')
+  addListItem('GET/POST /api/categories - Categorias')
+  addListItem('POST /api/ai-chat - Chat com IA')
+  currentY += 3
+  addText('Consulte o arquivo API_DOCUMENTATION.md para detalhes completos de cada endpoint.')
 
-  addTitle('Dicas para Uso Mobile')
-  addListItem('Use orientação vertical para melhor experiência')
-  addListItem('Aproveite os gestos de arrastar no dashboard')
-  addListItem('Utilize o menu inferior para navegação rápida')
-  addListItem('Formulários são adaptados automaticamente para tela pequena')
-
-  addMainTitle('⚡ 11. Atualizações em Tempo Real')
+  // === 11. CONFIG ===
+  addMainTitle('11. CONFIGURACOES')
   
-  addTitle('Como Funciona')
-  addText('O sistema atualiza automaticamente:')
-  addListItem('Dados Instantâneos: Sem necessidade de recarregar página')
-  addListItem('Sincronização Global: Mudanças refletidas em todos os widgets')
-  addListItem('Operações CRUD: Reflexo imediato nas interfaces')
-  addListItem('Experiência Fluida: Feedback visual imediato')
+  addListItem('Membros da familia: cadastro e gerenciamento')
+  addListItem('Informe de rendimentos: relatorio anual em PDF')
+  addListItem('Tema: modo claro/escuro')
+  addListItem('Cartoes de credito: cadastro e edicao')
+  addListItem('Categorias de receita: personalizaveis')
+  addListItem('Categorias de despesa: personalizaveis')
+  addListItem('Tipos de investimento: personalizaveis')
 
-  addTitle('Benefícios')
-  addListItem('Melhor Performance: Apenas dados necessários são atualizados')
-  addListItem('Experiência Moderna: Interface sempre responsiva')
-  addListItem('Dados Consistentes: Informações sempre sincronizadas')
-  addListItem('Menos Espera: Sem recarregamentos desnecessários')
-
-  addMainTitle('🆘 12. Solução de Problemas')
+  // === 12. MOBILE ===
+  addMainTitle('12. USO MOBILE')
   
-  addTitle('Problemas Comuns')
+  addTitle('Navegacao')
+  addText('No mobile, o menu inferior possui 5 abas: Dashboard, Despesas, Receitas, Cartoes e Configuracoes. Todas as funcionalidades estao disponiveis.')
+  
+  addTitle('Chat IA')
+  addText('O botao de chat fica no canto inferior direito. Funciona perfeitamente no celular para registrar transacoes rapidamente.')
+
+  // === 13. PROBLEMAS ===
+  addMainTitle('13. SOLUCAO DE PROBLEMAS')
+  
   addSubtitle('Problemas de Login')
-  addListItem('Verifique se email e senha estão corretos')
-  addListItem('Use o modo demo se necessário (demo@demo.com / 123456)')
+  addListItem('Verifique email e senha')
+  addListItem('Use modo demo: demo@demo.com / 123456')
   addListItem('Limpe o cache do navegador')
-  addListItem('Verifique sua conexão com a internet')
+  
+  addSubtitle('Dados nao Aparecem')
+  addListItem('Verifique o mes selecionado no filtro')
+  addListItem('Aguarde sincronizacao')
+  addListItem('Recarregue a pagina')
+  
+  addSubtitle('IA nao Responde')
+  addListItem('Verifique conexao com internet')
+  addListItem('A chave GEMINI_API_KEY deve estar configurada')
+  addListItem('Tente reformular a pergunta')
 
-  addSubtitle('Dados não Aparecem')
-  addListItem('Verifique se está visualizando o mês correto')
-  addListItem('Confirme se os dados foram salvos corretamente')
-  addListItem('Aguarde alguns segundos para sincronização')
-  addListItem('Recarregue a página se necessário')
-
-  addSubtitle('Problemas Mobile')
-  addListItem('Use navegadores atualizados (Chrome, Firefox, Safari)')
-  addListItem('Verifique sua conexão com a internet')
-  addListItem('Limpe o cache do navegador mobile')
-  addListItem('Reinicie o aplicativo do navegador')
-
-  addTitle('Dicas de Performance')
-  addListItem('Use navegadores modernos e atualizados')
-  addListItem('Mantenha boa conexão com a internet')
-  addListItem('Feche abas desnecessárias do navegador')
-  addListItem('Limpe regularmente o cache do navegador')
-
-  addTitle('Suporte')
-  addText('Para dúvidas adicionais:')
-  addListItem('Consulte a seção "Sobre" na aplicação')
-  addListItem('Verifique se existe um guia específico para sua dúvida')
-  addListItem('Entre em contato através dos canais oficiais')
-
-  // Rodapé com informações
+  // === RODAPE ===
   const totalPages = doc.getNumberOfPages()
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i)
     doc.setFontSize(8)
     doc.setTextColor(128, 128, 128)
-    
-    // Linha superior do rodapé
     doc.line(margin, pageHeight - 15, pageWidth - margin, pageHeight - 15)
-    
-    // Informações do rodapé
-    doc.text(`Página ${i} de ${totalPages}`, pageWidth - margin, pageHeight - 8, { align: 'right' })
-    doc.text('Controle Financeiro Pessoal v1.0.0', margin, pageHeight - 8)
-    doc.text('Manual do Usuário - Guia Completo', pageWidth / 2, pageHeight - 8, { align: 'center' })
+    doc.text(`Pagina ${i} de ${totalPages}`, pageWidth - margin, pageHeight - 8, { align: 'right' })
+    doc.text('EAS Controle Financeiro v2.0.0', margin, pageHeight - 8)
+    doc.text('Manual do Usuario', pageWidth / 2, pageHeight - 8, { align: 'center' })
   }
 
   return doc
@@ -400,7 +336,7 @@ export const generateManualPDF = () => {
 export const downloadManualPDF = () => {
   try {
     const doc = generateManualPDF()
-    doc.save('Manual-Controle-Financeiro-Pessoal-v1.0.0.pdf')
+    doc.save('Manual-EAS-Controle-Financeiro-v2.0.0.pdf')
   } catch (error) {
     console.error('Erro ao gerar PDF:', error)
     alert('Erro ao gerar o PDF. Tente novamente.')

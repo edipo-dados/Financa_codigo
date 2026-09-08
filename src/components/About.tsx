@@ -21,7 +21,6 @@ export default function About() {
         </div>
       </div>
 
-      {/* Navegação das seções */}
       <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-2">
         {sections.map((section) => (
           <button
@@ -39,7 +38,6 @@ export default function About() {
         ))}
       </div>
 
-      {/* Conteúdo das seções */}
       <div className="glass-card p-6 rounded-3xl">
         {activeSection === 'about' && (
           <div className="space-y-6 animate-slide-up">
@@ -47,15 +45,17 @@ export default function About() {
               <div className="w-20 h-20 bg-gradient-to-br from-apple-blue to-apple-purple rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <span className="text-4xl">💰</span>
               </div>
-              <h3 className="text-2xl font-bold text-apple-gray-700 mb-2">Controle Financeiro Pessoal</h3>
-              <p className="text-apple-gray-500 text-lg">Versão 1.0.0</p>
+              <h3 className="text-2xl font-bold text-apple-gray-700 mb-2">EAS Controle Financeiro</h3>
+              <p className="text-apple-gray-500 text-lg">Versão 2.0.0</p>
+              <p className="text-apple-gray-400 text-sm mt-1">com Inteligência Artificial</p>
             </div>
 
             <div className="prose prose-apple max-w-none">
               <p className="text-apple-gray-600 leading-relaxed">
-                Uma aplicação web moderna e intuitiva para gerenciar suas finanças pessoais de forma completa e organizada. 
-                Desenvolvida com foco na experiência do usuário, oferece controle total sobre receitas, despesas, 
-                investimentos e cartões de crédito em uma interface responsiva e elegante.
+                Sistema inteligente de gestão financeira pessoal e familiar com assistente de IA integrado.
+                Controle receitas, despesas, investimentos e cartões de crédito com uma interface moderna,
+                responsiva e conversacional. A IA ajuda a registrar transações por texto ou imagem,
+                buscar compras e analisar seus gastos.
               </p>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
@@ -64,41 +64,41 @@ export default function About() {
                     <span>🎯</span> Objetivo
                   </h4>
                   <p className="text-sm text-apple-gray-600">
-                    Simplificar o controle financeiro pessoal com uma ferramenta moderna, 
-                    intuitiva e completa que funciona perfeitamente em qualquer dispositivo.
+                    Simplificar o controle financeiro pessoal e familiar com IA,
+                    tornando o registro e consulta de transações tão fácil quanto uma conversa.
                   </p>
                 </div>
 
                 <div className="bg-apple-green/5 p-4 rounded-xl border border-apple-green/20">
                   <h4 className="font-semibold text-apple-gray-700 mb-2 flex items-center gap-2">
-                    <span>🚀</span> Missão
+                    <span>🤖</span> IA Integrada
                   </h4>
                   <p className="text-sm text-apple-gray-600">
-                    Empoderar pessoas a tomar decisões financeiras inteligentes através 
-                    de dados organizados, análises claras e projeções precisas.
+                    Assistente financeiro com Gemini AI que entende linguagem natural,
+                    analisa comprovantes por foto e busca suas transações.
                   </p>
                 </div>
               </div>
             </div>
 
             <div className="bg-gradient-to-r from-apple-gray-50 to-transparent p-6 rounded-xl">
-              <h4 className="font-semibold text-apple-gray-700 mb-3">📊 Estatísticas da Aplicação</h4>
+              <h4 className="font-semibold text-apple-gray-700 mb-3">📊 Números</h4>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-apple-blue">10+</div>
-                  <div className="text-xs text-apple-gray-500">Widgets</div>
+                  <div className="text-2xl font-bold text-apple-blue">8</div>
+                  <div className="text-xs text-apple-gray-500">Seções</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-apple-green">7</div>
-                  <div className="text-xs text-apple-gray-500">Seções</div>
+                  <div className="text-2xl font-bold text-apple-green">10+</div>
+                  <div className="text-xs text-apple-gray-500">APIs REST</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-apple-purple">100%</div>
                   <div className="text-xs text-apple-gray-500">Responsivo</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-apple-orange">⚡</div>
-                  <div className="text-xs text-apple-gray-500">Tempo Real</div>
+                  <div className="text-2xl font-bold text-apple-orange">🤖</div>
+                  <div className="text-xs text-apple-gray-500">IA Gemini</div>
                 </div>
               </div>
             </div>
@@ -107,111 +107,116 @@ export default function About() {
 
         {activeSection === 'features' && (
           <div className="space-y-6 animate-slide-up">
-            <h3 className="text-xl font-semibold text-apple-gray-700 mb-4">✨ Principais Recursos</h3>
+            <h3 className="text-xl font-semibold text-apple-gray-700 mb-4">✨ Funcionalidades</h3>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="bg-white/50 p-4 rounded-xl border border-apple-gray-200">
                 <h4 className="font-semibold text-apple-gray-700 mb-2 flex items-center gap-2">
-                  <span>📊</span> Dashboard Configurável
+                  <span>🤖</span> Assistente IA (EAS Finance AI)
                 </h4>
-                <p className="text-sm text-apple-gray-600">
-                  Widgets personalizáveis com drag & drop, 4 tamanhos diferentes e controle total sobre a visualização.
-                </p>
+                <ul className="text-sm text-apple-gray-600 space-y-1">
+                  <li>• Registrar despesas, receitas e investimentos por texto</li>
+                  <li>• Analisar comprovantes e notas fiscais por foto</li>
+                  <li>• Buscar compras por nome, loja ou categoria</li>
+                  <li>• Lançamento em lote a partir de imagens de fatura</li>
+                  <li>• Classificação automática de categorias</li>
+                  <li>• Exclusão de transações por comando</li>
+                </ul>
               </div>
 
               <div className="bg-white/50 p-4 rounded-xl border border-apple-gray-200">
                 <h4 className="font-semibold text-apple-gray-700 mb-2 flex items-center gap-2">
-                  <span>💰</span> Gestão de Receitas
+                  <span>📊</span> Dashboard Inteligente
                 </h4>
-                <p className="text-sm text-apple-gray-600">
-                  Controle completo de entradas financeiras com categorização, recorrência e acompanhamento de recebimentos.
-                </p>
+                <ul className="text-sm text-apple-gray-600 space-y-1">
+                  <li>• Saldo acumulado do ano (descontando investimentos)</li>
+                  <li>• Saldo mensal com filtro global de mês</li>
+                  <li>• Filtro por membro da família</li>
+                  <li>• Card de investimentos com rendimento e resgates</li>
+                  <li>• Totais consistentes (ano = soma dos meses)</li>
+                </ul>
               </div>
 
               <div className="bg-white/50 p-4 rounded-xl border border-apple-gray-200">
                 <h4 className="font-semibold text-apple-gray-700 mb-2 flex items-center gap-2">
                   <span>💸</span> Controle de Despesas
                 </h4>
-                <p className="text-sm text-apple-gray-600">
-                  Organização detalhada de gastos com múltiplas formas de pagamento e controle de despesas recorrentes.
-                </p>
+                <ul className="text-sm text-apple-gray-600 space-y-1">
+                  <li>• Despesas comuns e recorrentes</li>
+                  <li>• Múltiplas formas de pagamento</li>
+                  <li>• Seleção múltipla para pagar em lote</li>
+                  <li>• Filtros por membro, categoria, status e busca</li>
+                  <li>• Exclusão de ocorrências virtuais de recorrência</li>
+                </ul>
               </div>
 
               <div className="bg-white/50 p-4 rounded-xl border border-apple-gray-200">
                 <h4 className="font-semibold text-apple-gray-700 mb-2 flex items-center gap-2">
-                  <span>📈</span> Acompanhamento de Investimentos
+                  <span>💰</span> Gestão de Receitas
                 </h4>
-                <p className="text-sm text-apple-gray-600">
-                  Monitore seu patrimônio com controle de rentabilidade, tipos personalizáveis e análise de performance.
-                </p>
+                <ul className="text-sm text-apple-gray-600 space-y-1">
+                  <li>• Receitas comuns e recorrentes</li>
+                  <li>• Categorização personalizada</li>
+                  <li>• Controle de recebimentos (pago/a receber)</li>
+                  <li>• Edição e exclusão de ocorrências virtuais</li>
+                </ul>
               </div>
 
               <div className="bg-white/50 p-4 rounded-xl border border-apple-gray-200">
                 <h4 className="font-semibold text-apple-gray-700 mb-2 flex items-center gap-2">
-                  <span>💳</span> Gestão de Cartões
+                  <span>📈</span> Investimentos
                 </h4>
-                <p className="text-sm text-apple-gray-600">
-                  Controle inteligente de compras parceladas com cálculo automático de datas e gestão de faturas.
-                </p>
+                <ul className="text-sm text-apple-gray-600 space-y-1">
+                  <li>• Controle de aportes e valor atual</li>
+                  <li>• Resgates com histórico de transações</li>
+                  <li>• Tipos personalizáveis</li>
+                  <li>• Rendimento calculado automaticamente</li>
+                  <li>• Descontado do saldo no dashboard</li>
+                </ul>
               </div>
 
               <div className="bg-white/50 p-4 rounded-xl border border-apple-gray-200">
                 <h4 className="font-semibold text-apple-gray-700 mb-2 flex items-center gap-2">
-                  <span>🔮</span> Projeções Futuras
+                  <span>💳</span> Cartões de Crédito
                 </h4>
-                <p className="text-sm text-apple-gray-600">
-                  Visualize lançamentos futuros baseados em recorrências e planeje seu fluxo de caixa.
-                </p>
+                <ul className="text-sm text-apple-gray-600 space-y-1">
+                  <li>• Múltiplos cartões com cores e limites</li>
+                  <li>• Compras parceladas com cálculo automático</li>
+                  <li>• Faturas agrupadas por cartão e mês</li>
+                  <li>• Pagamento de fatura inteira com um clique</li>
+                </ul>
               </div>
 
               <div className="bg-white/50 p-4 rounded-xl border border-apple-gray-200">
                 <h4 className="font-semibold text-apple-gray-700 mb-2 flex items-center gap-2">
-                  <span>📱</span> Mobile First
+                  <span>👥</span> Gestão Familiar
                 </h4>
-                <p className="text-sm text-apple-gray-600">
-                  Interface otimizada para dispositivos móveis com navegação intuitiva e gestos touch.
-                </p>
+                <ul className="text-sm text-apple-gray-600 space-y-1">
+                  <li>• Membros da família com cores e relacionamento</li>
+                  <li>• Filtro por membro em todas as telas</li>
+                  <li>• Relatórios individuais por membro</li>
+                </ul>
               </div>
 
               <div className="bg-white/50 p-4 rounded-xl border border-apple-gray-200">
                 <h4 className="font-semibold text-apple-gray-700 mb-2 flex items-center gap-2">
-                  <span>⚡</span> Tempo Real
+                  <span>🔌</span> APIs REST
                 </h4>
-                <p className="text-sm text-apple-gray-600">
-                  Atualizações instantâneas sem recarregar página, dados sempre sincronizados e experiência fluida.
-                </p>
+                <ul className="text-sm text-apple-gray-600 space-y-1">
+                  <li>• API completa para despesas, receitas e investimentos</li>
+                  <li>• API de resumo financeiro com filtros inteligentes</li>
+                  <li>• API de membros da família</li>
+                  <li>• API de cartões com faturas</li>
+                  <li>• Integração com sistemas externos e IA</li>
+                </ul>
               </div>
-            </div>
-
-            <div className="bg-gradient-to-r from-apple-blue/5 to-apple-purple/5 p-6 rounded-xl border border-apple-blue/20">
-              <h4 className="font-semibold text-apple-gray-700 mb-3 flex items-center gap-2">
-                <span>🎨</span> Design e Experiência
-              </h4>
-              <ul className="space-y-2 text-sm text-apple-gray-600">
-                <li className="flex items-center gap-2">
-                  <span className="w-2 h-2 bg-apple-blue rounded-full"></span>
-                  Interface moderna inspirada no design da Apple
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="w-2 h-2 bg-apple-green rounded-full"></span>
-                  Animações suaves e transições elegantes
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="w-2 h-2 bg-apple-purple rounded-full"></span>
-                  Cores personalizáveis e temas adaptativos
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="w-2 h-2 bg-apple-orange rounded-full"></span>
-                  Feedback visual imediato para todas as ações
-                </li>
-              </ul>
             </div>
           </div>
         )}
 
         {activeSection === 'tech' && (
           <div className="space-y-6 animate-slide-up">
-            <h3 className="text-xl font-semibold text-apple-gray-700 mb-4">⚙️ Tecnologias Utilizadas</h3>
+            <h3 className="text-xl font-semibold text-apple-gray-700 mb-4">⚙️ Tecnologias</h3>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
@@ -219,103 +224,38 @@ export default function About() {
                   <span>🚀</span> Frontend
                 </h4>
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between p-3 bg-white/50 rounded-lg border border-apple-gray-200">
-                    <span className="font-medium text-apple-gray-700">Next.js 14</span>
-                    <span className="text-xs bg-apple-blue/10 text-apple-blue px-2 py-1 rounded">Framework React</span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-white/50 rounded-lg border border-apple-gray-200">
-                    <span className="font-medium text-apple-gray-700">TypeScript</span>
-                    <span className="text-xs bg-apple-green/10 text-apple-green px-2 py-1 rounded">Type Safety</span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-white/50 rounded-lg border border-apple-gray-200">
-                    <span className="font-medium text-apple-gray-700">Tailwind CSS</span>
-                    <span className="text-xs bg-apple-purple/10 text-apple-purple px-2 py-1 rounded">Styling</span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-white/50 rounded-lg border border-apple-gray-200">
-                    <span className="font-medium text-apple-gray-700">Recharts</span>
-                    <span className="text-xs bg-apple-orange/10 text-apple-orange px-2 py-1 rounded">Gráficos</span>
-                  </div>
+                  {[
+                    { name: 'Next.js 16', tag: 'Framework React' },
+                    { name: 'React 19', tag: 'UI Library' },
+                    { name: 'TypeScript', tag: 'Type Safety' },
+                    { name: 'Tailwind CSS', tag: 'Styling' },
+                  ].map(t => (
+                    <div key={t.name} className="flex items-center justify-between p-3 bg-white/50 rounded-lg border border-apple-gray-200">
+                      <span className="font-medium text-apple-gray-700">{t.name}</span>
+                      <span className="text-xs bg-apple-blue/10 text-apple-blue px-2 py-1 rounded">{t.tag}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
 
               <div>
                 <h4 className="font-semibold text-apple-gray-700 mb-3 flex items-center gap-2">
-                  <span>🗄️</span> Backend & Database
+                  <span>🗄️</span> Backend & IA
                 </h4>
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between p-3 bg-white/50 rounded-lg border border-apple-gray-200">
-                    <span className="font-medium text-apple-gray-700">Supabase</span>
-                    <span className="text-xs bg-apple-blue/10 text-apple-blue px-2 py-1 rounded">Backend as a Service</span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-white/50 rounded-lg border border-apple-gray-200">
-                    <span className="font-medium text-apple-gray-700">PostgreSQL</span>
-                    <span className="text-xs bg-apple-green/10 text-apple-green px-2 py-1 rounded">Database</span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-white/50 rounded-lg border border-apple-gray-200">
-                    <span className="font-medium text-apple-gray-700">Row Level Security</span>
-                    <span className="text-xs bg-apple-purple/10 text-apple-purple px-2 py-1 rounded">Segurança</span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-white/50 rounded-lg border border-apple-gray-200">
-                    <span className="font-medium text-apple-gray-700">Real-time</span>
-                    <span className="text-xs bg-apple-orange/10 text-apple-orange px-2 py-1 rounded">Sync</span>
-                  </div>
+                  {[
+                    { name: 'Supabase', tag: 'Backend as a Service' },
+                    { name: 'PostgreSQL', tag: 'Database' },
+                    { name: 'Google Gemini 2.5', tag: 'Inteligência Artificial' },
+                    { name: 'Vercel', tag: 'Deploy & Hosting' },
+                  ].map(t => (
+                    <div key={t.name} className="flex items-center justify-between p-3 bg-white/50 rounded-lg border border-apple-gray-200">
+                      <span className="font-medium text-apple-gray-700">{t.name}</span>
+                      <span className="text-xs bg-apple-green/10 text-apple-green px-2 py-1 rounded">{t.tag}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
-            </div>
-
-            <div className="bg-gradient-to-r from-apple-gray-50 to-transparent p-6 rounded-xl">
-              <h4 className="font-semibold text-apple-gray-700 mb-3 flex items-center gap-2">
-                <span>🏗️</span> Arquitetura
-              </h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="text-center p-4 bg-white/50 rounded-lg border border-apple-gray-200">
-                  <div className="text-2xl mb-2">📱</div>
-                  <h5 className="font-medium text-apple-gray-700 mb-1">Client-Side</h5>
-                  <p className="text-xs text-apple-gray-500">React Hooks, Context API, Local Storage</p>
-                </div>
-                <div className="text-center p-4 bg-white/50 rounded-lg border border-apple-gray-200">
-                  <div className="text-2xl mb-2">🔄</div>
-                  <h5 className="font-medium text-apple-gray-700 mb-1">API Layer</h5>
-                  <p className="text-xs text-apple-gray-500">Supabase Client, Real-time Subscriptions</p>
-                </div>
-                <div className="text-center p-4 bg-white/50 rounded-lg border border-apple-gray-200">
-                  <div className="text-2xl mb-2">🗄️</div>
-                  <h5 className="font-medium text-apple-gray-700 mb-1">Database</h5>
-                  <p className="text-xs text-apple-gray-500">PostgreSQL, RLS, Triggers</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-gradient-to-r from-apple-blue/5 to-apple-green/5 p-6 rounded-xl border border-apple-blue/20">
-              <h4 className="font-semibold text-apple-gray-700 mb-3 flex items-center gap-2">
-                <span>🔧</span> Funcionalidades Técnicas
-              </h4>
-              <ul className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-apple-gray-600">
-                <li className="flex items-center gap-2">
-                  <span className="w-2 h-2 bg-apple-blue rounded-full"></span>
-                  Server-Side Rendering (SSR)
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="w-2 h-2 bg-apple-green rounded-full"></span>
-                  Progressive Web App (PWA)
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="w-2 h-2 bg-apple-purple rounded-full"></span>
-                  Responsive Design
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="w-2 h-2 bg-apple-orange rounded-full"></span>
-                  Real-time Updates
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="w-2 h-2 bg-apple-red rounded-full"></span>
-                  Drag & Drop Interface
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="w-2 h-2 bg-apple-yellow rounded-full"></span>
-                  Local Storage Persistence
-                </li>
-              </ul>
             </div>
           </div>
         )}
@@ -335,25 +275,6 @@ export default function About() {
                 </div>
               </div>
               
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex-1">
-                  <p className="text-sm text-apple-gray-600 mb-2">
-                    Faça o download do manual completo em formato PDF com instruções detalhadas sobre todas as funcionalidades da aplicação.
-                  </p>
-                  <div className="flex items-center gap-4 text-xs text-apple-gray-500">
-                    <span className="flex items-center gap-1">
-                      <span>📄</span> 20+ páginas
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <span>🎯</span> Guia completo
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <span>📱</span> Inclui dicas mobile
-                    </span>
-                  </div>
-                </div>
-              </div>
-              
               <button
                 onClick={downloadManualPDF}
                 className="w-full bg-gradient-to-r from-apple-blue to-apple-purple text-white font-medium py-3 px-6 rounded-xl hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-2"
@@ -361,107 +282,24 @@ export default function About() {
                 <span className="text-lg">📥</span>
                 Baixar Manual em PDF
               </button>
-              
-              <p className="text-xs text-apple-gray-500 mt-3 text-center">
-                O arquivo será baixado automaticamente para sua pasta de Downloads
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-white/50 p-4 rounded-xl border border-apple-gray-200">
-                <h4 className="font-semibold text-apple-gray-700 mb-2 flex items-center gap-2">
-                  <span>🚀</span> Primeiros Passos
-                </h4>
-                <ul className="text-sm text-apple-gray-600 space-y-1">
-                  <li>• Como fazer login</li>
-                  <li>• Navegação principal</li>
-                  <li>• Configuração inicial</li>
-                  <li>• Modo demo</li>
-                </ul>
-              </div>
-
-              <div className="bg-white/50 p-4 rounded-xl border border-apple-gray-200">
-                <h4 className="font-semibold text-apple-gray-700 mb-2 flex items-center gap-2">
-                  <span>📊</span> Dashboard
-                </h4>
-                <ul className="text-sm text-apple-gray-600 space-y-1">
-                  <li>• Widgets disponíveis</li>
-                  <li>• Personalização</li>
-                  <li>• Drag & drop</li>
-                  <li>• Tamanhos e layouts</li>
-                </ul>
-              </div>
-
-              <div className="bg-white/50 p-4 rounded-xl border border-apple-gray-200">
-                <h4 className="font-semibold text-apple-gray-700 mb-2 flex items-center gap-2">
-                  <span>💰</span> Gestão Financeira
-                </h4>
-                <ul className="text-sm text-apple-gray-600 space-y-1">
-                  <li>• Cadastro de receitas</li>
-                  <li>• Controle de despesas</li>
-                  <li>• Acompanhamento de investimentos</li>
-                  <li>• Recorrências</li>
-                </ul>
-              </div>
-
-              <div className="bg-white/50 p-4 rounded-xl border border-apple-gray-200">
-                <h4 className="font-semibold text-apple-gray-700 mb-2 flex items-center gap-2">
-                  <span>💳</span> Cartões e Projeções
-                </h4>
-                <ul className="text-sm text-apple-gray-600 space-y-1">
-                  <li>• Gestão de cartões</li>
-                  <li>• Compras parceladas</li>
-                  <li>• Lançamentos futuros</li>
-                  <li>• Relatórios</li>
-                </ul>
-              </div>
             </div>
 
             <div className="bg-gradient-to-r from-apple-green/5 to-apple-blue/5 p-6 rounded-xl border border-apple-green/20">
               <h4 className="font-semibold text-apple-gray-700 mb-3 flex items-center gap-2">
-                <span>📱</span> Uso Mobile
+                <span>🤖</span> Como usar a IA
               </h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <h5 className="font-medium text-apple-gray-700 mb-2">Interface Responsiva</h5>
-                  <ul className="text-sm text-apple-gray-600 space-y-1">
-                    <li>• Menu inferior otimizado</li>
-                    <li>• Gestos touch intuitivos</li>
-                    <li>• Botões adequados para toque</li>
-                  </ul>
-                </div>
-                <div>
-                  <h5 className="font-medium text-apple-gray-700 mb-2">Dicas de Uso</h5>
-                  <ul className="text-sm text-apple-gray-600 space-y-1">
-                    <li>• Use orientação vertical</li>
-                    <li>• Aproveite gestos de arrastar</li>
-                    <li>• Navegação por menu inferior</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-gradient-to-r from-apple-orange/5 to-apple-red/5 p-6 rounded-xl border border-apple-orange/20">
-              <h4 className="font-semibold text-apple-gray-700 mb-3 flex items-center gap-2">
-                <span>🆘</span> Solução de Problemas
-              </h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <h5 className="font-medium text-apple-gray-700 mb-2">Problemas Comuns</h5>
-                  <ul className="text-sm text-apple-gray-600 space-y-1">
-                    <li>• Problemas de login</li>
-                    <li>• Dados não aparecem</li>
-                    <li>• Questões mobile</li>
-                  </ul>
-                </div>
-                <div>
-                  <h5 className="font-medium text-apple-gray-700 mb-2">Dicas de Performance</h5>
-                  <ul className="text-sm text-apple-gray-600 space-y-1">
-                    <li>• Use navegadores modernos</li>
-                    <li>• Mantenha boa conexão</li>
-                    <li>• Limpe cache regularmente</li>
-                  </ul>
-                </div>
+              <div className="space-y-3 text-sm text-apple-gray-600">
+                <p>Clique no botão de chat (canto inferior direito) e converse naturalmente:</p>
+                <ul className="space-y-2">
+                  <li>💸 <strong>"Paguei 50 de almoço no pix"</strong> → registra despesa</li>
+                  <li>💳 <strong>"Comprei TV de 3000 no Nubank em 10x"</strong> → compra parcelada</li>
+                  <li>💰 <strong>"Recebi salário de 5000"</strong> → registra receita</li>
+                  <li>📈 <strong>"Investi 500 no Tesouro"</strong> → registra investimento</li>
+                  <li>🔍 <strong>"Comprei algo na Petlove?"</strong> → busca transações</li>
+                  <li>🔍 <strong>"Gastos com saúde"</strong> → busca por categoria</li>
+                  <li>🗑️ <strong>"Exclui a despesa do almoço"</strong> → remove transação</li>
+                  <li>📷 <strong>Envie uma foto</strong> de comprovante ou fatura → lançamento automático</li>
+                </ul>
               </div>
             </div>
           </div>

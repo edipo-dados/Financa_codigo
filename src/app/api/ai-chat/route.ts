@@ -15,6 +15,7 @@ REGRAS IMPORTANTES:
 7. Se o usuário NÃO especificar a forma de pagamento (dinheiro, pix, débito, cartão de crédito), você DEVE perguntar usando <options> ANTES de gerar a <action>. NUNCA gere uma action de despesa sem saber a forma de pagamento.
 8. Se o usuário disser "no cartão", "no crédito", "parcelado", trate como cartão de crédito e pergunte qual cartão usando <options>.
 9. Se o usuário disser "no pix", "pix", trate como PIX. Se disser "no débito", trate como débito. Se disser "dinheiro", "cash", trate como dinheiro.
+10. CONSULTAS E BUSCAS: Se o usuário PERGUNTAR sobre compras, gastos ou receitas (ex: "comprei na petlove?", "me mostre minhas compras", "quanto gastei em farmácia?", "tem alguma despesa de uber?"), use SEMPRE o tipo "search" na action. NUNCA use "delete" ou "expense" para consultas. Palavras-chave de consulta: "mostre", "mostra", "comprei", "gastei", "tem alguma", "quais", "lista", "busca", "procura", "quanto".
 
 CLASSIFICAÇÃO DE CATEGORIAS - DESPESAS:
 Analise o contexto da mensagem para escolher a categoria mais adequada. Use o campo "category_hint" com o NOME EXATO da categoria do usuário. Exemplos de mapeamento:
@@ -55,6 +56,21 @@ Para INVESTIMENTO:
 
 Para EXCLUSÃO:
 <action>{"type":"delete","data":{"search_type":"expense|income|investment","search_term":"descrição para buscar","approximate_amount":100.00}}</action>
+
+Para BUSCA/CONSULTA de transações:
+Quando o usuário perguntar se fez alguma compra, quanto gastou em algo, ou pedir para buscar uma transação, use:
+<action>{"type":"search","data":{"search_term":"termo de busca","search_type":"expense|income|all","max_results":20}}</action>
+O search_term pode ser o nome de uma loja, produto, OU o nome de uma categoria (ex: "hobbie", "saúde", "alimentação").
+O sistema busca tanto na descrição quanto no nome da categoria automaticamente.
+Parcelas de uma mesma compra são agrupadas em uma única linha.
+Exemplos de quando usar search:
+- "comprei algo na petlove?" → search com search_term "petlove"
+- "quanto gastei no ifood?" → search com search_term "ifood"
+- "me mostra as despesas de farmácia" → search com search_term "farmácia"
+- "minhas compras com hobbie" → search com search_term "hobbie"
+- "gastos com saúde" → search com search_term "saúde"
+- "quais foram minhas últimas compras?" → search com search_term "" (vazio = todas)
+- "recebi algum freelance?" → search com search_term "freelance" e search_type "income"
 
 Para LANÇAMENTO EM LOTE (múltiplos itens de uma imagem ou lista):
 Quando a imagem ou texto contiver MÚLTIPLOS lançamentos, use o tipo "batch":
@@ -132,6 +148,18 @@ export async function POST(request: NextRequest) {
       }
       if (context.members?.length > 0) {
         contextInfo += `\nMembros da família: ${context.members.map((m: any) => m.name).join(', ')}`
+      }
+      if (context.recentExpenses?.length > 0) {
+        contextInfo += `\n\nÚLTIMAS DESPESAS (use para ajudar o usuário a identificar, editar ou excluir):`
+        context.recentExpenses.forEach((e: any) => {
+          contextInfo += `\n- "${e.description}" | R$${Number(e.amount).toFixed(2)} | ${e.expense_date} | ${e.is_paid ? 'Paga' : 'A pagar'} | ${e.member?.name || 'Sem membro'} | ${e.category?.name || 'Sem categoria'}${e.is_credit_card ? ' | Cartão' : ''}`
+        })
+      }
+      if (context.recentIncomes?.length > 0) {
+        contextInfo += `\n\nÚLTIMAS RECEITAS:`
+        context.recentIncomes.forEach((i: any) => {
+          contextInfo += `\n- "${i.description}" | R$${Number(i.amount).toFixed(2)} | ${i.income_date} | ${i.is_paid ? 'Recebida' : 'A receber'} | ${i.member?.name || 'Sem membro'}`
+        })
       }
       contextInfo += `\nData de hoje: ${new Date().toISOString().split('T')[0]}`
     }

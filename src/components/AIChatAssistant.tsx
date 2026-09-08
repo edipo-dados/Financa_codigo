@@ -27,10 +27,12 @@ interface Props {
   incomeCategories: any[]
   investmentTypes: any[]
   members: any[]
+  recentExpenses?: any[]
+  recentIncomes?: any[]
 }
 
 export default function AIChatAssistant({
-  userId, onRefresh, onNavigate, creditCards, expenseCategories, incomeCategories, investmentTypes, members
+  userId, onRefresh, onNavigate, creditCards, expenseCategories, incomeCategories, investmentTypes, members, recentExpenses, recentIncomes
 }: Props) {
   const [isOpen, setIsOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([
@@ -401,15 +403,166 @@ export default function AIChatAssistant({
           messages: [...messages.filter(m => !m.content.startsWith('Olá!')).map(m => ({
             role: m.role, content: m.content
           })), apiMessage],
-          context: { creditCards, expenseCategories, incomeCategories, investmentTypes, members }
+          context: { creditCards, expenseCategories, incomeCategories, investmentTypes, members, recentExpenses, recentIncomes }
         })
       })
       const data = await res.json()
       if (data.error) throw new Error(data.error)
 
-      const action = parseAction(data.response)
+      let action = parseAction(data.response)
       const options = parseOptions(data.response)
       const cleanContent = cleanMessage(data.response)
+
+      // Detectar se o usuário está fazendo uma consulta (não uma exclusão/registro)
+      const userLower = messageText.toLowerCase()
+      const isQuery = /\b(mostre|mostra|comprei|gastei|tem algum|quais|lista|busca|procura|quanto|pesquis|encontr|achei|fiz algum|teve|houve)\b/.test(userLower)
+      
+      // Se a IA retornou delete mas o usuário está consultando, converter para search
+      if (action && action.type === 'delete' && isQuery) {
+        action = { type: 'search', data: { search_term: action.data.search_term, search_type: action.data.search_type || 'expense', max_results: 15 } }
+      }
+      // Se a IA não retornou search mas o usuário está claramente consultando, forçar busca
+      if (!action && isQuery && !options) {
+        // Extrair possível termo de busca da mensagem
+        const termMatch = userLower.match(/(?:na|no|de|do|em|sobre|da)\s+(.+?)(?:\?|$|,|\.)/)
+        if (termMatch) {
+          action = { type: 'search', data: { search_term: termMatch[1].trim(), search_type: 'expense', max_results: 15 } }
+        }
+      }
+
+      // Se é uma busca, executar direto e mostrar resultados no chat
+      if (action?.type === 'search') {
+        const d = action.data
+        const term = d.search_term || ''
+        let searchResults = ''
+
+        const searchExpenses = async () => {
+          // Buscar por descrição
+          const { data: byDesc } = await (supabase as any).from('expenses')
+            .select('*, category:expense_categories(*), member:family_members(*), credit_card:credit_cards(*)')
+            .eq('user_id', userId)
+            .ilike('description', `%${term}%`)
+            .order('expense_date', { ascending: false })
+            .limit(50)
+
+          // Buscar por nome da categoria
+          const { data: byCategory } = await (supabase as any).from('expenses')
+            .select('*, category:expense_categories!inner(*), member:family_members(*), credit_card:credit_cards(*)')
+            .eq('user_id', userId)
+            .ilike('category.name', `%${term}%`)
+            .order('expense_date', { ascending: false })
+            .limit(50)
+
+          // Combinar e deduplicar
+          const allItems = [...(byDesc || []), ...(byCategory || [])]
+          const seen = new Set<string>()
+          const unique = allItems.filter(e => {
+            if (seen.has(e.id)) return false
+            seen.add(e.id)
+            return true
+          })
+
+          // Filtrar: excluir marcadores e parents de cartão
+          const filtered = unique.filter((e: any) =>
+            !e.description.endsWith('(Excluída)') && !(e.is_credit_card && !e.is_installment)
+          )
+
+          // Agrupar parcelas: mostrar 1 linha por compra (parent_expense_id)
+          const grouped: any[] = []
+          const parentsSeen = new Set<string>()
+
+          filtered.forEach((e: any) => {
+            if (e.is_installment && e.parent_expense_id) {
+              if (!parentsSeen.has(e.parent_expense_id)) {
+                parentsSeen.add(e.parent_expense_id)
+                // Contar parcelas desta compra
+                const siblings = filtered.filter((s: any) => s.parent_expense_id === e.parent_expense_id)
+                const paidCount = siblings.filter((s: any) => s.is_paid).length
+                const totalAmount = Number(e.total_amount || e.amount * (e.installments || 1))
+                const baseName = e.description.replace(/ - Parcela \d+\/\d+/, '')
+                grouped.push({
+                  ...e,
+                  _display: `**${baseName}** — R$ ${totalAmount.toFixed(2)} em ${e.installments || siblings.length}x (${paidCount} pagas) — ${e.member?.name || ''}${e.credit_card?.name ? ` — 💳 ${e.credit_card.name}` : ''}`
+                })
+              }
+            } else {
+              grouped.push({
+                ...e,
+                _display: `**${e.description}** — R$ ${Number(e.amount).toFixed(2)} — ${e.expense_date} — ${e.is_paid ? '✅ Paga' : '⏳ A pagar'}${e.member?.name ? ` — ${e.member.name}` : ''}${e.credit_card?.name ? ` — 💳 ${e.credit_card.name}` : ''}`
+              })
+            }
+          })
+
+          return grouped
+        }
+
+        const searchIncomes = async () => {
+          const { data: byDesc } = await (supabase as any).from('incomes')
+            .select('*, category:income_categories(*), member:family_members(*)')
+            .eq('user_id', userId)
+            .ilike('description', `%${term}%`)
+            .order('income_date', { ascending: false })
+            .limit(30)
+
+          const { data: byCategory } = await (supabase as any).from('incomes')
+            .select('*, category:income_categories!inner(*), member:family_members(*)')
+            .eq('user_id', userId)
+            .ilike('category.name', `%${term}%`)
+            .order('income_date', { ascending: false })
+            .limit(30)
+
+          const allItems = [...(byDesc || []), ...(byCategory || [])]
+          const seen = new Set<string>()
+          return allItems.filter(i => {
+            if (seen.has(i.id)) return false
+            seen.add(i.id)
+            return !i.description.endsWith('(Excluída)')
+          })
+        }
+
+        if (d.search_type === 'income') {
+          const items = await searchIncomes()
+          if (items.length > 0) {
+            const total = items.reduce((s: number, i: any) => s + Number(i.amount), 0)
+            searchResults = `\n\n📋 **Encontrei ${items.length} receita(s)** (Total: R$ ${total.toFixed(2)}):\n`
+            items.slice(0, 20).forEach((i: any) => {
+              searchResults += `\n• **${i.description}** — R$ ${Number(i.amount).toFixed(2)} — ${i.income_date} — ${i.is_paid ? '✅ Recebida' : '⏳ A receber'}${i.member?.name ? ` — ${i.member.name}` : ''}`
+            })
+          } else {
+            searchResults = '\n\n🔍 Não encontrei nenhuma receita com esse termo.'
+          }
+        } else if (d.search_type === 'all') {
+          const expItems = await searchExpenses()
+          const incItems = await searchIncomes()
+          if (expItems.length > 0) {
+            searchResults += `\n\n💸 **${expItems.length} despesa(s):**\n`
+            expItems.slice(0, 15).forEach((e: any) => { searchResults += `\n• ${e._display}` })
+          }
+          if (incItems.length > 0) {
+            searchResults += `\n\n💰 **${incItems.length} receita(s):**\n`
+            incItems.slice(0, 15).forEach((i: any) => {
+              searchResults += `\n• **${i.description}** — R$ ${Number(i.amount).toFixed(2)} — ${i.income_date}${i.member?.name ? ` — ${i.member.name}` : ''}`
+            })
+          }
+          if (expItems.length === 0 && incItems.length === 0) {
+            searchResults = '\n\n🔍 Não encontrei nenhuma transação com esse termo.'
+          }
+        } else {
+          const items = await searchExpenses()
+          if (items.length > 0) {
+            searchResults = `\n\n📋 **Encontrei ${items.length} compra(s):**\n`
+            items.slice(0, 20).forEach((e: any) => { searchResults += `\n• ${e._display}` })
+          } else {
+            searchResults = '\n\n🔍 Não encontrei nenhuma despesa com esse termo.'
+          }
+        }
+        
+        setMessages(prev => [...prev, {
+          id: (Date.now() + 1).toString(), role: 'assistant', content: cleanContent + searchResults
+        }])
+        setLoading(false)
+        return
+      }
       
       // Pré-selecionar cartão se a IA identificou
       let preSelectedCardId: string | undefined
@@ -539,7 +692,7 @@ export default function AIChatAssistant({
                                   messages: [...messages.filter(m => !m.content.startsWith('Olá!')), msg, userMsg].map(m => ({
                                     role: m.role, content: m.content
                                   })),
-                                  context: { creditCards, expenseCategories, incomeCategories, investmentTypes, members }
+                                  context: { creditCards, expenseCategories, incomeCategories, investmentTypes, members, recentExpenses, recentIncomes }
                                 })
                               })
                               .then(res => res.json())
