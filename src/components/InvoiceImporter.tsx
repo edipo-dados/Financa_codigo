@@ -28,6 +28,48 @@ interface ExtractedItem {
 
 const MAX_FILE_SIZE = 15 * 1024 * 1024 // 15MB
 
+// Divide o texto extraído da fatura em pedaços menores para análise paralela,
+// evitando que uma única chamada ao Gemini estoure o timeout da função.
+// Usa os marcadores "--- Página N ---" quando existem; senão, quebra por linhas.
+function splitInvoiceText(fullText: string): string[] {
+  const MAX_CHARS = 3500 // ~tamanho de bloco que o Gemini processa rápido
+  const text = (fullText || '').trim()
+  if (!text) return []
+
+  // Unidades base: páginas (se houver marcadores) ou o texto inteiro.
+  const pageParts = text.split(/\n?---\s*Página\s*\d+\s*---\n?/i).map(s => s.trim()).filter(Boolean)
+  const units = pageParts.length > 0 ? pageParts : [text]
+
+  // Se alguma unidade for muito grande, subdividir por linhas.
+  const chunks: string[] = []
+  let buffer = ''
+  const flush = () => { if (buffer.trim()) { chunks.push(buffer.trim()); buffer = '' } }
+
+  for (const unit of units) {
+    if (unit.length <= MAX_CHARS) {
+      // Junta unidades pequenas até o limite, para não fazer requests demais
+      if ((buffer + '\n' + unit).length > MAX_CHARS) flush()
+      buffer = buffer ? buffer + '\n' + unit : unit
+    } else {
+      flush()
+      // Unidade grande: quebrar por linhas respeitando o limite
+      const lines = unit.split('\n')
+      let sub = ''
+      for (const line of lines) {
+        if ((sub + '\n' + line).length > MAX_CHARS && sub) {
+          chunks.push(sub.trim())
+          sub = ''
+        }
+        sub = sub ? sub + '\n' + line : line
+      }
+      if (sub.trim()) chunks.push(sub.trim())
+    }
+  }
+  flush()
+
+  return chunks.length > 0 ? chunks : [text]
+}
+
 const CLASSIFICATION_LABELS: Record<string, { label: string; color: string; icon: string }> = {
   nova_avista: { label: 'Nova (à vista)', color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400', icon: '🆕' },
   nova_parcelada: { label: 'Nova (parcelada)', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400', icon: '💳' },
@@ -188,24 +230,49 @@ export default function InvoiceImporter({ userId, onSuccess }: Props) {
       let invoiceTotalValue: number | null = null
 
       if (file.kind === 'text') {
-        // PDF digital: uma única chamada com o texto extraído (mais confiável).
-        setAnalyzeProgress({ done: 0, total: 1 })
-        const res = await fetch('/api/import-invoice', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId,
-            creditCardId: selectedCard,
-            invoiceMonth,
-            text: file.text,
-            expenseCategories,
+        // PDF digital: dividir o texto em pedaços e analisar em paralelo.
+        // Uma única chamada com a fatura inteira estoura o timeout do Gemini/função.
+        const chunks = splitInvoiceText(file.text)
+        const total = chunks.length
+        setAnalyzeProgress({ done: 0, total })
+
+        const analyzeChunk = async (chunkText: string, index: number) => {
+          const res = await fetch('/api/import-invoice', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId,
+              creditCardId: selectedCard,
+              invoiceMonth,
+              text: chunkText,
+              expenseCategories,
+              batchInfo: { index, total }
+            })
           })
+          const data = await parseResponse(res)
+          if (data.error) throw new Error(data.error)
+          setAnalyzeProgress(prev => prev ? { ...prev, done: prev.done + 1 } : prev)
+          return data as { items?: ExtractedItem[]; invoiceTotal?: number | null }
+        }
+
+        const CONCURRENCY = 3
+        const results: { items?: ExtractedItem[]; invoiceTotal?: number | null }[] = new Array(total)
+        let cursor = 0
+        const workers = Array.from({ length: Math.min(CONCURRENCY, total) }, async () => {
+          while (true) {
+            const i = cursor++
+            if (i >= total) break
+            results[i] = await analyzeChunk(chunks[i], i)
+          }
         })
-        const data = await parseResponse(res)
-        if (data.error) throw new Error(data.error)
-        setAnalyzeProgress({ done: 1, total: 1 })
-        mergedItems = data.items || []
-        invoiceTotalValue = data.invoiceTotal ?? null
+        await Promise.all(workers)
+
+        for (const r of results) {
+          mergedItems = mergedItems.concat(r?.items || [])
+          if (invoiceTotalValue == null && r?.invoiceTotal != null) {
+            invoiceTotalValue = r.invoiceTotal
+          }
+        }
       } else {
         // Scan/imagem: 1 página por request, em paralelo (evita timeout do Gemini).
         const pages = file.pages
@@ -552,7 +619,7 @@ export default function InvoiceImporter({ userId, onSuccess }: Props) {
             disabled={!selectedCard || !invoiceMonth || !file || processingFile}
             className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            🔍 Analisar Fatura
+            🔍 Extrair valores da fatura
           </button>
         </div>
       )}
@@ -563,7 +630,7 @@ export default function InvoiceImporter({ userId, onSuccess }: Props) {
           <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
           <p className="fintech-text-secondary text-sm">
             {analyzeProgress && analyzeProgress.total > 1
-              ? `Analisando páginas com IA... ${analyzeProgress.done}/${analyzeProgress.total}`
+              ? `Analisando com IA... ${analyzeProgress.done}/${analyzeProgress.total}`
               : 'Processando com IA... isso pode levar alguns segundos'}
           </p>
         </div>
@@ -572,6 +639,29 @@ export default function InvoiceImporter({ userId, onSuccess }: Props) {
       {/* STEP: Prévia */}
       {step === 'preview' && (
         <div className="space-y-4">
+          {/* Cabeçalho da prévia com ação de exportar em destaque */}
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="text-sm font-semibold fintech-text-primary">Valores extraídos ({items.length})</h3>
+            <div className="flex gap-2">
+              <button
+                onClick={() => exportItems('csv')}
+                disabled={items.length === 0}
+                className="px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-40 flex items-center gap-1"
+                title="Baixar os valores extraídos em CSV (abre no Excel)"
+              >
+                ⬇️ Exportar CSV
+              </button>
+              <button
+                onClick={() => exportItems('json')}
+                disabled={items.length === 0}
+                className="px-3 py-1.5 text-xs bg-gray-100 dark:bg-fintech-dark-elevated fintech-text-primary rounded-lg font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors disabled:opacity-40 flex items-center gap-1"
+                title="Baixar os valores extraídos em JSON"
+              >
+                🧾 JSON
+              </button>
+            </div>
+          </div>
+
           {/* Resumo de totais */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
@@ -679,27 +769,6 @@ export default function InvoiceImporter({ userId, onSuccess }: Props) {
                 </div>
               )
             })}
-          </div>
-
-          {/* Exportar os valores extraídos para conferência ANTES de gravar no banco */}
-          <div className="flex items-center gap-2 pt-1">
-            <span className="text-xs fintech-text-muted mr-1">Conferir antes de gravar:</span>
-            <button
-              onClick={() => exportItems('csv')}
-              disabled={items.length === 0}
-              className="px-3 py-2 text-sm bg-gray-100 dark:bg-fintech-dark-elevated fintech-text-primary rounded-lg font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors disabled:opacity-40 flex items-center gap-1"
-              title="Baixar os itens extraídos em CSV (abre no Excel)"
-            >
-              📄 Exportar CSV
-            </button>
-            <button
-              onClick={() => exportItems('json')}
-              disabled={items.length === 0}
-              className="px-3 py-2 text-sm bg-gray-100 dark:bg-fintech-dark-elevated fintech-text-primary rounded-lg font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors disabled:opacity-40 flex items-center gap-1"
-              title="Baixar os itens extraídos em JSON"
-            >
-              🧾 Exportar JSON
-            </button>
           </div>
 
           <div className="flex gap-2 pt-2">

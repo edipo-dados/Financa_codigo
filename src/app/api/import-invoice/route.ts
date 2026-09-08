@@ -186,8 +186,12 @@ RESPONDA APENAS COM JSON VÁLIDO neste formato exato (sem markdown, sem explica�
 
     if (invoiceText) {
       // Modo TEXTO (PDF digital): mais confiável que OCR de imagem.
+      const isBatched = batchInfo && Number(batchInfo.total) > 1
+      const batchNote = isBatched
+        ? `\n\nOBSERVAÇÃO: Este é o TRECHO ${Number(batchInfo.index) + 1} de ${Number(batchInfo.total)} do texto de UMA ÚNICA fatura. Extraia as compras APENAS deste trecho. O total impresso da fatura pode não estar neste trecho; se não aparecer, use "invoice_total": null.`
+        : ''
       parts = [
-        { text: prompt + `\n\nA seguir está o TEXTO EXTRAÍDO da fatura (pode conter marcações "--- Página N ---"). Analise-o integralmente:\n\n"""\n${invoiceText}\n"""` }
+        { text: prompt + batchNote + `\n\nA seguir está o TEXTO EXTRAÍDO da fatura (pode conter marcações "--- Página N ---"). Analise-o integralmente:\n\n"""\n${invoiceText}\n"""` }
       ]
     } else {
       // Modo IMAGEM (scan/senha): validar e enviar cada página como inlineData.
