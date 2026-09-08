@@ -20,6 +20,7 @@ interface ExtractedItem {
   installment_number: number
   installments: number
   category_hint: string
+  location?: string
   category_id?: string | null
 }
 
@@ -163,12 +164,15 @@ export default function InvoiceImporter({ userId, onSuccess }: Props) {
       const data = await res.json()
       if (data.error) throw new Error(data.error)
 
-      // Pré-associar categorias
+      // Pré-associar categorias (só quando há hint; senão fica "Sem categoria")
       const itemsWithCategory = (data.items || []).map((item: ExtractedItem) => {
-        const matched = expenseCategories.find(c =>
-          c.name.toLowerCase().includes((item.category_hint || '').toLowerCase()) ||
-          (item.category_hint || '').toLowerCase().includes(c.name.toLowerCase())
-        )
+        const hint = (item.category_hint || '').trim().toLowerCase()
+        const matched = hint
+          ? expenseCategories.find(c => {
+              const name = c.name.toLowerCase()
+              return name.includes(hint) || hint.includes(name)
+            })
+          : null
         return { ...item, category_id: matched?.id || null }
       })
 
