@@ -223,6 +223,24 @@ export default function InvoiceImporter({ userId, onSuccess }: Props) {
         }
       }
 
+      // Deduplicação DENTRO do mesmo import: como cada página é analisada
+      // separadamente, um lançamento na borda entre duas páginas pode ser lido
+      // duas vezes. Removemos matches exatos (mesma descrição + data + valor +
+      // parcela), mantendo apenas a primeira ocorrência.
+      const seen = new Set<string>()
+      mergedItems = mergedItems.filter((item) => {
+        const key = [
+          (item.description || '').trim().toLowerCase(),
+          item.purchase_date || '',
+          Number(item.amount).toFixed(2),
+          item.installment_number || 1,
+          item.installments || 1,
+        ].join('|')
+        if (seen.has(key)) return false
+        seen.add(key)
+        return true
+      })
+
       // Pré-associar categorias (só quando há hint; senão fica "Sem categoria")
       const itemsWithCategory = mergedItems.map((item: ExtractedItem) => {
         const hint = (item.category_hint || '').trim().toLowerCase()
@@ -289,10 +307,20 @@ export default function InvoiceImporter({ userId, onSuccess }: Props) {
     setError('')
   }
 
+  // Total a lançar: para parceladas novas, "amount" é o total da compra (todas as parcelas).
   const itemsTotal = items
     .filter(i => i.classification === 'nova_avista' || i.classification === 'nova_parcelada')
     .reduce((sum, i) => sum + Number(i.amount), 0)
-  const allItemsTotal = items.reduce((sum, i) => sum + Number(i.amount), 0)
+
+  // Valor que este item representa NA FATURA DO MÊS (para conferir com o total impresso):
+  // - à vista: o valor cheio
+  // - parcelada (nova ou existente): apenas o valor de UMA parcela (amount / installments)
+  const invoiceMonthValue = (i: ExtractedItem) => {
+    const inst = Number(i.installments) || 1
+    if (inst > 1) return Number(i.amount) / inst
+    return Number(i.amount)
+  }
+  const allItemsTotal = items.reduce((sum, i) => sum + invoiceMonthValue(i), 0)
   const newItemsCount = items.filter(i => i.classification === 'nova_avista' || i.classification === 'nova_parcelada').length
 
   return (
