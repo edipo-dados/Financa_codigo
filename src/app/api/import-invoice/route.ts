@@ -120,10 +120,20 @@ RESPONDA APENAS COM JSON VÁLIDO neste formato exato (sem markdown, sem explica�
 
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
 
+    // Validar dados do arquivo
+    if (!file.data || file.data.length < 100) {
+      return NextResponse.json(
+        { error: 'Arquivo inválido ou vazio. Tente enviar novamente.' },
+        { status: 422 }
+      )
+    }
+
+    const mimeType = file.mimeType || 'application/pdf'
+
     const result = await model.generateContent([
       {
         inlineData: {
-          mimeType: file.mimeType || 'application/pdf',
+          mimeType,
           data: file.data
         }
       },

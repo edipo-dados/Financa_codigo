@@ -70,9 +70,26 @@ export default function InvoiceImporter({ userId, onSuccess }: Props) {
     const reader = new FileReader()
     reader.onload = () => {
       const result = reader.result as string
+      // Extrair mimeType e base64 do data URL: "data:<mimeType>;base64,<data>"
+      const matches = result.match(/^data:([^;]+);base64,(.+)$/)
+      if (!matches) {
+        setError('Não foi possível ler o arquivo. Tente outro formato.')
+        return
+      }
+      const detectedMime = matches[1]
+      const base64Data = matches[2]
+
+      // Determinar mimeType correto
+      let mimeType = detectedMime
+      if (f.name.toLowerCase().endsWith('.pdf')) {
+        mimeType = 'application/pdf'
+      } else if (!mimeType || mimeType === 'application/octet-stream') {
+        mimeType = f.type || 'application/pdf'
+      }
+
       setFile({
-        data: result.split(',')[1],
-        mimeType: f.type || 'application/pdf',
+        data: base64Data,
+        mimeType,
         name: f.name
       })
     }
