@@ -70,6 +70,35 @@ function splitInvoiceText(fullText: string): string[] {
   return chunks.length > 0 ? chunks : [text]
 }
 
+// Valor que um item representa NA FATURA DO MÊS (parcela do mês para parcelados).
+function monthValueOf(i: { amount: number | string; installments?: number }): number {
+  const inst = Number(i.installments) || 1
+  const amt = Number(i.amount) || 0
+  return inst > 1 ? amt / inst : amt
+}
+
+// Soma dos valores desta fatura (parcela do mês por item).
+function sumMonthValues(items: { amount: number | string; installments?: number }[]): number {
+  return items.reduce((s, i) => s + monthValueOf(i), 0)
+}
+
+// Remove duplicatas exatas (mesma descrição + data + valor + parcela).
+function dedupeExact<T extends { description?: string; purchase_date?: string | null; amount: number | string; installment_number?: number; installments?: number }>(items: T[]): T[] {
+  const seen = new Set<string>()
+  return items.filter((item) => {
+    const key = [
+      (item.description || '').trim().toLowerCase(),
+      item.purchase_date || '',
+      Number(item.amount).toFixed(2),
+      item.installment_number || 1,
+      item.installments || 1,
+    ].join('|')
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+}
+
 const CLASSIFICATION_LABELS: Record<string, { label: string; color: string; icon: string }> = {
   nova_avista: { label: 'Nova (à vista)', color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400', icon: '🆕' },
   nova_parcelada: { label: 'Nova (parcelada)', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400', icon: '💳' },
@@ -97,6 +126,8 @@ export default function InvoiceImporter({ userId, onSuccess }: Props) {
   >(null)
   const [processingFile, setProcessingFile] = useState(false)
   const [analyzeProgress, setAnalyzeProgress] = useState<{ done: number; total: number } | null>(null)
+  // true quando a soma dos itens fecha com o total da fatura (após reconciliação)
+  const [reconciled, setReconciled] = useState(true)
   // Fluxo de senha de PDF (senha só vive em memória, nunca é persistida)
   const [pdfPassword, setPdfPassword] = useState<{ file: File; error: string | null } | null>(null)
   const [passwordInput, setPasswordInput] = useState('')
@@ -216,13 +247,13 @@ export default function InvoiceImporter({ userId, onSuccess }: Props) {
     }
   }
 
-  // Faz o POST e, em caso de timeout (504/408), tenta novamente algumas vezes.
-  // A análise é idempotente (só lê e extrai), então repetir é seguro.
-  const postWithRetry = async (payload: any, retries = 2): Promise<any> => {
+  // Faz o POST a uma URL e, em caso de timeout (504/408), tenta novamente algumas vezes.
+  // As rotas de análise/reconciliação são idempotentes (só leem/extraem), repetir é seguro.
+  const postWithRetryTo = async (url: string, payload: any, retries = 2): Promise<any> => {
     let lastErr: any
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
-        const res = await fetch('/api/import-invoice', {
+        const res = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
@@ -234,11 +265,72 @@ export default function InvoiceImporter({ userId, onSuccess }: Props) {
         lastErr = err
         const isTimeout = /demorou demais|expirou|504|408/i.test(err?.message || '')
         if (!isTimeout || attempt === retries) throw err
-        // pequena espera antes de tentar de novo
         await new Promise(r => setTimeout(r, 800 * (attempt + 1)))
       }
     }
     throw lastErr
+  }
+
+  const postWithRetry = (payload: any, retries = 2) => postWithRetryTo('/api/import-invoice', payload, retries)
+
+  // Reconciliação: garante que a soma dos itens (valor do mês) bata com o total impresso.
+  // 1) Correções determinísticas (dedup já feito antes; aqui remove sobras/ajusta parcela).
+  // 2) Se ainda não bater, passe de IA que reprocessa itens + total + texto de origem.
+  // Retorna a lista (possivelmente corrigida) e se ficou balanceada.
+  const reconcileToTotal = async (
+    items: ExtractedItem[],
+    invoiceTotalValue: number,
+    src: NonNullable<typeof file>
+  ): Promise<{ items: ExtractedItem[]; balanced: boolean }> => {
+    const TOL = 0.05 // tolerância de arredondamento
+    const diff = () => sumMonthValues(items) - invoiceTotalValue
+
+    // (a) Se já bate, retorna
+    if (Math.abs(diff()) <= TOL) return { items, balanced: true }
+
+    // (b) Correção determinística conservadora: remove provável DUPLICATA não-exata.
+    //     Só remove um item se a soma está ACIMA do total pela medida exata desse item
+    //     E existe outro item com a MESMA descrição (indício forte de duplicata entre blocos).
+    let guard = 0
+    while (diff() > TOL && guard++ < 10) {
+      const over = diff()
+      const idx = items.findIndex((i, k) => {
+        if (Math.abs(monthValueOf(i) - over) > TOL) return false
+        const desc = (i.description || '').trim().toLowerCase()
+        return items.some((j, kk) => kk !== k && (j.description || '').trim().toLowerCase() === desc)
+      })
+      if (idx === -1) break
+      items = items.filter((_, i) => i !== idx)
+    }
+    if (Math.abs(diff()) <= TOL) return { items, balanced: true }
+
+    // (c) Passe de IA: manda itens atuais + total + texto/── e pede lista reconciliada.
+    if (src.kind === 'text' && src.text) {
+      try {
+        const data = await postWithRetryTo('/api/import-invoice/reconcile', {
+          userId,
+          creditCardId: selectedCard,
+          invoiceMonth,
+          invoiceTotal: invoiceTotalValue,
+          currentItems: items,
+          text: src.text,
+          expenseCategories,
+        })
+        if (Array.isArray(data.items) && data.items.length > 0) {
+          const fixed = dedupeExact(data.items as ExtractedItem[])
+          const fixedDiff = Math.abs(sumMonthValues(fixed) - invoiceTotalValue)
+          // Só aceita a correção da IA se aproximar de fato do total
+          if (fixedDiff <= Math.abs(diff())) {
+            items = fixed
+          }
+        }
+      } catch (err) {
+        // Se o passe de IA falhar, segue para revisão manual
+        console.error('Reconciliação por IA falhou:', err)
+      }
+    }
+
+    return { items, balanced: Math.abs(sumMonthValues(items) - invoiceTotalValue) <= TOL }
   }
 
   const handleAnalyze = async () => {
@@ -331,25 +423,21 @@ export default function InvoiceImporter({ userId, onSuccess }: Props) {
         }
       }
 
-      // Deduplicação DENTRO do mesmo import: como cada página é analisada
-      // separadamente, um lançamento na borda entre duas páginas pode ser lido
-      // duas vezes. Removemos matches exatos (mesma descrição + data + valor +
-      // parcela), mantendo apenas a primeira ocorrência.
-      const seen = new Set<string>()
-      mergedItems = mergedItems.filter((item) => {
-        const key = [
-          (item.description || '').trim().toLowerCase(),
-          item.purchase_date || '',
-          Number(item.amount).toFixed(2),
-          item.installment_number || 1,
-          item.installments || 1,
-        ].join('|')
-        if (seen.has(key)) return false
-        seen.add(key)
-        return true
-      })
+      // 1) Deduplicação exata (borda entre páginas/blocos)
+      mergedItems = dedupeExact(mergedItems)
 
-      // Pré-associar categorias (só quando há hint; senão fica "Sem categoria")
+      // 2) Reconciliação automática: a soma dos itens (valor do mês) DEVE bater com
+      //    o total impresso da fatura. Se não bater, tenta corrigir automaticamente
+      //    (determinístico + passe de IA) ANTES de mostrar a prévia.
+      let balanced = true
+      if (invoiceTotalValue != null && invoiceTotalValue > 0) {
+        setAnalyzeProgress(null)
+        const rec = await reconcileToTotal(mergedItems, invoiceTotalValue, file)
+        mergedItems = rec.items
+        balanced = rec.balanced
+      }
+
+      // 3) Pré-associar categorias (só quando há hint; senão fica "Sem categoria")
       const itemsWithCategory = mergedItems.map((item: ExtractedItem) => {
         const hint = (item.category_hint || '').trim().toLowerCase()
         const matched = hint
@@ -363,6 +451,7 @@ export default function InvoiceImporter({ userId, onSuccess }: Props) {
 
       setItems(itemsWithCategory)
       setInvoiceTotal(invoiceTotalValue)
+      setReconciled(balanced)
       setAnalyzeProgress(null)
       setStep('preview')
     } catch (err: any) {
@@ -486,6 +575,7 @@ export default function InvoiceImporter({ userId, onSuccess }: Props) {
     setInvoiceTotal(null)
     setResult(null)
     setError('')
+    setReconciled(true)
   }
 
   // Valor que este item representa NA FATURA DESTE MÊS:
@@ -696,10 +786,20 @@ export default function InvoiceImporter({ userId, onSuccess }: Props) {
             )}
           </div>
 
-          {invoiceTotal && Math.abs(allItemsTotal - invoiceTotal) >= 1 && (
+          {/* Soma conferida automaticamente: mostra OK quando fecha com o total. */}
+          {invoiceTotal && Math.abs(allItemsTotal - invoiceTotal) < 0.05 && (
+            <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-200 dark:border-green-800">
+              <p className="text-xs text-green-700 dark:text-green-400">
+                ✅ Conferido: a soma dos itens ({formatCurrency(allItemsTotal)}) bate com o total da fatura ({formatCurrency(invoiceTotal)}).
+              </p>
+            </div>
+          )}
+
+          {/* Só aparece quando NÃO foi possível conciliar automaticamente (exceção). */}
+          {invoiceTotal && !reconciled && Math.abs(allItemsTotal - invoiceTotal) >= 0.05 && (
             <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-800">
               <p className="text-xs text-amber-700 dark:text-amber-400">
-                ⚠️ Soma dos itens ({formatCurrency(allItemsTotal)}) difere do total da fatura ({formatCurrency(invoiceTotal)}). Revise os itens.
+                ⚠️ Não foi possível conciliar automaticamente: a soma dos itens ({formatCurrency(allItemsTotal)}) difere do total da fatura ({formatCurrency(invoiceTotal)}) em {formatCurrency(Math.abs(allItemsTotal - invoiceTotal))}. Revise manualmente os itens destacados abaixo antes de confirmar.
               </p>
             </div>
           )}
