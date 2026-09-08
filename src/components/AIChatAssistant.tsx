@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { formatCurrency } from '@/lib/utils'
 import { createInstallmentsData } from '@/lib/creditCard'
+import { isPdfFile, rasterizePdf, PdfPasswordError, type PdfPageImage } from '@/lib/pdfProcessor'
 
 interface Message {
   id: string
@@ -44,7 +45,14 @@ export default function AIChatAssistant({
   ])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
-  const [pendingImage, setPendingImage] = useState<{ data: string; mimeType: string; preview: string } | null>(null)
+  // Imagens prontas para análise. Pode ser 1 (comprovante) ou várias (páginas de fatura PDF)
+  const [pendingImages, setPendingImages] = useState<{ data: string; mimeType: string }[]>([])
+  const [pendingPreview, setPendingPreview] = useState<string | null>(null)
+  const [pendingLabel, setPendingLabel] = useState<string>('')
+  const [processingFile, setProcessingFile] = useState(false)
+  // Estado do fluxo de senha de PDF (senha só vive em memória, nunca é persistida)
+  const [pdfPassword, setPdfPassword] = useState<{ file: File; error: string | null } | null>(null)
+  const [passwordInput, setPasswordInput] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -138,33 +146,88 @@ export default function AIChatAssistant({
     setIsOpen(false)
   }
 
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const clearPending = () => {
+    setPendingImages([])
+    setPendingPreview(null)
+    setPendingLabel('')
+    setPdfPassword(null)
+    setPasswordInput('')
+  }
+
+  // Processa um PDF (com ou sem senha) rasterizando as páginas em imagens base64.
+  const processPdf = async (file: File, password?: string) => {
+    setProcessingFile(true)
+    try {
+      const pages: PdfPageImage[] = await rasterizePdf(file, password)
+      setPendingImages(pages.map(p => ({ data: p.data, mimeType: p.mimeType })))
+      setPendingPreview(`data:${pages[0].mimeType};base64,${pages[0].data}`)
+      setPendingLabel(
+        pages.length > 1
+          ? `📄 Fatura com ${pages.length} páginas pronta para análise`
+          : '📄 PDF pronto para análise'
+      )
+      // Senha usada apenas em memória, descartada agora
+      setPdfPassword(null)
+      setPasswordInput('')
+    } catch (err) {
+      if (err instanceof PdfPasswordError) {
+        // Pedir (ou repedir) a senha do PDF
+        setPendingImages([])
+        setPendingPreview(null)
+        setPendingLabel('')
+        setPdfPassword({
+          file,
+          error: err.wrongPassword ? 'Senha incorreta. Tente novamente.' : null,
+        })
+      } else {
+        console.error('Erro ao processar PDF:', err)
+        alert('Não foi possível ler este PDF. Tente enviar como imagem.')
+        clearPending()
+      }
+    } finally {
+      setProcessingFile(false)
+    }
+  }
+
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
+    // Limpar o input para permitir selecionar o mesmo arquivo novamente
+    e.target.value = ''
     if (!file) return
-    
-    // Limitar a 4MB
+
+    clearPending()
+
+    // Fluxo de PDF (pode estar protegido por senha)
+    if (isPdfFile(file)) {
+      // Tenta abrir sem senha primeiro; se precisar, o processPdf pede a senha
+      await processPdf(file)
+      return
+    }
+
+    // Fluxo de imagem (comprovante/nota) — mantém limite de 4MB por imagem
     if (file.size > 4 * 1024 * 1024) {
       alert('Imagem muito grande. Máximo 4MB.')
       return
     }
-    
+
     const reader = new FileReader()
     reader.onload = () => {
       const result = reader.result as string
-      // Separar o prefixo data:image/xxx;base64, do conteúdo
       const base64Data = result.split(',')[1]
       const mimeType = file.type || 'image/jpeg'
-      
-      setPendingImage({
-        data: base64Data,
-        mimeType,
-        preview: result // URL completa para preview
-      })
+      setPendingImages([{ data: base64Data, mimeType }])
+      setPendingPreview(result)
+      setPendingLabel('📷 Imagem pronta para análise')
     }
     reader.readAsDataURL(file)
-    
-    // Limpar o input para permitir selecionar a mesma imagem novamente
-    e.target.value = ''
+  }
+
+  // Confirma a senha digitada e tenta reabrir o PDF
+  const handleSubmitPassword = async () => {
+    if (!pdfPassword || !passwordInput.trim()) return
+    const file = pdfPassword.file
+    const pwd = passwordInput
+    await processPdf(file, pwd)
   }
 
   const executeAction = async (action: any, messageId: string) => {
@@ -378,22 +441,23 @@ export default function AIChatAssistant({
   }
 
   const sendMessage = async () => {
-    if ((!input.trim() && !pendingImage) || loading) return
-    const messageText = input.trim() || (pendingImage ? '📷 Analisar comprovante' : '')
+    const hasImages = pendingImages.length > 0
+    if ((!input.trim() && !hasImages) || loading) return
+    const messageText = input.trim() || (hasImages ? (pendingImages.length > 1 ? '📄 Analisar fatura' : '📷 Analisar comprovante') : '')
     const userMsg: Message = { id: Date.now().toString(), role: 'user', content: messageText }
-    
-    // Guardar imagem antes de limpar
-    const imageToSend = pendingImage
-    
+
+    // Guardar imagens antes de limpar
+    const imagesToSend = pendingImages
+
     setMessages(prev => [...prev, userMsg])
     setInput('')
-    setPendingImage(null)
+    clearPending()
     setLoading(true)
 
     try {
       const apiMessage: any = { role: 'user', content: messageText }
-      if (imageToSend) {
-        apiMessage.image = { data: imageToSend.data, mimeType: imageToSend.mimeType }
+      if (imagesToSend.length > 0) {
+        apiMessage.images = imagesToSend.map(img => ({ data: img.data, mimeType: img.mimeType }))
       }
       
       const res = await fetch('/api/ai-chat', {
@@ -959,13 +1023,60 @@ export default function AIChatAssistant({
 
           {/* Input - safe area no mobile */}
           <div className="p-3 pb-safe border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-fintech-dark-card flex-shrink-0" style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
-            {/* Preview da imagem pendente */}
-            {pendingImage && (
+            {/* Processando arquivo (rasterização de PDF) */}
+            {processingFile && (
               <div className="mb-2 flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
-                <img src={pendingImage.preview} alt="Preview" className="w-12 h-12 rounded-lg object-cover" />
-                <span className="text-xs fintech-text-secondary flex-1">📷 Imagem pronta para análise</span>
+                <span className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                <span className="text-xs fintech-text-secondary flex-1">Processando arquivo...</span>
+              </div>
+            )}
+
+            {/* Campo de senha do PDF (senha usada só em memória, nunca salva) */}
+            {pdfPassword && !processingFile && (
+              <div className="mb-2 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-800">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-sm font-medium text-amber-800 dark:text-amber-300">🔒 PDF protegido por senha</span>
+                  <button
+                    onClick={clearPending}
+                    className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-amber-200 dark:hover:bg-amber-800 text-amber-600"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <p className="text-xs text-amber-700 dark:text-amber-400 mb-2">
+                  Digite a senha do arquivo (geralmente os primeiros dígitos do seu CPF ou sua data de nascimento).
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    type="password"
+                    value={passwordInput}
+                    onChange={e => setPasswordInput(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleSubmitPassword() } }}
+                    placeholder="Senha do PDF"
+                    autoComplete="off"
+                    className="flex-1 px-3 py-2 text-sm border border-amber-300 dark:border-amber-700 rounded-lg bg-white dark:bg-fintech-dark-surface fintech-text-primary focus:ring-2 focus:ring-amber-500 outline-none"
+                  />
+                  <button
+                    onClick={handleSubmitPassword}
+                    disabled={!passwordInput.trim()}
+                    className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm rounded-lg transition-colors disabled:opacity-40"
+                  >
+                    Abrir
+                  </button>
+                </div>
+                {pdfPassword.error && (
+                  <p className="text-xs text-red-600 dark:text-red-400 mt-1">{pdfPassword.error}</p>
+                )}
+              </div>
+            )}
+
+            {/* Preview do arquivo pendente (imagem ou primeira página do PDF) */}
+            {pendingPreview && !processingFile && (
+              <div className="mb-2 flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
+                <img src={pendingPreview} alt="Preview" className="w-12 h-12 rounded-lg object-cover" />
+                <span className="text-xs fintech-text-secondary flex-1">{pendingLabel || '📷 Pronto para análise'}</span>
                 <button
-                  onClick={() => setPendingImage(null)}
+                  onClick={clearPending}
                   className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500"
                 >
                   ✕
@@ -976,9 +1087,9 @@ export default function AIChatAssistant({
               {/* Botão de câmera/galeria */}
               <button
                 onClick={() => fileInputRef.current?.click()}
-                disabled={loading}
+                disabled={loading || processingFile}
                 className="px-3 py-3 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 active:bg-gray-300 rounded-xl transition-colors disabled:opacity-40 flex-shrink-0"
-                title="Enviar foto de comprovante"
+                title="Enviar foto de comprovante ou fatura em PDF"
               >
                 <svg className="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
@@ -988,7 +1099,7 @@ export default function AIChatAssistant({
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/*,application/pdf,.pdf"
                 onChange={handleImageSelect}
                 className="hidden"
               />
@@ -998,14 +1109,14 @@ export default function AIChatAssistant({
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() } }}
-                placeholder={pendingImage ? "Descreva ou envie direto..." : "Digite aqui..."}
+                placeholder={pendingImages.length > 0 ? "Descreva ou envie direto..." : "Digite aqui..."}
                 className="flex-1 px-4 py-3 text-base sm:text-sm border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-fintech-dark-surface fintech-text-primary focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                 disabled={loading}
                 autoComplete="off"
               />
               <button
                 onClick={sendMessage}
-                disabled={loading || (!input.trim() && !pendingImage)}
+                disabled={loading || processingFile || (!input.trim() && pendingImages.length === 0)}
                 className="px-5 py-3 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

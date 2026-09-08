@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { createClient } from '@supabase/supabase-js'
 
+// Permitir payloads maiores (PDFs em base64) e mais tempo de processamento
+export const maxDuration = 60
+export const runtime = 'nodejs'
+
 /**
  * POST /api/import-invoice
  * Analisa uma fatura (PDF ou imagem) e extrai as compras.
@@ -27,6 +31,13 @@ export async function POST(request: NextRequest) {
       file, // { data: base64, mimeType: string }
       expenseCategories = []
     } = body
+
+    console.log('📄 Import invoice:', {
+      hasFile: !!file,
+      mimeType: file?.mimeType,
+      dataLength: file?.data?.length,
+      dataStart: file?.data?.substring(0, 20)
+    })
 
     if (!userId || !creditCardId || !invoiceMonth || !file?.data) {
       return NextResponse.json(
@@ -129,12 +140,14 @@ RESPONDA APENAS COM JSON VÁLIDO neste formato exato (sem markdown, sem explica�
     }
 
     const mimeType = file.mimeType || 'application/pdf'
+    // Limpar base64 de quebras de linha e espaços que podem corromper o dado
+    const cleanData = file.data.replace(/\s/g, '')
 
     const result = await model.generateContent([
       {
         inlineData: {
           mimeType,
-          data: file.data
+          data: cleanData
         }
       },
       { text: prompt }

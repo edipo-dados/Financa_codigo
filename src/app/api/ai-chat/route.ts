@@ -182,18 +182,37 @@ export async function POST(request: NextRequest) {
 
     const lastMessage = messages[messages.length - 1]
     
-    // Montar parts da última mensagem (pode ter texto + imagem)
+    // Montar parts da última mensagem (pode ter texto + uma ou várias imagens)
     const parts: any[] = []
-    
-    if (lastMessage.image) {
-      // Adicionar imagem como inline data
-      parts.push({
-        inlineData: {
-          mimeType: lastMessage.image.mimeType || 'image/jpeg',
-          data: lastMessage.image.data // base64 sem prefixo
-        }
-      })
-      parts.push({ text: lastMessage.content || 'Analise esta imagem de comprovante/nota fiscal e extraia: valor, descrição, data e forma de pagamento. Registre como despesa ou receita conforme o caso.' })
+
+    // Suportar múltiplas imagens (páginas de uma fatura) via lastMessage.images,
+    // mantendo compatibilidade com o formato antigo lastMessage.image (imagem única).
+    const imageList: { data: string; mimeType?: string }[] = Array.isArray(lastMessage.images)
+      ? lastMessage.images
+      : lastMessage.image
+        ? [lastMessage.image]
+        : []
+
+    if (imageList.length > 0) {
+      // Cada imagem vira um part do tipo inlineData
+      for (const img of imageList) {
+        parts.push({
+          inlineData: {
+            mimeType: img.mimeType || 'image/jpeg',
+            data: img.data // base64 sem prefixo
+          }
+        })
+      }
+
+      // Texto padrão: diferencia página única de várias páginas de uma mesma fatura
+      let defaultText: string
+      if (imageList.length > 1) {
+        defaultText = 'As imagens a seguir são páginas sequenciais de uma única fatura de cartão de crédito. Trate-as como um único documento e extraia TODAS as compras listadas, na ordem em que aparecem. Use o tipo "batch" com um item por compra, agrupando parcelas de uma mesma compra em um único item com o valor total.'
+      } else {
+        defaultText = 'Analise esta imagem de comprovante/nota fiscal e extraia: valor, descrição, data e forma de pagamento. Registre como despesa ou receita conforme o caso.'
+      }
+
+      parts.push({ text: lastMessage.content || defaultText })
     } else {
       parts.push({ text: lastMessage.content })
     }
