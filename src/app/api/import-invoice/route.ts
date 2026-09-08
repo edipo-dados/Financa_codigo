@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { createClient } from '@supabase/supabase-js'
+import { parseInvoiceResponse } from '@/lib/invoiceParse'
 
 // Permitir payloads maiores (PDFs em base64) e mais tempo de processamento
 export const maxDuration = 60
@@ -225,23 +226,13 @@ RESPONDA APENAS COM JSON VÁLIDO neste formato exato (sem markdown, sem explica�
 
     let responseText = result.response.text().trim()
 
-    // Limpar markdown se houver
-    responseText = responseText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
-
-    let parsed: any
-    try {
-      parsed = JSON.parse(responseText)
-    } catch {
-      // Tentar extrair JSON do texto
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/)
-      if (jsonMatch) {
-        parsed = JSON.parse(jsonMatch[0])
-      } else {
-        return NextResponse.json(
-          { error: 'Não foi possível interpretar a fatura. Tente uma imagem/PDF mais nítido.' },
-          { status: 422 }
-        )
-      }
+    // Parse tolerante (recupera itens mesmo se o JSON vier truncado)
+    const parsed = parseInvoiceResponse(responseText)
+    if (parsed.items.length === 0) {
+      return NextResponse.json(
+        { error: 'Não foi possível interpretar a fatura. Tente novamente.' },
+        { status: 422 }
+      )
     }
 
     // Pós-processamento defensivo: garantir que nenhuma compra à vista seja

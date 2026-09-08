@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { GoogleGenerativeAI } from '@google/generative-ai'
+import { parseInvoiceResponse } from '@/lib/invoiceParse'
 
 export const maxDuration = 60
 export const runtime = 'nodejs'
@@ -99,19 +100,11 @@ RESPONDA APENAS COM JSON VÁLIDO neste formato (sem markdown, sem explicação):
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
     const result = await model.generateContent([{ text: prompt }])
 
-    let responseText = result.response.text().trim()
-    responseText = responseText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
-
-    let parsed: any
-    try {
-      parsed = JSON.parse(responseText)
-    } catch {
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/)
-      if (jsonMatch) parsed = JSON.parse(jsonMatch[0])
-      else return NextResponse.json({ error: 'Não foi possível reconciliar a fatura.' }, { status: 422 })
-    }
-
+    const parsed = parseInvoiceResponse(result.response.text())
     const rawItems: any[] = Array.isArray(parsed.items) ? parsed.items : []
+    if (rawItems.length === 0) {
+      return NextResponse.json({ error: 'Não foi possível reconciliar a fatura.' }, { status: 422 })
+    }
     const items = rawItems.map((item) => {
       const installments = Number(item.installments) || 1
       const isParcelado = installments > 1
