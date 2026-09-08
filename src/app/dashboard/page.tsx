@@ -22,6 +22,7 @@ import MonthNavigator from '@/components/MonthNavigator'
 import FutureLaunches from '@/components/FutureLaunches'
 import CreditCardManager from '@/components/CreditCardManager'
 import CreditCardPurchasesList from '@/components/CreditCardPurchasesList'
+import InvoiceImporter from '@/components/InvoiceImporter'
 import ThemeSettings from '@/components/ThemeSettings'
 import IncomeReport from '@/components/IncomeReport'
 import About from '@/components/About'
@@ -50,6 +51,9 @@ export default function Dashboard() {
 
   // Filtro de membro
   const [selectedMember, setSelectedMember] = useState<string>('')
+
+  // Sub-visão da aba de cartão
+  const [creditCardView, setCreditCardView] = useState<'purchases' | 'import'>('purchases')
 
   // Dados para o chat AI
   const [aiCategories, setAiCategories] = useState<{ expense: any[], income: any[], investmentTypes: any[] }>({
@@ -395,7 +399,34 @@ export default function Dashboard() {
           )}
 
           {activeTab === 'creditcard' && (
-            <CreditCardPurchasesList userId={user.id} />
+            <div className="space-y-4 sm:space-y-6">
+              {/* Sub-abas do cartão */}
+              <div className="flex gap-1 bg-gray-100 dark:bg-fintech-dark-elevated p-1 rounded-xl w-fit">
+                <button
+                  onClick={() => setCreditCardView('purchases')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    creditCardView === 'purchases'
+                      ? 'bg-white dark:bg-fintech-dark-surface text-blue-600 dark:text-fintech-dark-accent shadow-sm'
+                      : 'text-gray-500 dark:text-fintech-text-muted'
+                  }`}
+                >
+                  💳 Compras
+                </button>
+                <button
+                  onClick={() => setCreditCardView('import')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    creditCardView === 'import'
+                      ? 'bg-white dark:bg-fintech-dark-surface text-blue-600 dark:text-fintech-dark-accent shadow-sm'
+                      : 'text-gray-500 dark:text-fintech-text-muted'
+                  }`}
+                >
+                  📄 Importar Fatura
+                </button>
+              </div>
+
+              {creditCardView === 'purchases' && <CreditCardPurchasesList userId={user.id} />}
+              {creditCardView === 'import' && <InvoiceImporter userId={user.id} onSuccess={handleRefresh} />}
+            </div>
           )}
 
           {activeTab === 'settings' && (
