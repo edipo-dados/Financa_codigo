@@ -324,6 +324,79 @@ export default function InvoiceImporter({ userId, onSuccess }: Props) {
     setItems(prev => prev.filter((_, i) => i !== index))
   }
 
+  // Exporta os itens extraídos (como estão na prévia) para conferência antes de gravar.
+  const CLASSIFICATION_TEXT: Record<string, string> = {
+    nova_avista: 'Nova (à vista)',
+    nova_parcelada: 'Nova (parcelada)',
+    parcela_existente: 'Já lançada',
+    divergencia: 'Divergência',
+  }
+
+  const exportItems = (format: 'csv' | 'json') => {
+    if (items.length === 0) return
+    const card = creditCards.find(c => c.id === selectedCard)
+    const cardName = card?.name || ''
+    const stamp = `${cardName}_${invoiceMonth}`.replace(/[^\w-]+/g, '_')
+
+    let blob: Blob
+    let filename: string
+
+    if (format === 'json') {
+      const payload = {
+        card: cardName,
+        invoiceMonth,
+        invoiceTotal,
+        extractedTotal: allItemsTotal,
+        exportedAt: new Date().toISOString(),
+        items: items.map(i => ({
+          description: i.description,
+          amount: Number(i.amount),
+          purchase_date: i.purchase_date || null,
+          classification: i.classification,
+          installment_number: i.installment_number,
+          installments: i.installments,
+          category: expenseCategories.find(c => c.id === i.category_id)?.name || '',
+          location: i.location || '',
+          needs_review: !!i.needs_review,
+          confidence: i.confidence || '',
+        })),
+      }
+      blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
+      filename = `fatura_${stamp}.json`
+    } else {
+      const esc = (v: any) => {
+        const s = String(v ?? '')
+        return /[",;\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+      }
+      const header = ['Descrição', 'Valor', 'Data', 'Classificação', 'Parcela', 'Total Parcelas', 'Categoria', 'Local', 'Revisar', 'Confiança']
+      const rows = items.map(i => [
+        esc(i.description),
+        esc(Number(i.amount).toFixed(2).replace('.', ',')),
+        esc(i.purchase_date || ''),
+        esc(CLASSIFICATION_TEXT[i.classification] || i.classification),
+        esc(i.installment_number || 1),
+        esc(i.installments || 1),
+        esc(expenseCategories.find(c => c.id === i.category_id)?.name || ''),
+        esc(i.location || ''),
+        esc(i.needs_review ? 'SIM' : ''),
+        esc(i.confidence || ''),
+      ].join(';'))
+      // BOM para o Excel reconhecer acentos
+      const csv = '\uFEFF' + [header.join(';'), ...rows].join('\r\n')
+      blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+      filename = `fatura_${stamp}.csv`
+    }
+
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
+
   const reset = () => {
     setStep('config')
     setFile(null)
@@ -606,6 +679,27 @@ export default function InvoiceImporter({ userId, onSuccess }: Props) {
                 </div>
               )
             })}
+          </div>
+
+          {/* Exportar os valores extraídos para conferência ANTES de gravar no banco */}
+          <div className="flex items-center gap-2 pt-1">
+            <span className="text-xs fintech-text-muted mr-1">Conferir antes de gravar:</span>
+            <button
+              onClick={() => exportItems('csv')}
+              disabled={items.length === 0}
+              className="px-3 py-2 text-sm bg-gray-100 dark:bg-fintech-dark-elevated fintech-text-primary rounded-lg font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors disabled:opacity-40 flex items-center gap-1"
+              title="Baixar os itens extraídos em CSV (abre no Excel)"
+            >
+              📄 Exportar CSV
+            </button>
+            <button
+              onClick={() => exportItems('json')}
+              disabled={items.length === 0}
+              className="px-3 py-2 text-sm bg-gray-100 dark:bg-fintech-dark-elevated fintech-text-primary rounded-lg font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors disabled:opacity-40 flex items-center gap-1"
+              title="Baixar os itens extraídos em JSON"
+            >
+              🧾 Exportar JSON
+            </button>
           </div>
 
           <div className="flex gap-2 pt-2">
