@@ -33,9 +33,9 @@ const MAX_FILE_SIZE = 15 * 1024 * 1024 // 15MB
 // evitando que uma única chamada ao Gemini estoure o timeout da função.
 // Usa os marcadores "--- Página N ---" quando existem; senão, quebra por linhas.
 function splitInvoiceText(fullText: string): string[] {
-  // Blocos grandes: no caminho client-side (Gemini direto do navegador) não há
-  // limite de tempo, então poucas chamadas = menos risco de cortar itens/seções.
-  const MAX_CHARS = 12000
+  // No caminho client-side (Gemini direto do navegador) não há limite de tempo.
+  // Blocos médios dão bom progresso e evitam JSON gigante numa resposta só.
+  const MAX_CHARS = 6000
   const text = (fullText || '').trim()
   if (!text) return []
 
@@ -355,15 +355,21 @@ export default function InvoiceImporter({ userId, onSuccess }: Props) {
 
       if (file.kind === 'text') {
         // PDF digital: dividir o texto em pedaços e analisar em paralelo.
-        // Uma única chamada com a fatura inteira estoura o timeout do Gemini/função.
         const chunks = splitInvoiceText(file.text)
         const total = chunks.length
         setAnalyzeProgress({ done: 0, total })
 
-        // Se houver chave pública, chama o Gemini DIRETO do navegador (sem limite de
-        // tempo da função serverless). Senão, usa a rota serverless (com retry).
+        // Chamar o Gemini DIRETO do navegador (sem limite de tempo da função).
+        // No plano Hobby da Vercel a rota serverless tem teto de 10s e sempre
+        // estoura em faturas grandes — por isso a análise no navegador é obrigatória.
         const useClient = hasClientGeminiKey()
         const card = creditCards.find(c => c.id === selectedCard)
+
+        if (!useClient) {
+          throw new Error(
+            'A análise no navegador ainda não está ativada. Configure a variável NEXT_PUBLIC_GEMINI_API_KEY (mesma chave do Gemini) no ambiente e recarregue. Sem ela, faturas grandes estouram o limite de tempo do servidor.'
+          )
+        }
 
         const analyzeChunk = async (chunkText: string, index: number) => {
           let data: { items?: ExtractedItem[]; invoiceTotal?: number | null }
