@@ -6,6 +6,7 @@ import { useFamilyMembers } from '@/hooks/useFamilyMembers'
 import { supabase } from '@/lib/supabase'
 import { formatCurrency } from '@/lib/utils'
 import { isPdfFile, processPdfForImport, PdfPasswordError } from '@/lib/pdfProcessor'
+import { hasClientGeminiKey, analyzeInvoiceChunkClient } from '@/lib/invoiceGeminiClient'
 
 interface Props {
   userId: string
@@ -32,9 +33,9 @@ const MAX_FILE_SIZE = 15 * 1024 * 1024 // 15MB
 // evitando que uma única chamada ao Gemini estoure o timeout da função.
 // Usa os marcadores "--- Página N ---" quando existem; senão, quebra por linhas.
 function splitInvoiceText(fullText: string): string[] {
-  // Meio-termo: blocos médios (por linhas inteiras) para reduzir o tempo por chamada
-  // ao Gemini (evita timeout) sem cortar itens no meio nem perder seções.
-  const MAX_CHARS = 5000
+  // Blocos grandes: no caminho client-side (Gemini direto do navegador) não há
+  // limite de tempo, então poucas chamadas = menos risco de cortar itens/seções.
+  const MAX_CHARS = 12000
   const text = (fullText || '').trim()
   if (!text) return []
 
@@ -359,15 +360,36 @@ export default function InvoiceImporter({ userId, onSuccess }: Props) {
         const total = chunks.length
         setAnalyzeProgress({ done: 0, total })
 
+        // Se houver chave pública, chama o Gemini DIRETO do navegador (sem limite de
+        // tempo da função serverless). Senão, usa a rota serverless (com retry).
+        const useClient = hasClientGeminiKey()
+        const card = creditCards.find(c => c.id === selectedCard)
+
         const analyzeChunk = async (chunkText: string, index: number) => {
-          const data = await postWithRetry({
-            userId,
-            creditCardId: selectedCard,
-            invoiceMonth,
-            text: chunkText,
-            expenseCategories,
-            batchInfo: { index, total }
-          })
+          let data: { items?: ExtractedItem[]; invoiceTotal?: number | null }
+          if (useClient && card) {
+            const r = await analyzeInvoiceChunkClient({
+              cardName: card.name,
+              closingDay: card.closing_day,
+              dueDay: card.due_day,
+              invoiceMonth,
+              categories: expenseCategories,
+              chunkText,
+              isBatched: total > 1,
+              batchIndex: index,
+              batchTotal: total,
+            })
+            data = { items: r.items as ExtractedItem[], invoiceTotal: r.invoiceTotal }
+          } else {
+            data = await postWithRetry({
+              userId,
+              creditCardId: selectedCard,
+              invoiceMonth,
+              text: chunkText,
+              expenseCategories,
+              batchInfo: { index, total }
+            })
+          }
           setAnalyzeProgress(prev => prev ? { ...prev, done: prev.done + 1 } : prev)
           return data as { items?: ExtractedItem[]; invoiceTotal?: number | null }
         }
