@@ -360,16 +360,10 @@ export default function InvoiceImporter({ userId, onSuccess }: Props) {
         setAnalyzeProgress({ done: 0, total })
 
         // Chamar o Gemini DIRETO do navegador (sem limite de tempo da função).
-        // No plano Hobby da Vercel a rota serverless tem teto de 10s e sempre
-        // estoura em faturas grandes — por isso a análise no navegador é obrigatória.
+        // No plano Hobby da Vercel a rota serverless tem teto de 10s e estoura
+        // em faturas grandes — por isso a análise roda no navegador.
         const useClient = hasClientGeminiKey()
         const card = creditCards.find(c => c.id === selectedCard)
-
-        if (!useClient) {
-          throw new Error(
-            'A análise no navegador ainda não está ativada. Configure a variável NEXT_PUBLIC_GEMINI_API_KEY (mesma chave do Gemini) no ambiente e recarregue. Sem ela, faturas grandes estouram o limite de tempo do servidor.'
-          )
-        }
 
         const analyzeChunk = async (chunkText: string, index: number) => {
           let data: { items?: ExtractedItem[]; invoiceTotal?: number | null }

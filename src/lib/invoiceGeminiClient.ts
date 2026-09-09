@@ -7,8 +7,26 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { parseInvoiceResponse } from '@/lib/invoiceParse'
 
+// Cache da chave obtida em runtime (via env pública ou rota do servidor).
+let cachedKey: string | null = null
+
+// Obtém a chave para uso no cliente: primeiro do env público (se existir),
+// senão busca da rota do servidor (reaproveita a GEMINI_API_KEY já configurada).
+async function getClientKey(): Promise<string> {
+  if (cachedKey) return cachedKey
+  const envKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY
+  if (envKey) { cachedKey = envKey; return envKey }
+  const res = await fetch('/api/import-invoice/gemini-key')
+  if (!res.ok) throw new Error('Não foi possível obter a chave de análise.')
+  const data = await res.json()
+  if (!data.key) throw new Error('Chave do Gemini não configurada no servidor.')
+  cachedKey = data.key
+  return data.key
+}
+
+// Sempre disponível: a chave será obtida em runtime (env público ou servidor).
 export function hasClientGeminiKey(): boolean {
-  return !!process.env.NEXT_PUBLIC_GEMINI_API_KEY
+  return true
 }
 
 // Monta o mesmo prompt usado no servidor (mantido em sincronia).
@@ -127,8 +145,7 @@ export interface ClientAnalyzeParams {
 
 // Analisa um trecho de texto de fatura chamando o Gemini direto do navegador.
 export async function analyzeInvoiceChunkClient(params: ClientAnalyzeParams): Promise<{ items: any[]; invoiceTotal: number | null }> {
-  const key = process.env.NEXT_PUBLIC_GEMINI_API_KEY
-  if (!key) throw new Error('NEXT_PUBLIC_GEMINI_API_KEY não configurada')
+  const key = await getClientKey()
 
   const categoriesText = params.categories.length > 0
     ? params.categories.map(c => c.name).join(', ')
