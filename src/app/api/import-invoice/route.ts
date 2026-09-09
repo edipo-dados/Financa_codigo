@@ -122,10 +122,16 @@ REGRA ABSOLUTA sobre a descrição:
 - Se você só conseguir ver categoria+cidade e não o nome real da loja, preencha "description" com o que tiver E marque "needs_review": true (não invente).
 - Categoria vai em "category_hint"; cidade vai em "location".
 
+MÚLTIPLOS CARTÕES E SEÇÕES (importante):
+- A fatura pode conter VÁRIOS cartões/portadores (ex: "EDIPO A SANTOS - 5228..." e "@ EDIPO A SANTOS - 5480..."), cada um com suas próprias seções.
+- As seções costumam ser: "Pagamentos e Demais Créditos" (NÃO extrair — são créditos/pagamentos), "Parcelamentos" (extrair) e "Despesas" (extrair).
+- Percorra TODAS as seções de TODOS os cartões. Não pare no primeiro cartão. A seção "Despesas" costuma ser a maior — não a pule.
+- Numa TABELA com colunas "Compra | Data | Descrição | Parcela | R$ | US$", a coluna "Parcela" (ex: "06/10", "04/04", "18/18") indica a parcela, e "R$" é o valor. O primeiro número solto no início da linha pode ser um ícone/contador — não é a descrição.
+
 DETECÇÃO DE PARCELAMENTO (cobrir formatos de vários bancos):
 A indicação de "isto é uma parcela" aparece de formas diferentes. Procure ATIVAMENTE em QUALQUER parte do texto do lançamento por:
 - Sufixo no nome: "LOJA X 03/10", "LOJA X (3/10)"
-- Coluna/campo dedicado: "3/10", "3 de 10"
+- Coluna dedicada "Parcela": "3/10", "06/10", "04/04", "18/18", "3 de 10"
 - Texto explícito: "PARC 03/10", "PARCELA 3 DE 10", "1a de 10", "3x de ..."
 - O padrão geral é "número pequeno / número pequeno" (ou com "de"/"x"), onde o total (MM) faz sentido como número de parcelas: entre 2 e 48.
 Regras ao detectar parcela:
@@ -148,9 +154,10 @@ INCERTEZA (importante):
 - É melhor marcar para revisão do que chutar uma estrutura errada com confiança alta.
 
 OUTRAS REGRAS:
-- Extraia TODOS os lançamentos, na ordem. Não agrupe nem descarte linhas parecidas. Cada linha gera NO MÁXIMO UM item.
-- Ignore pagamento de fatura anterior, estornos, juros e anuidade recorrente (a menos que seja claramente uma compra).
-- Informe o total impresso da fatura em "invoice_total" (null se não aparecer).
+- Extraia TODOS os lançamentos de compras/despesas, na ordem, de TODAS as seções e de TODOS os cartões (a fatura pode ter mais de um cartão/portador, cada um com suas seções "Parcelamentos" e "Despesas"). NÃO pule nenhuma seção. Cada linha gera NO MÁXIMO UM item.
+- Ignore linhas que NÃO são compras: "Pagamento de fatura anterior", "DEB AUTOM DE FATURA", estornos/créditos (valores negativos), juros, IOF, multas, cotação de dólar e saldo anterior.
+- Linhas de compra no exterior podem ter valor em R$ e em US$; use o valor em R$.
+- IMPORTANTE sobre o total ("invoice_total"): NÃO use "Total a Pagar" / "Saldo desta fatura", porque esses incluem saldo anterior e pagamentos. Use a SOMA DAS COMPRAS/DESPESAS desta fatura. Se o documento tiver "Total Despesas/Débitos no Brasil" e "...no Exterior", some os dois (em R$) e informe em "invoice_total". Se houver "VALOR TOTAL" por seção, some os das seções de compras. Se não der para determinar com segurança, use null.
 
 EXEMPLOS GENÉRICOS DE LAYOUTS DIFERENTES (fictícios, para você generalizar):
 [Banco A] "15/03  PADARIA DO ZE          supermercado SP     45,90"

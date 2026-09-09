@@ -32,11 +32,13 @@ export async function POST(request: NextRequest) {
       ? expenseCategories.map((c: any) => c.name).join(', ')
       : 'Alimentação, Transporte, Moradia, Saúde, Lazer, Educação, Vestuário, Outros'
 
-    // Soma atual (valor do mês: parcela = amount/installments)
+    // Soma atual (valor do mês). Só nova_parcelada tem amount=total (divide por parcelas);
+    // parcela_existente/divergencia já têm amount = valor da parcela.
     const monthValue = (i: any) => {
-      const inst = Number(i.installments) || 1
       const amt = Number(i.amount) || 0
-      return inst > 1 ? amt / inst : amt
+      const inst = Number(i.installments) || 1
+      if (i.classification === 'nova_parcelada' && inst > 1) return amt / inst
+      return amt
     }
     const currentSum = currentItems.reduce((s: number, i: any) => s + monthValue(i), 0)
 
@@ -45,7 +47,8 @@ export async function POST(request: NextRequest) {
 REGRA DE SOMA (muito importante):
 - O valor que cada item contribui para a fatura DESTE mês é:
   - à vista: o valor cheio ("amount");
-  - parcelada: o valor de UMA parcela = "amount" / "installments" (pois "amount" é o total da compra).
+  - nova_parcelada (1ª parcela): o valor de UMA parcela = "amount" / "installments" (pois aqui "amount" é o total da compra);
+  - parcela_existente / divergencia (parcela 2 em diante): o próprio "amount" (que já é o valor da parcela).
 - A soma desses valores-do-mês de TODOS os itens deve ser IGUAL ao total impresso.
 
 TOTAL IMPRESSO DA FATURA: R$ ${Number(invoiceTotal).toFixed(2)}

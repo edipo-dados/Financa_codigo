@@ -32,7 +32,9 @@ const MAX_FILE_SIZE = 15 * 1024 * 1024 // 15MB
 // evitando que uma única chamada ao Gemini estoure o timeout da função.
 // Usa os marcadores "--- Página N ---" quando existem; senão, quebra por linhas.
 function splitInvoiceText(fullText: string): string[] {
-  const MAX_CHARS = 1800 // blocos menores => resposta do Gemini mais rápida (evita timeout)
+  // Fatura típica cabe em 1-2 chamadas. Blocos grandes evitam perder itens no corte
+  // e reduzem o nº de chamadas. O gemini-flash processa esse volume em poucos segundos.
+  const MAX_CHARS = 12000
   const text = (fullText || '').trim()
   if (!text) return []
 
@@ -70,11 +72,15 @@ function splitInvoiceText(fullText: string): string[] {
   return chunks.length > 0 ? chunks : [text]
 }
 
-// Valor que um item representa NA FATURA DO MÊS (parcela do mês para parcelados).
-function monthValueOf(i: { amount: number | string; installments?: number }): number {
-  const inst = Number(i.installments) || 1
+// Valor que um item representa NA FATURA DO MÊS.
+// - nova_parcelada: "amount" é o TOTAL da compra => valor do mês = amount / installments
+// - parcela_existente / divergencia: "amount" já é o valor DA PARCELA => usa como está
+// - à vista: valor cheio
+function monthValueOf(i: { amount: number | string; installments?: number; classification?: string }): number {
   const amt = Number(i.amount) || 0
-  return inst > 1 ? amt / inst : amt
+  const inst = Number(i.installments) || 1
+  if (i.classification === 'nova_parcelada' && inst > 1) return amt / inst
+  return amt
 }
 
 // Soma dos valores desta fatura (parcela do mês por item).
@@ -589,9 +595,12 @@ export default function InvoiceImporter({ userId, onSuccess }: Props) {
   //   pois só a parcela deste mês entra nesta fatura. O total_amount fica só como referência
   //   da compra inteira (usado depois para gerar todas as parcelas via createInstallmentsData).
   const invoiceMonthValue = (i: ExtractedItem) => {
+    const amt = Number(i.amount) || 0
     const inst = Number(i.installments) || 1
-    if (inst > 1) return Number(i.amount) / inst
-    return Number(i.amount)
+    // nova_parcelada: amount é o TOTAL => valor do mês = amount/installments.
+    // parcela_existente/divergencia: amount já é o valor da parcela.
+    if (i.classification === 'nova_parcelada' && inst > 1) return amt / inst
+    return amt
   }
 
   // "Total a lançar" nesta fatura: soma o valor da parcela deste mês (não o total da compra).
@@ -866,14 +875,18 @@ export default function InvoiceImporter({ userId, onSuccess }: Props) {
                         step="0.01"
                         value={Number(invoiceMonthValue(item).toFixed(2))}
                         onChange={e => {
-                          const parcela = parseFloat(e.target.value) || 0
+                          const digitado = parseFloat(e.target.value) || 0
                           const inst = Number(item.installments) || 1
-                          // Se parcelado, o valor digitado é a parcela: total = parcela × parcelas
-                          updateItem(idx, { amount: inst > 1 ? parcela * inst : parcela })
+                          // nova_parcelada: valor digitado é a parcela => total = parcela × parcelas.
+                          // parcela_existente/à vista: valor digitado é o próprio amount.
+                          const novoAmount = (item.classification === 'nova_parcelada' && inst > 1)
+                            ? digitado * inst
+                            : digitado
+                          updateItem(idx, { amount: novoAmount })
                         }}
                         className="w-24 text-right bg-transparent font-bold text-sm fintech-text-primary border-b border-transparent focus:border-blue-400 outline-none"
                       />
-                      {Number(item.installments) > 1 && (
+                      {item.classification === 'nova_parcelada' && Number(item.installments) > 1 && (
                         <span className="text-[10px] fintech-text-muted">
                           total {formatCurrency(Number(item.amount))}
                         </span>
