@@ -6,6 +6,7 @@
 
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { parseInvoiceResponse } from '@/lib/invoiceParse'
+import { detectBank, getBankProfile } from '@/lib/bankProfiles'
 
 // Cache da chave obtida em runtime (via env pública ou rota do servidor).
 let cachedKey: string | null = null
@@ -29,7 +30,7 @@ export function hasClientGeminiKey(): boolean {
   return true
 }
 
-// Monta o mesmo prompt usado no servidor (mantido em sincronia).
+// Monta o prompt com as instruções ESPECÍFICAS do banco detectado.
 function buildPrompt(params: {
   cardName: string
   closingDay: number | string
@@ -37,9 +38,11 @@ function buildPrompt(params: {
   invoiceMonth: string
   existingText: string
   categoriesText: string
+  bankLabel: string
+  bankInstructions: string
 }): string {
-  const { cardName, closingDay, dueDay, invoiceMonth, existingText, categoriesText } = params
-  return `Você é um especialista em análise de faturas de cartão de crédito de QUALQUER banco brasileiro (Nubank, Itaú, Bradesco, Santander, Inter, C6, XP, Caixa, etc). Cada banco organiza a fatura de um jeito diferente — NÃO existe posição fixa para cada informação. Raciocine sobre o SIGNIFICADO de cada texto, não sobre onde ele aparece.
+  const { cardName, closingDay, dueDay, invoiceMonth, existingText, categoriesText, bankLabel, bankInstructions } = params
+  return `Você é um especialista em analisar faturas do banco ${bankLabel}. Siga as INSTRUÇÕES ESPECÍFICAS deste banco abaixo — elas descrevem o layout exato da fatura.
 
 CARTÃO: ${cardName} (fecha dia ${closingDay}, vence dia ${dueDay})
 COMPETÊNCIA DA FATURA: ${invoiceMonth}
@@ -49,37 +52,23 @@ ${existingText}
 
 CATEGORIAS DISPONÍVEIS: ${categoriesText}
 
-COMO IDENTIFICAR CADA LANÇAMENTO (raciocínio semântico, sem regra de posição):
-Para cada compra identifique: 1) NOME DO ESTABELECIMENTO (vai em "description"); 2) DATA; 3) VALOR; 4) INDICADOR DE PARCELA quando existir.
-- "description" é SEMPRE o nome do estabelecimento. Categoria, cidade/UF, bandeira e "referência" NUNCA substituem o nome (vão em "category_hint" e "location").
-- Se só houver categoria+cidade e não o nome real, preencha com o que tiver e marque "needs_review": true.
+=== INSTRUÇÕES ESPECÍFICAS DO BANCO ${bankLabel.toUpperCase()} ===
+${bankInstructions}
+=== FIM DAS INSTRUÇÕES DO BANCO ===
 
-MÚLTIPLOS CARTÕES E SEÇÕES (importante):
-- A fatura pode conter VÁRIOS cartões/portadores, cada um com suas seções.
-- Seções típicas: "Pagamentos e Demais Créditos" (NÃO extrair), "Parcelamentos" (extrair) e "Despesas" (extrair).
-- Percorra TODAS as seções de TODOS os cartões. Não pare no primeiro cartão. A seção "Despesas" costuma ser a maior — não a pule.
-- Em tabela "Compra | Data | Descrição | Parcela | R$ | US$", a coluna "Parcela" (ex: "06/10", "18/18") indica a parcela e "R$" é o valor.
-
-DETECÇÃO DE PARCELAMENTO:
-- Formatos: sufixo no nome ("LOJA 03/10"), coluna "Parcela" ("06/10", "04/04"), texto ("PARC 03/10", "1a de 10", "3x").
-- Padrão "número/número" com MM (total) entre 2 e 48.
-- Parcela 1: "classification" = "nova_parcelada", "installments" = MM, "installment_number" = 1, "amount" = VALOR TOTAL (se o impresso for a parcela, multiplique por MM).
-- Parcela > 1: "classification" = "parcela_existente", "amount" = valor da PARCELA impresso.
-- Um único item por lançamento. NÃO confunda com código de terminal/loja ou datas (MM=2025 é inválido).
+REGRAS DE VALOR/PARCELA (padronizadas):
+- "amount" para "nova_parcelada" = VALOR TOTAL da compra (valor da parcela × número de parcelas).
+- "amount" para "parcela_existente"/"divergencia" = valor da PARCELA impresso.
+- "amount" para "nova_avista" = valor impresso.
+- Um único item por lançamento. Nunca duplique a mesma linha.
 
 CLASSIFICAÇÃO:
 - "nova_avista": compra sem parcelamento.
-- "nova_parcelada": compra parcelada na 1a parcela.
-- "parcela_existente": parcela > 1 correspondente à lista de já lançadas.
-- "divergencia": parcela > 1 sem correspondência.
+- "nova_parcelada": compra parcelada mostrando a 1ª parcela (NN==1).
+- "parcela_existente": parcela NN>1 (não gera novo lançamento, mas conta no total do mês).
+- "divergencia": parcela NN>1 suspeita, sem correspondência clara.
 
-INCERTEZA: se não tiver certeza, inclua o item e marque "needs_review": true, com "confidence" em "high|medium|low".
-
-OUTRAS REGRAS:
-- Extraia TODOS os lançamentos de compras/despesas, de TODAS as seções e cartões, na ordem. Cada linha gera NO MÁXIMO UM item.
-- Ignore NÃO-compras: "Pagamento de fatura anterior", "DEB AUTOM DE FATURA", estornos/créditos (negativos), juros, IOF, multas, cotação de dólar, saldo anterior.
-- Compras no exterior: use o valor em R$.
-- "invoice_total": NÃO use "Total a Pagar"/"Saldo desta fatura" (incluem saldo anterior e pagamentos). Use a SOMA DAS COMPRAS: se houver "Total Despesas/Débitos no Brasil" e "no Exterior", some os dois (R$). Se não der para determinar, use null.
+INCERTEZA: se não tiver certeza, inclua o item mesmo assim e marque "needs_review": true, com "confidence" em "high|medium|low". NUNCA descarte um lançamento silenciosamente.
 
 RESPONDA APENAS COM JSON VÁLIDO (sem markdown):
 {
@@ -151,6 +140,10 @@ export async function analyzeInvoiceChunkClient(params: ClientAnalyzeParams): Pr
     ? params.categories.map(c => c.name).join(', ')
     : 'Alimentação, Transporte, Moradia, Saúde, Lazer, Educação, Vestuário, Outros'
 
+  // Detecta o banco pelo nome do cartão + texto e aplica o perfil específico.
+  const bankId = detectBank(params.cardName, params.chunkText)
+  const profile = getBankProfile(bankId)
+
   let prompt = buildPrompt({
     cardName: params.cardName,
     closingDay: params.closingDay,
@@ -158,6 +151,8 @@ export async function analyzeInvoiceChunkClient(params: ClientAnalyzeParams): Pr
     invoiceMonth: params.invoiceMonth,
     existingText: params.existingText || 'Nenhuma parcela já lançada neste período.',
     categoriesText,
+    bankLabel: profile.label,
+    bankInstructions: profile.instructions,
   })
 
   if (params.isBatched && (params.batchTotal || 0) > 1) {
