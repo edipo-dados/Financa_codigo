@@ -167,7 +167,15 @@ export async function analyzeInvoiceChunkClient(params: ClientAnalyzeParams): Pr
   prompt += `\n\nTEXTO EXTRAÍDO DA FATURA:\n"""\n${params.chunkText}\n"""`
 
   const genAI = new GoogleGenerativeAI(key)
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
+  const model = genAI.getGenerativeModel({
+    model: 'gemini-2.5-flash',
+    generationConfig: {
+      // Faturas têm muitos itens; garantir espaço de saída para não truncar o JSON.
+      maxOutputTokens: 32768,
+      temperature: 0,
+      responseMimeType: 'application/json',
+    },
+  })
   const result = await model.generateContent([{ text: prompt }])
   const parsed = parseInvoiceResponse(result.response.text())
 
@@ -175,4 +183,59 @@ export async function analyzeInvoiceChunkClient(params: ClientAnalyzeParams): Pr
     items: parsed.items.map(normalizeItem),
     invoiceTotal: parsed.invoice_total,
   }
+}
+
+
+// Reconciliação por IA no navegador: recebe itens + total + texto e devolve a
+// lista corrigida para fechar com o total. Sem limite de tempo da função.
+export async function reconcileInvoiceClient(params: {
+  invoiceTotal: number
+  currentItems: any[]
+  text: string
+  categories: { name: string }[]
+}): Promise<{ items: any[] }> {
+  const key = await getClientKey()
+  const categoriesText = params.categories.length > 0
+    ? params.categories.map(c => c.name).join(', ')
+    : 'Alimentação, Transporte, Moradia, Saúde, Lazer, Educação, Vestuário, Outros'
+
+  const monthValue = (i: any) => {
+    const amt = Number(i.amount) || 0
+    const inst = Number(i.installments) || 1
+    if (i.classification === 'nova_parcelada' && inst > 1) return amt / inst
+    return amt
+  }
+  const currentSum = params.currentItems.reduce((s, i) => s + monthValue(i), 0)
+
+  const prompt = `Você é um auditor de faturas. A SOMA dos itens extraídos NÃO bate com o TOTAL de compras impresso. Corrija a lista para fechar.
+
+REGRA DE SOMA (valor do mês por item):
+- à vista: "amount" cheio; nova_parcelada: "amount"/"installments"; parcela_existente/divergencia: o próprio "amount" (já é a parcela).
+- A soma desses valores deve ser IGUAL ao total de compras.
+
+TOTAL DE COMPRAS (Brasil+Exterior, R$): ${Number(params.invoiceTotal).toFixed(2)}
+SOMA ATUAL: ${currentSum.toFixed(2)}  (diferença ${(currentSum - Number(params.invoiceTotal)).toFixed(2)})
+
+CAUSAS: duplicata (some a mais), item faltando (some a menos, ADICIONE do texto), parcela com valor errado, valor lido errado, item inventado. Use o TEXTO como verdade. Percorra TODAS as seções e cartões — a seção "Despesas" costuma ser a maior.
+
+CATEGORIAS: ${categoriesText}
+
+ITENS ATUAIS:
+${JSON.stringify(params.currentItems.map(i => ({ description: i.description, amount: Number(i.amount), installments: Number(i.installments) || 1, installment_number: Number(i.installment_number) || 1, classification: i.classification, purchase_date: i.purchase_date || null, category_hint: i.category_hint || '' })))}
+
+TEXTO ORIGINAL:
+"""
+${String(params.text).slice(0, 40000)}
+"""
+
+RESPONDA APENAS JSON: {"items":[{"description":"","amount":0,"purchase_date":null,"classification":"nova_avista","installment_number":1,"installments":1,"category_hint":"","location":"","needs_review":false,"confidence":"high"}]}`
+
+  const genAI = new GoogleGenerativeAI(key)
+  const model = genAI.getGenerativeModel({
+    model: 'gemini-2.5-flash',
+    generationConfig: { maxOutputTokens: 32768, temperature: 0, responseMimeType: 'application/json' },
+  })
+  const result = await model.generateContent([{ text: prompt }])
+  const parsed = parseInvoiceResponse(result.response.text())
+  return { items: parsed.items.map(normalizeItem) }
 }

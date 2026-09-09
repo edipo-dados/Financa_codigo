@@ -6,7 +6,7 @@ import { useFamilyMembers } from '@/hooks/useFamilyMembers'
 import { supabase } from '@/lib/supabase'
 import { formatCurrency } from '@/lib/utils'
 import { isPdfFile, processPdfForImport, PdfPasswordError } from '@/lib/pdfProcessor'
-import { hasClientGeminiKey, analyzeInvoiceChunkClient } from '@/lib/invoiceGeminiClient'
+import { hasClientGeminiKey, analyzeInvoiceChunkClient, reconcileInvoiceClient } from '@/lib/invoiceGeminiClient'
 
 interface Props {
   userId: string
@@ -311,17 +311,14 @@ export default function InvoiceImporter({ userId, onSuccess }: Props) {
     }
     if (Math.abs(diff()) <= TOL) return { items, balanced: true }
 
-    // (c) Passe de IA: manda itens atuais + total + texto/── e pede lista reconciliada.
+    // (c) Passe de IA no NAVEGADOR: manda itens + total + texto e pede lista corrigida.
     if (src.kind === 'text' && src.text) {
       try {
-        const data = await postWithRetryTo('/api/import-invoice/reconcile', {
-          userId,
-          creditCardId: selectedCard,
-          invoiceMonth,
+        const data = await reconcileInvoiceClient({
           invoiceTotal: invoiceTotalValue,
           currentItems: items,
           text: src.text,
-          expenseCategories,
+          categories: expenseCategories,
         })
         if (Array.isArray(data.items) && data.items.length > 0) {
           const fixed = dedupeExact(data.items as ExtractedItem[])
@@ -354,20 +351,19 @@ export default function InvoiceImporter({ userId, onSuccess }: Props) {
       let invoiceTotalValue: number | null = null
 
       if (file.kind === 'text') {
-        // PDF digital: dividir o texto em pedaços e analisar em paralelo.
-        const chunks = splitInvoiceText(file.text)
+        const card = creditCards.find(c => c.id === selectedCard)
+
+        // Análise no navegador (sem limite de tempo). Enviamos a fatura INTEIRA numa
+        // única chamada — fatiar o texto faz o modelo perder seções/itens. Só se o
+        // texto for muito grande (risco de truncar a saída) dividimos em poucos blocos.
+        const VERY_LARGE = 24000
+        const chunks = file.text.length > VERY_LARGE ? splitInvoiceText(file.text) : [file.text]
         const total = chunks.length
         setAnalyzeProgress({ done: 0, total })
 
-        // Chamar o Gemini DIRETO do navegador (sem limite de tempo da função).
-        // No plano Hobby da Vercel a rota serverless tem teto de 10s e estoura
-        // em faturas grandes — por isso a análise roda no navegador.
-        const useClient = hasClientGeminiKey()
-        const card = creditCards.find(c => c.id === selectedCard)
-
         const analyzeChunk = async (chunkText: string, index: number) => {
           let data: { items?: ExtractedItem[]; invoiceTotal?: number | null }
-          if (useClient && card) {
+          if (card) {
             const r = await analyzeInvoiceChunkClient({
               cardName: card.name,
               closingDay: card.closing_day,
@@ -382,12 +378,8 @@ export default function InvoiceImporter({ userId, onSuccess }: Props) {
             data = { items: r.items as ExtractedItem[], invoiceTotal: r.invoiceTotal }
           } else {
             data = await postWithRetry({
-              userId,
-              creditCardId: selectedCard,
-              invoiceMonth,
-              text: chunkText,
-              expenseCategories,
-              batchInfo: { index, total }
+              userId, creditCardId: selectedCard, invoiceMonth,
+              text: chunkText, expenseCategories, batchInfo: { index, total }
             })
           }
           setAnalyzeProgress(prev => prev ? { ...prev, done: prev.done + 1 } : prev)
