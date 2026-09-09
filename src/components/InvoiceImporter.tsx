@@ -32,9 +32,9 @@ const MAX_FILE_SIZE = 15 * 1024 * 1024 // 15MB
 // evitando que uma única chamada ao Gemini estoure o timeout da função.
 // Usa os marcadores "--- Página N ---" quando existem; senão, quebra por linhas.
 function splitInvoiceText(fullText: string): string[] {
-  // Fatura típica cabe em 1-2 chamadas. Blocos grandes evitam perder itens no corte
-  // e reduzem o nº de chamadas. O gemini-flash processa esse volume em poucos segundos.
-  const MAX_CHARS = 12000
+  // Meio-termo: blocos médios (por linhas inteiras) para reduzir o tempo por chamada
+  // ao Gemini (evita timeout) sem cortar itens no meio nem perder seções.
+  const MAX_CHARS = 5000
   const text = (fullText || '').trim()
   if (!text) return []
 
